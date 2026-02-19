@@ -1,0 +1,8 @@
+services:
+  php:
+    build:
+      context: .
+      target: php_prod
+    restart: unless-stopped
+    volumes:
+      - ./var:/app/var
