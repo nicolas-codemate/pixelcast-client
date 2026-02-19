@@ -100,10 +100,8 @@ pixelcast-client/
 |   |   |-- PixelcastScheduleProvider.php  # #[AsSchedule] - toutes les frequences
 |   |
 |   |-- Command/
-|       |-- SyncWeatherCommand.php         # pixelcast:sync:weather
-|       |-- SyncTrackerCommand.php         # pixelcast:sync:tracker [--type=crypto] [--symbol=BTC] [--dry-run]
-|       |-- SendNotificationCommand.php    # pixelcast:notify "text" [--icon] [--duration]
-|       |-- DeviceStatusCommand.php        # pixelcast:device:status (ping)
+|       |-- SyncCommand.php                # pixelcast:sync [type] [--all] - interactif si pas d'argument
+|       |-- NotifyCommand.php              # pixelcast:notify "text" [--icon] [--duration]
 |
 |-- tests/
     |-- Unit/
@@ -204,6 +202,57 @@ framework:
 
 ---
 
+## Commandes CLI
+
+2 commandes seulement. Elles ne dupliquent pas la logique des handlers : elles dispatch les memes messages sur le bus.
+
+### `pixelcast:sync [type] [--all]`
+
+Commande unique pour declencher manuellement un sync. Decouvre les types disponibles via le `PixelcastScheduleProvider`.
+
+```
+# Interactif : affiche un choice() avec les types disponibles
+$ php bin/console pixelcast:sync
+
+ Which sync do you want to run?
+ [0] weather (every 30min)
+ [1] crypto (every 5min)
+ [2] etf (every 15min)
+ [3] indices (every 15min)
+ > 0
+
+ Dispatching SyncWeatherMessage...
+ Done.
+
+# Non-interactif : argument direct
+$ php bin/console pixelcast:sync weather
+$ php bin/console pixelcast:sync crypto
+
+# Tout synchroniser d'un coup
+$ php bin/console pixelcast:sync --all
+```
+
+Implementation : la commande injecte le `MessageBusInterface` et construit le message correspondant au type choisi. Aucune logique metier, juste du dispatch.
+
+```php
+#[AsCommand(name: 'pixelcast:sync', description: 'Manually trigger a data sync')]
+final class SyncCommand extends Command
+{
+    public function __construct(
+        private readonly MessageBusInterface $messageBus,
+        private readonly PixelcastScheduleProvider $scheduleProvider,
+    ) {
+        parent::__construct();
+    }
+}
+```
+
+### `pixelcast:notify "text" [--icon] [--duration] [--color]`
+
+Commande one-shot pour envoyer une notification overlay sur l'ecran. Pas de schedule, purement a la demande. Appelle directement `PixelcastClient::pushNotification()`.
+
+---
+
 ## Scheduler
 
 ```php
@@ -268,8 +317,10 @@ down:            docker compose down
 logs:            docker compose logs -f
 shell:           docker compose exec pixelcast sh
 console:         docker compose exec pixelcast php bin/console
-sync-weather:    docker compose exec pixelcast php bin/console pixelcast:sync:weather -vv
-sync-tracker:    docker compose exec pixelcast php bin/console pixelcast:sync:tracker -vv
+sync:            docker compose exec pixelcast php bin/console pixelcast:sync --all -vv
+sync-weather:    docker compose exec pixelcast php bin/console pixelcast:sync weather -vv
+sync-crypto:     docker compose exec pixelcast php bin/console pixelcast:sync crypto -vv
+notify:          docker compose exec pixelcast php bin/console pixelcast:notify "$(MSG)" -vv
 test:            docker compose exec pixelcast php bin/phpunit
 lint:            docker compose exec pixelcast vendor/bin/phpstan analyse
 ```
@@ -302,11 +353,11 @@ L'ajout de Netatmo ne touche aucun code existant :
 ## Sequence d'implementation
 
 1. **Skeleton** : `composer create-project`, deps, Docker, Makefile, config -> `bin/console list` fonctionne
-2. **PixelcastClient + DTOs** : Client HTTP + tous les DTOs + DeviceStatusCommand -> ping device OK
-3. **Weather pipeline** : Provider OWM + IconMapper + Handler + Command -> `make sync-weather` affiche meteo
-4. **Crypto trackers** : CoinGecko provider + Handler + Command -> `make sync-tracker` affiche BTC/ETH
+2. **PixelcastClient + DTOs** : Client HTTP + tous les DTOs -> client pret
+3. **Weather pipeline** : Provider OWM + IconMapper + Handler -> weather fonctionnel
+4. **Crypto trackers** : CoinGecko provider + Handler -> crypto fonctionnel
 5. **ETF/Indices** : TwelveData provider -> ajoute IWDA, NASDAQ
-6. **Scheduler** : ScheduleProvider + messenger config -> `make up` tourne en boucle
+6. **Scheduler + Commandes** : ScheduleProvider + SyncCommand + NotifyCommand -> `make sync-weather` et `make up` fonctionnent
 7. **Polish** : PHPStan 8, CS-Fixer, tests, README
 
 ---
@@ -314,7 +365,8 @@ L'ajout de Netatmo ne touche aucun code existant :
 ## Verification
 
 - `make sync-weather` -> verifier visuellement sur l'ecran que la meteo s'affiche
-- `make sync-tracker` -> verifier les cours crypto/ETF sur l'ecran
+- `make sync-crypto` -> verifier les cours crypto sur l'ecran
+- `make sync` -> sync all, verifier que tout s'enchaine
 - `docker compose exec pixelcast php bin/console debug:scheduler` -> verifier les schedules
 - `make up && make logs` -> observer les cycles de sync pendant 30min
 - `make test` -> tous les tests passent
