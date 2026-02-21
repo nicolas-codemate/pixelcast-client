@@ -1,0 +1,9 @@
+services:
+  php:
+    build:
+      context: .
+      target: php_prod
+    image: pixelcast-client:prod
+    restart: unless-stopped
+    volumes:
+      - ./var:/app/var
