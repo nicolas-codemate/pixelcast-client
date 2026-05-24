@@ -1,4 +1,4 @@
-FROM php:8.4-cli-alpine3.22 AS php_upstream
+FROM php:8.5-cli-alpine3.22 AS php_upstream
 LABEL authors="nicolas-codemate"
 
 COPY --from=composer:2.9.8 /usr/bin/composer /usr/bin/composer
