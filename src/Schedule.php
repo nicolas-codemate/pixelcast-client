@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App;
 
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
@@ -17,12 +19,8 @@ class Schedule implements ScheduleProviderInterface
 
     public function getSchedule(): SymfonySchedule
     {
-        return (new SymfonySchedule())
-            ->stateful($this->cache) // ensure missed tasks are executed
-            ->processOnlyLastMissedRun(true) // ensure only last missed task is run
-
-            // add your own tasks here
-            // see https://symfony.com/doc/current/scheduler.html#attaching-recurring-messages-to-a-schedule
-        ;
+        return new SymfonySchedule()
+            ->stateful($this->cache)
+            ->processOnlyLastMissedRun(true);
     }
 }

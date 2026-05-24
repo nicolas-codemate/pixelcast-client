@@ -25,7 +25,7 @@ SYNC_API_FILES := \
 	schemas/stats.yaml \
 	schemas/settings.yaml
 
-.PHONY: build build-prod up up-prod down down-prod logs logs-prod shell shell-prod enable-xdebug disable-xdebug test sync-api
+.PHONY: build build-prod up up-prod down down-prod logs logs-prod shell shell-prod enable-xdebug disable-xdebug test lint cs-fix cs-check sync-api
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m\033[0m\n"} /^[0-9a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -66,8 +66,18 @@ enable-xdebug: ## enable xdebug
 disable-xdebug: ## disable xdebug
 	XDEBUG_MODE=off $(DOCKER_COMPOSE) up -d
 
-test: ## smoke-check Symfony boot
-	$(DOCKER_COMPOSE) exec -T php php bin/console about
+test: ## run PHPUnit tests
+	$(DOCKER_COMPOSE) exec -T php vendor/bin/phpunit --colors=never
+
+lint: ## run PHPStan static analysis
+	$(DOCKER_COMPOSE) exec -T php bin/console cache:warmup --env=dev
+	$(DOCKER_COMPOSE) exec -T php vendor/bin/phpstan analyse --no-progress
+
+cs-fix: ## auto-fix coding style with PHP-CS-Fixer
+	$(DOCKER_COMPOSE) exec -T php vendor/bin/php-cs-fixer fix
+
+cs-check: ## verify coding style without modifying files
+	$(DOCKER_COMPOSE) exec -T php vendor/bin/php-cs-fixer fix --dry-run --diff
 
 sync-api: ## fetch and vendor OpenAPI + AsyncAPI specs into sync/
 	@mkdir -p sync/schemas
