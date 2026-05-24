@@ -10,7 +10,7 @@ else
 	DOCKER_COMPOSE=docker-compose
 endif
 
-.PHONY: build build-prod up up-prod down down-prod logs logs-prod shell shell-prod enable-xdebug disable-xdebug
+.PHONY: build build-prod up up-prod down down-prod logs logs-prod shell shell-prod enable-xdebug disable-xdebug test
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m\033[0m\n"} /^[0-9a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -50,3 +50,6 @@ enable-xdebug: ## enable xdebug
 
 disable-xdebug: ## disable xdebug
 	XDEBUG_MODE=off $(DOCKER_COMPOSE) up -d
+
+test: ## smoke-check Symfony boot
+	$(DOCKER_COMPOSE) exec -T php php bin/console about
