@@ -1,9 +1,9 @@
-FROM php:8-cli-alpine3.22 AS php_upstream
+FROM php:8.4-cli-alpine3.22 AS php_upstream
 LABEL authors="nicolas-codemate"
 
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.9.8 /usr/bin/composer /usr/bin/composer
 
-COPY --from=ghcr.io/mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
+COPY --from=ghcr.io/mlocati/php-extension-installer:2.11.1 /usr/bin/install-php-extensions /usr/local/bin/
 
 
 FROM php_upstream AS php_base
