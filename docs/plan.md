@@ -59,7 +59,7 @@ pixelcast-client/
 |       |-- zone.yaml
 |       |-- stats.yaml
 |       |-- settings.yaml
-|-- .env                              # Defaults (PIXELCAST_DEVICE_URL, API keys placeholders)
+|-- .env                              # Defaults (PIXELCAST_DEVICE_BASE_URL, API keys placeholders)
 |-- .env.local                        # Secrets (gitignored)
 |-- config/
 |   |-- pixelcast.yaml                # Assets trackés + weather location (chargé comme paramètres)
@@ -169,7 +169,7 @@ pixelcast-client/
 ### .env (commité)
 
 ```dotenv
-PIXELCAST_DEVICE_URL=http://pixelcast.local/api
+PIXELCAST_DEVICE_BASE_URL=http://pixelcast.local/api
 OPENWEATHERMAP_API_KEY=
 COINGECKO_API_KEY=
 TWELVEDATA_API_KEY=
@@ -200,7 +200,7 @@ framework:
     http_client:
         scoped_clients:
             pixelcast.http_client:
-                base_uri: '%env(PIXELCAST_DEVICE_URL)%'
+                base_uri: '%env(PIXELCAST_DEVICE_BASE_URL)%'
                 timeout: 5
             coingecko.http_client:
                 base_uri: 'https://api.coingecko.com/api/v3/'
@@ -390,7 +390,7 @@ Ces fichiers sont commités dans le dépôt et constituent la référence contra
 
 Pour le développement hors ligne (sans dispositif ESP32 physique), un simulateur HTTP sera ajouté par le ticket #15. Il reproduira l'API REST de l'ESP32 et sera déclaré comme service supplémentaire dans `compose.override.yaml`.
 
-La variable `PIXELCAST_DEVICE_URL` peut pointer vers le simulateur local (`http://localhost:<port>/api`) au lieu du dispositif physique, sans aucune modification du code applicatif.
+La variable `PIXELCAST_DEVICE_BASE_URL` peut pointer vers le simulateur local (`http://localhost:<port>/api`) au lieu du dispositif physique, sans aucune modification du code applicatif.
 
 ---
 

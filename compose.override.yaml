@@ -12,3 +12,21 @@ services:
     environment:
       - PHP_IDE_CONFIG=serverName=pixelcast
       - XDEBUG_MODE=${XDEBUG_MODE:-off}
+      - PIXELCAST_DEVICE_BASE_URL=http://simulator:8080
+      - PIXELCAST_SIMULATOR_HOST_PORT=${PIXELCAST_SIMULATOR_HOST_PORT:-8088}
+
+  simulator:
+    image: pixelcast-client:dev
+    depends_on:
+      php:
+        condition: service_started
+    working_dir: /app
+    command: php -S 0.0.0.0:8080 -t public/
+    volumes:
+      - .:/app
+    environment:
+      - APP_ENV=dev
+      - APP_DEBUG=1
+      - DEFAULT_URI=http://localhost:${PIXELCAST_SIMULATOR_HOST_PORT:-8088}
+    ports:
+      - "${PIXELCAST_SIMULATOR_HOST_PORT:-8088}:8080"

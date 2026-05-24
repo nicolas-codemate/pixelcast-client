@@ -9,3 +9,7 @@
 
 controllers:
     resource: routing.controllers
+
+simulator:
+    resource: ../src/Simulator/Controller/
+    type: attribute

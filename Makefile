@@ -25,7 +25,7 @@ SYNC_API_FILES := \
 	schemas/stats.yaml \
 	schemas/settings.yaml
 
-.PHONY: build build-prod up up-prod down down-prod logs logs-prod shell shell-prod enable-xdebug disable-xdebug test lint cs-fix cs-check sync-api
+.PHONY: build build-prod up up-prod down down-prod logs logs-prod shell shell-prod enable-xdebug disable-xdebug test lint cs-fix cs-check sync-api inspect
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m\033[0m\n"} /^[0-9a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -85,3 +85,6 @@ sync-api: ## fetch and vendor OpenAPI + AsyncAPI specs into sync/
 		echo "  fetch $$f"; \
 		curl -fLsS -o sync/$$f $(SYNC_API_BASE_URL)/$$f; \
 	done
+
+inspect: ## dump current simulator state via GET /__inspect
+	@curl -fsS "http://localhost:$${PIXELCAST_SIMULATOR_HOST_PORT:-8088}/__inspect" | jq .
