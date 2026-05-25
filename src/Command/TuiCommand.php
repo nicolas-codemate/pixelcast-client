@@ -11,9 +11,15 @@ use App\Tui\Inspector\StateInspectorPanel;
 use App\Tui\Menu\TuiMenuFactory;
 use App\Tui\Reachability\DeviceReachabilityProbe;
 use App\Tui\Reachability\DeviceReachabilityResult;
+use App\Tui\ResetSim\Panel\ResetSimPanel;
+use App\Tui\ResetSim\ResetSimulatorAction;
 use App\Tui\Scenarios\Panel\ScenariosPanel;
 use App\Tui\Scenarios\ScenarioCatalog;
 use App\Tui\Scenarios\ScenarioDispatcher;
+use App\Tui\SyncNow\Panel\SyncNowPanel;
+use App\Tui\SyncNow\SyncNowDispatcher;
+use App\Tui\SyncNow\SyncNowResultKind;
+use App\Tui\SyncNow\SyncTarget;
 use App\Tui\TerminalSafeText;
 use App\Tui\TuiMode;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -45,6 +51,8 @@ final class TuiCommand extends Command
         private readonly InspectorTransport $inspectorHttpClient,
         private readonly ScenarioCatalog $scenarioCatalog,
         private readonly ScenarioDispatcher $scenarioDispatcher,
+        private readonly SyncNowDispatcher $syncNowDispatcher,
+        private readonly ResetSimulatorAction $resetSimulatorAction,
     ) {
         parent::__construct();
     }
@@ -81,12 +89,30 @@ final class TuiCommand extends Command
 
         $scenariosPanel = new ScenariosPanel($this->scenarioCatalog, $mode);
 
+        $syncNowPanel = null;
+        $resetSimPanel = null;
+        if (TuiMode::Dev === $mode) {
+            $syncNowPanel = new SyncNowPanel();
+            $resetSimPanel = new ResetSimPanel();
+        }
+
         $viewContainer = new ContainerWidget();
         $viewContainer->expandVertically(true);
         $viewContainer->add($mainBodyContainer);
 
         $tui->add($viewContainer);
         $tui->add($this->buildStatusBarWidget($mode, $reachabilityResult));
+
+        $viewWidgets = [
+            TuiView::Main->value => $mainBodyContainer,
+            TuiView::Scenarios->value => $scenariosPanel->widget(),
+        ];
+        if (null !== $syncNowPanel) {
+            $viewWidgets[TuiView::SyncNow->value] = $syncNowPanel->widget();
+        }
+        if (null !== $resetSimPanel) {
+            $viewWidgets[TuiView::ResetSim->value] = $resetSimPanel->widget();
+        }
 
         if (null !== $inspectorPoller) {
             $tui->onTick($this->buildInspectorTickListener(
@@ -97,15 +123,17 @@ final class TuiCommand extends Command
             ));
         }
 
-        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $viewContainer, $mainBodyContainer, $scenariosPanel): void {
+        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $viewContainer, $viewWidgets): void {
             if ($event->getTarget() !== $menuSelectList) {
                 return;
             }
-            if ('scenarios' !== $event->getValue()) {
+
+            $targetView = TuiView::tryFrom($event->getValue());
+            if (null === $targetView || !isset($viewWidgets[$targetView->value])) {
                 return;
             }
 
-            $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, TuiView::Scenarios);
+            $this->switchView($tui, $viewContainer, $targetView, $viewWidgets);
         });
 
         $tui->addListener(function (SelectEvent $event) use ($tui, $scenariosPanel, $mode): void {
@@ -123,14 +151,64 @@ final class TuiCommand extends Command
             $tui->requestRender();
         });
 
-        $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $mainBodyContainer, $scenariosPanel): void {
+        $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $scenariosPanel): void {
             if ($event->getTarget() !== $scenariosPanel->selectListWidget()) {
                 return;
             }
 
             $scenariosPanel->clearResult();
-            $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, TuiView::Main);
+            $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
         });
+
+        if (null !== $syncNowPanel) {
+            $tui->addListener(function (SelectEvent $event) use ($tui, $syncNowPanel): void {
+                if ($event->getTarget() !== $syncNowPanel->selectListWidget()) {
+                    return;
+                }
+
+                $target = SyncTarget::tryFrom($event->getValue());
+                if (null === $target) {
+                    return;
+                }
+
+                $result = $this->syncNowDispatcher->dispatch($target);
+                if (SyncNowResultKind::Dispatched === $result->kind) {
+                    $syncNowPanel->recordDispatch($target, new \DateTimeImmutable());
+                }
+                $syncNowPanel->showResult($result);
+                $tui->requestRender();
+            });
+
+            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $syncNowPanel): void {
+                if ($event->getTarget() !== $syncNowPanel->selectListWidget()) {
+                    return;
+                }
+
+                $syncNowPanel->clearResult();
+                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
+            });
+        }
+
+        if (null !== $resetSimPanel) {
+            $tui->addListener(function (SelectEvent $event) use ($tui, $resetSimPanel): void {
+                if ($event->getTarget() !== $resetSimPanel->selectListWidget()) {
+                    return;
+                }
+
+                $result = $this->resetSimulatorAction->reset();
+                $resetSimPanel->showResult($result);
+                $tui->requestRender();
+            });
+
+            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $resetSimPanel): void {
+                if ($event->getTarget() !== $resetSimPanel->selectListWidget()) {
+                    return;
+                }
+
+                $resetSimPanel->clearResult();
+                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
+            });
+        }
 
         // Registered on the Tui (not on a widget) so Q quits before focus
         // routing, regardless of which sub-panel currently has focus.
@@ -147,23 +225,26 @@ final class TuiCommand extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * @param array<string, AbstractWidget> $viewWidgets keyed by TuiView::value
+     */
     private function switchView(
         Tui $tui,
         ContainerWidget $viewContainer,
-        ContainerWidget $mainBodyContainer,
-        ScenariosPanel $scenariosPanel,
         TuiView $next,
+        array $viewWidgets,
     ): void {
         if ($this->currentView === $next) {
             return;
         }
 
+        if (!isset($viewWidgets[$next->value])) {
+            return;
+        }
+
         $this->currentView = $next;
         $viewContainer->clear();
-        $viewContainer->add(match ($next) {
-            TuiView::Main => $mainBodyContainer,
-            TuiView::Scenarios => $scenariosPanel->widget(),
-        });
+        $viewContainer->add($viewWidgets[$next->value]);
 
         $tui->requestRender();
     }
