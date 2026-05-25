@@ -1,0 +1,7 @@
+# Sample configuration used by PixelCastConfigLoaderTest.
+device_url: http://pixelcast.test/api
+weather_interval: 120
+tracker_interval: 30
+tracked_assets: BTC,  AAPL ,SPY ,, ETH
+weather_source: openmeteo
+tracker_source: yahoo-finance

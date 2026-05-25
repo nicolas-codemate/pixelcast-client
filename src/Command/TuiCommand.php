@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Config\PixelCastConfigLoader;
+use App\Config\PixelCastConfigWriter;
+use App\Tui\Configuration\ConfigurationFieldValidator;
+use App\Tui\Configuration\Panel\ConfigurationPanel;
+use App\Tui\Configuration\SaveOutcome;
 use App\Tui\Inspector\InspectorPoller;
 use App\Tui\Inspector\InspectorTransport;
 use App\Tui\Inspector\RequestLogPanel;
@@ -16,6 +21,7 @@ use App\Tui\ResetSim\ResetSimulatorAction;
 use App\Tui\Scenarios\Panel\ScenariosPanel;
 use App\Tui\Scenarios\ScenarioCatalog;
 use App\Tui\Scenarios\ScenarioDispatcher;
+use App\Tui\StatusBar\StatusBarWidget;
 use App\Tui\SyncNow\Panel\SyncNowPanel;
 use App\Tui\SyncNow\SyncNowDispatcher;
 use App\Tui\SyncNow\SyncNowResultKind;
@@ -35,7 +41,6 @@ use Symfony\Component\Tui\Tui;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 use Symfony\Component\Tui\Widget\ContainerWidget;
 use Symfony\Component\Tui\Widget\SelectListWidget;
-use Symfony\Component\Tui\Widget\TextWidget;
 
 #[AsCommand(name: 'app:tui', description: 'Opens the PixelCast unified terminal interface')]
 final class TuiCommand extends Command
@@ -53,6 +58,9 @@ final class TuiCommand extends Command
         private readonly ScenarioDispatcher $scenarioDispatcher,
         private readonly SyncNowDispatcher $syncNowDispatcher,
         private readonly ResetSimulatorAction $resetSimulatorAction,
+        private readonly PixelCastConfigLoader $pixelCastConfigLoader,
+        private readonly PixelCastConfigWriter $pixelCastConfigWriter,
+        private readonly ConfigurationFieldValidator $configurationFieldValidator,
     ) {
         parent::__construct();
     }
@@ -96,12 +104,28 @@ final class TuiCommand extends Command
             $resetSimPanel = new ResetSimPanel();
         }
 
+        $configurationPanel = null;
+        if (TuiMode::Prod === $mode) {
+            $configurationPanel = new ConfigurationPanel(
+                $this->pixelCastConfigLoader,
+                $this->pixelCastConfigWriter,
+                $this->configurationFieldValidator,
+            );
+        }
+
         $viewContainer = new ContainerWidget();
         $viewContainer->expandVertically(true);
         $viewContainer->add($mainBodyContainer);
 
+        $statusBar = new StatusBarWidget();
+        $statusBar->setBaseLine($this->buildStatusBarBaseLine(
+            $mode,
+            $reachabilityResult,
+            $configurationPanel?->currentDeviceUrl(),
+        ));
+
         $tui->add($viewContainer);
-        $tui->add($this->buildStatusBarWidget($mode, $reachabilityResult));
+        $tui->add($statusBar->widget());
 
         $viewWidgets = [
             TuiView::Main->value => $mainBodyContainer,
@@ -112,6 +136,14 @@ final class TuiCommand extends Command
         }
         if (null !== $resetSimPanel) {
             $viewWidgets[TuiView::ResetSim->value] = $resetSimPanel->widget();
+        }
+        if (null !== $configurationPanel) {
+            $viewWidgets[TuiView::Configuration->value] = $configurationPanel->widget();
+            $statusBar->setUnsavedChanges($configurationPanel->hasUnsavedChanges());
+            $configurationPanel->onUnsavedChangesChanged(static function (bool $hasUnsaved) use ($tui, $statusBar): void {
+                $statusBar->setUnsavedChanges($hasUnsaved);
+                $tui->requestRender();
+            });
         }
 
         if (null !== $inspectorPoller) {
@@ -210,13 +242,41 @@ final class TuiCommand extends Command
             });
         }
 
-        // Registered on the Tui (not on a widget) so Q quits before focus
-        // routing, regardless of which sub-panel currently has focus.
-        $tui->addListener(static function (InputEvent $event) use ($tui): void {
+        if (null !== $configurationPanel) {
+            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $configurationPanel): void {
+                if ($event->getTarget() !== $configurationPanel->selectListWidget()) {
+                    return;
+                }
+
+                $configurationPanel->discardChanges();
+                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
+            });
+        }
+
+        $tui->addListener(function (InputEvent $event) use ($tui, $statusBar, $configurationPanel, $mode, $reachabilityResult): void {
             $rawInput = $event->getData();
             if ('q' === $rawInput || 'Q' === $rawInput) {
                 $event->stopPropagation();
                 $tui->stop();
+
+                return;
+            }
+
+            if (null !== $configurationPanel
+                && TuiView::Configuration === $this->currentView
+                && !$configurationPanel->isEditingField()
+                && ('s' === $rawInput || 'S' === $rawInput)
+            ) {
+                $event->stopPropagation();
+                $outcome = $configurationPanel->commitSave();
+                if (SaveOutcome::Saved === $outcome) {
+                    $statusBar->setBaseLine($this->buildStatusBarBaseLine(
+                        $mode,
+                        $reachabilityResult,
+                        $configurationPanel->currentDeviceUrl(),
+                    ));
+                }
+                $tui->requestRender();
             }
         });
 
@@ -290,18 +350,23 @@ final class TuiCommand extends Command
         return $mainPanel;
     }
 
-    private function buildStatusBarWidget(TuiMode $mode, DeviceReachabilityResult $reachabilityResult): AbstractWidget
-    {
-        $targetLabel = $this->formatTargetLabel($this->deviceBaseUrl);
+    private function buildStatusBarBaseLine(
+        TuiMode $mode,
+        DeviceReachabilityResult $reachabilityResult,
+        ?string $configurationDeviceUrl,
+    ): string {
+        $effectiveDeviceUrl = null !== $configurationDeviceUrl && '' !== $configurationDeviceUrl
+            ? $configurationDeviceUrl
+            : $this->deviceBaseUrl;
 
-        $statusLine = \sprintf(
+        $targetLabel = $this->formatTargetLabel($effectiveDeviceUrl);
+
+        return \sprintf(
             'MODE: %s   TARGET: %s (%s)   [Q] quit',
             $mode->displayLabel(),
             $targetLabel,
             $reachabilityResult->displayLabel,
         );
-
-        return new TextWidget($statusLine);
     }
 
     private function formatTargetLabel(?string $baseUrl): string

@@ -1,0 +1,5 @@
+device_url: http://pixelcast.test/api
+weather_interval: 120
+tracker_interval: 30
+weather_source: openmeteo
+tracker_source: yahoo-finance

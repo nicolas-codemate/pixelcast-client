@@ -1,0 +1,17 @@
+# Base URL of the PixelCast device API (no trailing slash).
+device_url: http://pixelcast.local/api
+
+# Polling interval for the weather syncer (seconds).
+weather_interval: 300
+
+# Polling interval for the tracker syncer (seconds).
+tracker_interval: 60
+
+# Comma-separated list of tracked asset symbols.
+tracked_assets: BTC, AAPL, SPY, ETH
+
+# Identifier of the weather data provider.
+weather_source: openmeteo
+
+# Identifier of the tracker data provider.
+tracker_source: yahoo-finance
