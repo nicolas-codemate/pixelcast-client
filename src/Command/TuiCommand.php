@@ -103,6 +103,17 @@ final class TuiCommand extends Command
         $tui->add($viewContainer);
         $tui->add($this->buildStatusBarWidget($mode, $reachabilityResult));
 
+        $viewWidgets = [
+            TuiView::Main->value => $mainBodyContainer,
+            TuiView::Scenarios->value => $scenariosPanel->widget(),
+        ];
+        if (null !== $syncNowPanel) {
+            $viewWidgets[TuiView::SyncNow->value] = $syncNowPanel->widget();
+        }
+        if (null !== $resetSimPanel) {
+            $viewWidgets[TuiView::ResetSim->value] = $resetSimPanel->widget();
+        }
+
         if (null !== $inspectorPoller) {
             $tui->onTick($this->buildInspectorTickListener(
                 $tui,
@@ -112,7 +123,7 @@ final class TuiCommand extends Command
             ));
         }
 
-        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel): void {
+        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $viewContainer, $viewWidgets, $syncNowPanel, $resetSimPanel): void {
             if ($event->getTarget() !== $menuSelectList) {
                 return;
             }
@@ -120,19 +131,19 @@ final class TuiCommand extends Command
             $menuValue = $event->getValue();
 
             if ('scenarios' === $menuValue) {
-                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::Scenarios);
+                $this->switchView($tui, $viewContainer, TuiView::Scenarios, $viewWidgets);
 
                 return;
             }
 
             if ('sync-now' === $menuValue && null !== $syncNowPanel) {
-                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::SyncNow);
+                $this->switchView($tui, $viewContainer, TuiView::SyncNow, $viewWidgets);
 
                 return;
             }
 
             if ('reset-sim' === $menuValue && null !== $resetSimPanel) {
-                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::ResetSim);
+                $this->switchView($tui, $viewContainer, TuiView::ResetSim, $viewWidgets);
             }
         });
 
@@ -151,13 +162,13 @@ final class TuiCommand extends Command
             $tui->requestRender();
         });
 
-        $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel): void {
+        $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $scenariosPanel): void {
             if ($event->getTarget() !== $scenariosPanel->selectListWidget()) {
                 return;
             }
 
             $scenariosPanel->clearResult();
-            $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::Main);
+            $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
         });
 
         if (null !== $syncNowPanel) {
@@ -179,13 +190,13 @@ final class TuiCommand extends Command
                 $tui->requestRender();
             });
 
-            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel): void {
+            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $syncNowPanel): void {
                 if ($event->getTarget() !== $syncNowPanel->selectListWidget()) {
                     return;
                 }
 
                 $syncNowPanel->clearResult();
-                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::Main);
+                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
             });
         }
 
@@ -200,13 +211,13 @@ final class TuiCommand extends Command
                 $tui->requestRender();
             });
 
-            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel): void {
+            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $resetSimPanel): void {
                 if ($event->getTarget() !== $resetSimPanel->selectListWidget()) {
                     return;
                 }
 
                 $resetSimPanel->clearResult();
-                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::Main);
+                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
             });
         }
 
@@ -225,33 +236,26 @@ final class TuiCommand extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * @param array<string, AbstractWidget> $viewWidgets keyed by TuiView::value
+     */
     private function switchView(
         Tui $tui,
         ContainerWidget $viewContainer,
-        ContainerWidget $mainBodyContainer,
-        ScenariosPanel $scenariosPanel,
-        ?SyncNowPanel $syncNowPanel,
-        ?ResetSimPanel $resetSimPanel,
         TuiView $next,
+        array $viewWidgets,
     ): void {
         if ($this->currentView === $next) {
             return;
         }
 
-        $nextWidget = match ($next) {
-            TuiView::Main => $mainBodyContainer,
-            TuiView::Scenarios => $scenariosPanel->widget(),
-            TuiView::SyncNow => $syncNowPanel?->widget(),
-            TuiView::ResetSim => $resetSimPanel?->widget(),
-        };
-
-        if (null === $nextWidget) {
+        if (!isset($viewWidgets[$next->value])) {
             return;
         }
 
         $this->currentView = $next;
         $viewContainer->clear();
-        $viewContainer->add($nextWidget);
+        $viewContainer->add($viewWidgets[$next->value]);
 
         $tui->requestRender();
     }
