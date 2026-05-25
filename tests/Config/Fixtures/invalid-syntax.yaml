@@ -1,0 +1,6 @@
+device_url: http://pixelcast.test/api
+weather_interval: 120
+tracker_interval: [unterminated
+tracked_assets: BTC, AAPL
+weather_source: openmeteo
+tracker_source: yahoo-finance

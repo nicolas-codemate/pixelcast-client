@@ -21,3 +21,7 @@
 ###< phpunit/phpunit ###
 
 /phpstan-baseline.neon
+
+###> pixelcast config ###
+/pixelcast.yaml
+###< pixelcast config ###

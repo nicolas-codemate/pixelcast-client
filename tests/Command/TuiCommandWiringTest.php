@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Command;
 
 use App\Command\TuiCommand;
+use App\Config\PixelCastConfigLoader;
+use App\Config\PixelCastConfigWriter;
+use App\Tui\Configuration\ConfigurationFieldValidator;
 use App\Tui\ResetSim\ResetSimulatorAction;
 use App\Tui\Scenarios\ScenarioCatalog;
 use App\Tui\Scenarios\ScenarioDispatcher;
@@ -76,5 +79,32 @@ final class TuiCommandWiringTest extends KernelTestCase
         $resetSimulatorAction = self::getContainer()->get(ResetSimulatorAction::class);
 
         self::assertInstanceOf(ResetSimulatorAction::class, $resetSimulatorAction);
+    }
+
+    public function testPixelCastConfigLoaderResolvesFromContainer(): void
+    {
+        self::bootKernel();
+
+        $loader = self::getContainer()->get(PixelCastConfigLoader::class);
+
+        self::assertInstanceOf(PixelCastConfigLoader::class, $loader);
+    }
+
+    public function testPixelCastConfigWriterResolvesFromContainer(): void
+    {
+        self::bootKernel();
+
+        $writer = self::getContainer()->get(PixelCastConfigWriter::class);
+
+        self::assertInstanceOf(PixelCastConfigWriter::class, $writer);
+    }
+
+    public function testConfigurationFieldValidatorResolvesFromContainer(): void
+    {
+        self::bootKernel();
+
+        $validator = self::getContainer()->get(ConfigurationFieldValidator::class);
+
+        self::assertInstanceOf(ConfigurationFieldValidator::class, $validator);
     }
 }
