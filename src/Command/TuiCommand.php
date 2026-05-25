@@ -43,8 +43,8 @@ final class TuiCommand extends Command
         $tui->add($this->buildMainMenuWidget($mode));
         $tui->add($this->buildStatusBarWidget($mode, $reachabilityResult));
 
-        // Listen at the Tui level (before focus routing) so Q quits regardless
-        // of which sub-panel later tickets give focus to.
+        // Registered on the Tui (not on a widget) so Q quits before focus
+        // routing, regardless of which sub-panel currently has focus.
         $tui->addListener(static function (InputEvent $event) use ($tui): void {
             $rawInput = $event->getData();
             if ('q' === $rawInput || 'Q' === $rawInput) {

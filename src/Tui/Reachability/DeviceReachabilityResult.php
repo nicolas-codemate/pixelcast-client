@@ -22,9 +22,4 @@ final readonly class DeviceReachabilityResult
 
         return new self($status, $defaultLabel);
     }
-
-    public static function withCustomLabel(DeviceReachabilityStatus $status, string $displayLabel): self
-    {
-        return new self($status, $displayLabel);
-    }
 }

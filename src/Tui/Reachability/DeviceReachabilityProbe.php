@@ -28,8 +28,8 @@ final class DeviceReachabilityProbe
         $errorNumber = 0;
         $errorMessage = '';
 
-        // stream_socket_client emits a warning on connection failure; swap the
-        // error handler instead of relying on @ so PHPStan strict rules stay happy.
+        // stream_socket_client emits a PHP warning on connection failure; we
+        // discard it because $errorNumber/$errorMessage already carry the cause.
         set_error_handler(static fn (): bool => true);
         try {
             $connection = stream_socket_client(
