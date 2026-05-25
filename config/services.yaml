@@ -53,5 +53,9 @@ services:
 
     App\Tui\Scenarios\Transport\ScenarioTransport: '@App\Tui\Scenarios\Transport\ScenarioHttpClient'
 
+    App\Tui\DeviceStatus\StatsHttpClient: ~
+
+    App\Tui\DeviceStatus\StatsTransport: '@App\Tui\DeviceStatus\StatsHttpClient'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

@@ -9,6 +9,9 @@ use App\Config\PixelCastConfigWriter;
 use App\Tui\Configuration\ConfigurationFieldValidator;
 use App\Tui\Configuration\Panel\ConfigurationPanel;
 use App\Tui\Configuration\SaveOutcome;
+use App\Tui\DeviceStatus\Panel\DeviceStatusPanel;
+use App\Tui\DeviceStatus\StatsPoller;
+use App\Tui\DeviceStatus\StatsTransport;
 use App\Tui\Inspector\InspectorPoller;
 use App\Tui\Inspector\InspectorTransport;
 use App\Tui\Inspector\RequestLogPanel;
@@ -61,6 +64,7 @@ final class TuiCommand extends Command
         private readonly PixelCastConfigLoader $pixelCastConfigLoader,
         private readonly PixelCastConfigWriter $pixelCastConfigWriter,
         private readonly ConfigurationFieldValidator $configurationFieldValidator,
+        private readonly StatsTransport $statsHttpClient,
     ) {
         parent::__construct();
     }
@@ -105,12 +109,21 @@ final class TuiCommand extends Command
         }
 
         $configurationPanel = null;
+        $statsPoller = null;
+        $deviceStatusPanel = null;
         if (TuiMode::Prod === $mode) {
             $configurationPanel = new ConfigurationPanel(
                 $this->pixelCastConfigLoader,
                 $this->pixelCastConfigWriter,
                 $this->configurationFieldValidator,
             );
+
+            $effectiveDeviceUrl = '' !== $configurationPanel->currentDeviceUrl()
+                ? $configurationPanel->currentDeviceUrl()
+                : $this->deviceBaseUrl;
+            $statsPoller = new StatsPoller($this->statsHttpClient, $effectiveDeviceUrl);
+            $deviceStatusPanel = new DeviceStatusPanel();
+            $deviceStatusPanel->update($statsPoller->poll(), busy: false);
         }
 
         $viewContainer = new ContainerWidget();
@@ -144,6 +157,14 @@ final class TuiCommand extends Command
                 $statusBar->setUnsavedChanges($hasUnsaved);
                 $tui->requestRender();
             });
+        }
+        if (null !== $statsPoller) {
+            $viewWidgets[TuiView::DeviceStatus->value] = $deviceStatusPanel->widget();
+            $tui->onTick($this->buildStatsTickListener(
+                $tui,
+                $statsPoller,
+                $deviceStatusPanel,
+            ));
         }
 
         if (null !== $inspectorPoller) {
@@ -253,6 +274,18 @@ final class TuiCommand extends Command
             });
         }
 
+        if (null !== $deviceStatusPanel) {
+            // DeviceStatusPanel is read-only and exposes no focusable widget, so the
+            // cancel handler keys off the active view instead of an event target.
+            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets): void {
+                if (TuiView::DeviceStatus !== $this->currentView) {
+                    return;
+                }
+
+                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
+            });
+        }
+
         $tui->addListener(function (InputEvent $event) use ($tui, $statusBar, $configurationPanel, $mode, $reachabilityResult): void {
             $rawInput = $event->getData();
             if ('q' === $rawInput || 'Q' === $rawInput) {
@@ -329,6 +362,26 @@ final class TuiCommand extends Command
             $snapshot = $inspectorPoller->getLatestSnapshot();
             $stateInspectorPanel->update($snapshot, busy: false);
             $requestLogPanel->update($snapshot, busy: false);
+            $tui->requestRender();
+        };
+    }
+
+    private function buildStatsTickListener(
+        Tui $tui,
+        StatsPoller $statsPoller,
+        DeviceStatusPanel $deviceStatusPanel,
+    ): callable {
+        return static function (TickEvent $event) use (
+            $tui,
+            $statsPoller,
+            $deviceStatusPanel,
+        ): void {
+            if (!$statsPoller->pollIfDue($event->getDeltaTime())) {
+                return;
+            }
+
+            $event->setBusy(true);
+            $deviceStatusPanel->update($statsPoller->getLatestSnapshot(), busy: false);
             $tui->requestRender();
         };
     }
