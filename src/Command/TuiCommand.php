@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Tui\Inspector\InspectorPoller;
+use App\Tui\Inspector\InspectorTransport;
+use App\Tui\Inspector\RequestLogPanel;
+use App\Tui\Inspector\StateInspectorPanel;
 use App\Tui\Menu\TuiMenuFactory;
 use App\Tui\Reachability\DeviceReachabilityProbe;
 use App\Tui\Reachability\DeviceReachabilityResult;
@@ -14,6 +18,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Tui\Event\InputEvent;
+use Symfony\Component\Tui\Event\TickEvent;
 use Symfony\Component\Tui\Tui;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 use Symfony\Component\Tui\Widget\ContainerWidget;
@@ -29,6 +34,7 @@ final class TuiCommand extends Command
         #[Autowire('%env(default::PIXELCAST_DEVICE_BASE_URL)%')]
         private readonly ?string $deviceBaseUrl,
         private readonly DeviceReachabilityProbe $deviceReachabilityProbe,
+        private readonly InspectorTransport $inspectorHttpClient,
     ) {
         parent::__construct();
     }
@@ -40,7 +46,37 @@ final class TuiCommand extends Command
 
         $tui = new Tui();
         $tui->add($this->buildMainMenuWidget($mode));
+
+        $inspectorPoller = null;
+        $stateInspectorPanel = null;
+        $requestLogPanel = null;
+
+        if (TuiMode::Dev === $mode) {
+            $inspectorPoller = new InspectorPoller(
+                $this->inspectorHttpClient,
+                $this->deviceBaseUrl,
+            );
+            $stateInspectorPanel = new StateInspectorPanel();
+            $requestLogPanel = new RequestLogPanel();
+
+            $initialSnapshot = $inspectorPoller->poll();
+            $stateInspectorPanel->update($initialSnapshot, busy: false);
+            $requestLogPanel->update($initialSnapshot, busy: false);
+
+            $tui->add($stateInspectorPanel->widget());
+            $tui->add($requestLogPanel->widget());
+        }
+
         $tui->add($this->buildStatusBarWidget($mode, $reachabilityResult));
+
+        if (null !== $inspectorPoller) {
+            $tui->onTick($this->buildInspectorTickListener(
+                $tui,
+                $inspectorPoller,
+                $stateInspectorPanel,
+                $requestLogPanel,
+            ));
+        }
 
         // Registered on the Tui (not on a widget) so Q quits before focus
         // routing, regardless of which sub-panel currently has focus.
@@ -55,6 +91,30 @@ final class TuiCommand extends Command
         $tui->run();
 
         return Command::SUCCESS;
+    }
+
+    private function buildInspectorTickListener(
+        Tui $tui,
+        InspectorPoller $inspectorPoller,
+        StateInspectorPanel $stateInspectorPanel,
+        RequestLogPanel $requestLogPanel,
+    ): callable {
+        return static function (TickEvent $event) use (
+            $tui,
+            $inspectorPoller,
+            $stateInspectorPanel,
+            $requestLogPanel,
+        ): void {
+            if (!$inspectorPoller->pollIfDue($event->getDeltaTime())) {
+                return;
+            }
+
+            $event->setBusy(true);
+            $snapshot = $inspectorPoller->getLatestSnapshot();
+            $stateInspectorPanel->update($snapshot, busy: false);
+            $requestLogPanel->update($snapshot, busy: false);
+            $tui->requestRender();
+        };
     }
 
     private function buildMainMenuWidget(TuiMode $mode): AbstractWidget
