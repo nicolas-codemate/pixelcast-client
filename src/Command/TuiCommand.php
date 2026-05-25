@@ -19,9 +19,8 @@ use Symfony\Component\Tui\Widget\AbstractWidget;
 use Symfony\Component\Tui\Widget\ContainerWidget;
 use Symfony\Component\Tui\Widget\SelectListWidget;
 use Symfony\Component\Tui\Widget\TextWidget;
-use Symfony\Component\Tui\Widget\Util\StringUtils;
 
-#[AsCommand(name: 'app:tui', description: 'Launches the PixelCast unified terminal interface.')]
+#[AsCommand(name: 'app:tui', description: 'Opens the PixelCast unified terminal interface')]
 final class TuiCommand extends Command
 {
     public function __construct(
@@ -92,8 +91,9 @@ final class TuiCommand extends Command
             return 'n/a';
         }
 
-        // The URL is sourced from an env var (untrusted by contract) and
-        // TextWidget renders its content verbatim including ANSI escapes.
-        return StringUtils::stripControlBytes($baseUrl);
+        // The URL comes from an env var and TextWidget renders content
+        // verbatim including ANSI escapes, so we strip C0/C1 controls and
+        // DEL to prevent terminal-escape injection.
+        return preg_replace("/[\x00-\x08\x0b-\x1f\x7f]|\xc2[\x80-\x9f]/", '', $baseUrl) ?? '';
     }
 }

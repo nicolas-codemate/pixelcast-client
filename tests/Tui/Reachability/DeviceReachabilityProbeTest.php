@@ -43,13 +43,21 @@ final class DeviceReachabilityProbeTest extends TestCase
     {
         $probe = new DeviceReachabilityProbe();
 
-        // TEST-NET-1 (RFC 5737): 192.0.2.0/24 is reserved for documentation and
-        // is guaranteed not to route, so the connect attempt always fails fast
-        // within the default 0.5s timeout regardless of the runner's network.
-        $result = $probe->probe('http://192.0.2.1:80');
+        // 127.0.0.1:1 yields ECONNREFUSED immediately and independently of
+        // the runner's network because no standard service binds tcpmux.
+        $result = $probe->probe('http://127.0.0.1:1');
 
         self::assertSame(DeviceReachabilityStatus::Unreachable, $result->status);
         self::assertSame('Unreachable', $result->displayLabel);
+    }
+
+    public function testProbeWithUnsupportedSchemeReturnsUnknown(): void
+    {
+        $probe = new DeviceReachabilityProbe();
+
+        $result = $probe->probe('redis://localhost:6379');
+
+        self::assertSame(DeviceReachabilityStatus::Unknown, $result->status);
     }
 
     public function testDefaultDisplayLabelsMatchEachStatus(): void

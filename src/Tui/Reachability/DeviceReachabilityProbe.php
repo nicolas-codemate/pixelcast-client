@@ -22,8 +22,13 @@ final class DeviceReachabilityProbe
             return DeviceReachabilityResult::fromStatus(DeviceReachabilityStatus::Unknown);
         }
 
+        $scheme = $parsedUrl['scheme'] ?? '';
+        if ('http' !== $scheme && 'https' !== $scheme) {
+            return DeviceReachabilityResult::fromStatus(DeviceReachabilityStatus::Unknown);
+        }
+
         $host = $parsedUrl['host'];
-        $port = $parsedUrl['port'] ?? ('https' === ($parsedUrl['scheme'] ?? '') ? 443 : 80);
+        $port = $parsedUrl['port'] ?? ('https' === $scheme ? 443 : 80);
 
         $errorNumber = 0;
         $errorMessage = '';
