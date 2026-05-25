@@ -39,5 +39,19 @@ services:
         arguments:
             $specPath: '%kernel.project_dir%/sync/openapi.yaml'
 
+    App\Tui\Scenarios\Validation\OutboundOpenApiValidatorFactory: ~
+
+    league_openapi_psr7_validator.outbound_request_validator:
+        class: League\OpenAPIValidation\PSR7\RequestValidator
+        factory: ['@App\Tui\Scenarios\Validation\OutboundOpenApiValidatorFactory', 'create']
+
+    App\Tui\Scenarios\Validation\OutboundPayloadValidator:
+        arguments:
+            $validator: '@league_openapi_psr7_validator.outbound_request_validator'
+
+    App\Tui\Scenarios\Transport\ScenarioHttpClient: ~
+
+    App\Tui\Scenarios\Transport\ScenarioTransport: '@App\Tui\Scenarios\Transport\ScenarioHttpClient'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
