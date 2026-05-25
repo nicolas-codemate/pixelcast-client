@@ -123,28 +123,17 @@ final class TuiCommand extends Command
             ));
         }
 
-        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $viewContainer, $viewWidgets, $syncNowPanel, $resetSimPanel): void {
+        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $viewContainer, $viewWidgets): void {
             if ($event->getTarget() !== $menuSelectList) {
                 return;
             }
 
-            $menuValue = $event->getValue();
-
-            if ('scenarios' === $menuValue) {
-                $this->switchView($tui, $viewContainer, TuiView::Scenarios, $viewWidgets);
-
+            $targetView = TuiView::tryFrom($event->getValue());
+            if (null === $targetView || !isset($viewWidgets[$targetView->value])) {
                 return;
             }
 
-            if ('sync-now' === $menuValue && null !== $syncNowPanel) {
-                $this->switchView($tui, $viewContainer, TuiView::SyncNow, $viewWidgets);
-
-                return;
-            }
-
-            if ('reset-sim' === $menuValue && null !== $resetSimPanel) {
-                $this->switchView($tui, $viewContainer, TuiView::ResetSim, $viewWidgets);
-            }
+            $this->switchView($tui, $viewContainer, $targetView, $viewWidgets);
         });
 
         $tui->addListener(function (SelectEvent $event) use ($tui, $scenariosPanel, $mode): void {

@@ -4,31 +4,31 @@ declare(strict_types=1);
 
 namespace App\Tui\ResetSim;
 
-use App\Tui\Scenarios\DeviceBaseUrl;
+use App\Tui\Scenarios\ScenarioCatalog;
+use App\Tui\Scenarios\ScenarioDispatcher;
 use App\Tui\Scenarios\ScenarioResult;
-use App\Tui\Scenarios\Transport\ScenarioTransport;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use App\Tui\TuiMode;
 
 final readonly class ResetSimulatorAction
 {
-    private const string RESET_PATH = '/__reset';
+    private const string RESET_SCENARIO_ID = 'reset-simulator';
 
     public function __construct(
-        private ScenarioTransport $transport,
-        #[Autowire('%env(default::PIXELCAST_DEVICE_BASE_URL)%')]
-        private ?string $deviceBaseUrl = null,
+        private ScenarioCatalog $catalog,
+        private ScenarioDispatcher $dispatcher,
     ) {
     }
 
     public function reset(): ScenarioResult
     {
-        $baseUrl = DeviceBaseUrl::resolve($this->deviceBaseUrl);
-        $url = rtrim($baseUrl, '/').self::RESET_PATH;
+        $resetScenario = $this->catalog->findById(self::RESET_SCENARIO_ID, TuiMode::Dev);
 
-        try {
-            return $this->transport->send('POST', $url, null);
-        } catch (\Throwable $transportError) {
-            return ScenarioResult::transportFailure('Transport error: '.$transportError->getMessage());
+        if (null === $resetScenario) {
+            return ScenarioResult::transportFailure(
+                \sprintf('"%s" scenario missing from catalog', self::RESET_SCENARIO_ID),
+            );
         }
+
+        return $this->dispatcher->dispatch($resetScenario);
     }
 }

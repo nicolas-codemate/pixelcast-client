@@ -29,7 +29,7 @@ final class SyncNowPanelTest extends TestCase
         self::assertSame('', $this->panel->currentResultText());
     }
 
-    public function testInitialListShowsTargetLabelsWithLastNever(): void
+    public function testInitialListShowsFirstTargetLabelWithLastNever(): void
     {
         $selected = $this->panel->selectListWidget()->getSelectedItem();
 
@@ -39,20 +39,35 @@ final class SyncNowPanelTest extends TestCase
         self::assertStringContainsString('last: never', $selected['label']);
     }
 
-    public function testRecordDispatchUpdatesLabelWithFormattedTimestamp(): void
+    public function testInitialLastDispatchLabelForEveryTargetIsNever(): void
+    {
+        foreach (SyncTarget::cases() as $target) {
+            self::assertSame('never', $this->panel->lastDispatchLabelFor($target));
+        }
+    }
+
+    public function testRecordDispatchStoresFormattedTimestampForTargetOnly(): void
     {
         $dispatchedAt = new \DateTimeImmutable('2026-05-25 14:32:07');
 
         $this->panel->recordDispatch(SyncTarget::Weather, $dispatchedAt);
 
-        $items = $this->extractAllItems($this->panel->selectListWidget());
-        $weatherItem = $this->findItemByValue($items, 'sync-weather');
-        $trackerItem = $this->findItemByValue($items, 'sync-tracker');
+        self::assertSame('14:32:07', $this->panel->lastDispatchLabelFor(SyncTarget::Weather));
+        self::assertSame('never', $this->panel->lastDispatchLabelFor(SyncTarget::Tracker));
+    }
 
-        self::assertNotNull($weatherItem);
-        self::assertStringContainsString('last: 14:32:07', $weatherItem['label']);
-        self::assertNotNull($trackerItem);
-        self::assertStringContainsString('last: never', $trackerItem['label']);
+    public function testRecordDispatchPreservesSelectedTarget(): void
+    {
+        $this->panel->selectListWidget()->setSelectedIndex(1);
+        $trackerBeforeDispatch = $this->panel->selectListWidget()->getSelectedItem();
+        self::assertNotNull($trackerBeforeDispatch);
+        self::assertSame('sync-tracker', $trackerBeforeDispatch['value']);
+
+        $this->panel->recordDispatch(SyncTarget::Tracker, new \DateTimeImmutable('2026-05-25 14:32:07'));
+
+        $selectedAfterDispatch = $this->panel->selectListWidget()->getSelectedItem();
+        self::assertNotNull($selectedAfterDispatch);
+        self::assertSame('sync-tracker', $selectedAfterDispatch['value']);
     }
 
     public function testShowResultFormatsDispatched(): void
@@ -93,34 +108,5 @@ final class SyncNowPanelTest extends TestCase
         $this->panel->clearResult();
 
         self::assertSame('', $this->panel->currentResultText());
-    }
-
-    /**
-     * @return list<array{value: string, label: string, description?: string}>
-     */
-    private function extractAllItems(SelectListWidget $widget): array
-    {
-        $reflection = new \ReflectionProperty($widget, 'filteredItems');
-
-        /** @var list<array{value: string, label: string, description?: string}> $items */
-        $items = $reflection->getValue($widget);
-
-        return $items;
-    }
-
-    /**
-     * @param list<array{value: string, label: string, description?: string}> $items
-     *
-     * @return array{value: string, label: string, description?: string}|null
-     */
-    private function findItemByValue(array $items, string $value): ?array
-    {
-        foreach ($items as $item) {
-            if ($item['value'] === $value) {
-                return $item;
-            }
-        }
-
-        return null;
     }
 }

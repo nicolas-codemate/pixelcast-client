@@ -17,6 +17,7 @@ final class SyncNowPanel
     private const string HEADER_TEXT = 'Sync Now - [Enter] dispatch  [Esc] back';
     private const string SEPARATOR_TEXT = '----------------------------------------------------------------';
     private const string NEVER_DISPATCHED_LABEL = 'never';
+    private const int LABEL_COLUMN_WIDTH = 22;
 
     private readonly TextWidget $resultLine;
     private readonly SelectListWidget $list;
@@ -58,7 +59,15 @@ final class SyncNowPanel
     public function recordDispatch(SyncTarget $target, \DateTimeImmutable $dispatchedAt): void
     {
         $this->lastDispatchByTargetId[$target->value] = $dispatchedAt->format('H:i:s');
+
+        $selectedTargetValue = $this->currentSelectedTargetValue();
         $this->list->setItems($this->buildSelectListItems());
+        $this->restoreSelectionFor($selectedTargetValue);
+    }
+
+    public function lastDispatchLabelFor(SyncTarget $target): string
+    {
+        return $this->lastDispatchByTargetId[$target->value] ?? self::NEVER_DISPATCHED_LABEL;
     }
 
     public function showResult(SyncNowResult $result): void
@@ -74,6 +83,28 @@ final class SyncNowPanel
     public function currentResultText(): string
     {
         return $this->resultLine->getText();
+    }
+
+    private function currentSelectedTargetValue(): ?string
+    {
+        $selected = $this->list->getSelectedItem();
+
+        return $selected['value'] ?? null;
+    }
+
+    private function restoreSelectionFor(?string $targetValue): void
+    {
+        if (null === $targetValue) {
+            return;
+        }
+
+        foreach (SyncTarget::cases() as $index => $target) {
+            if ($target->value === $targetValue) {
+                $this->list->setSelectedIndex($index);
+
+                return;
+            }
+        }
     }
 
     private function formatResult(SyncNowResult $result): string
@@ -92,10 +123,13 @@ final class SyncNowPanel
     {
         $items = [];
         foreach (SyncTarget::cases() as $target) {
-            $lastDispatch = $this->lastDispatchByTargetId[$target->value] ?? self::NEVER_DISPATCHED_LABEL;
             $items[] = [
                 'value' => $target->value,
-                'label' => \sprintf('%-22s last: %s', $target->label(), $lastDispatch),
+                'label' => \sprintf(
+                    '%-'.self::LABEL_COLUMN_WIDTH.'s last: %s',
+                    $target->label(),
+                    $this->lastDispatchLabelFor($target),
+                ),
             ];
         }
 

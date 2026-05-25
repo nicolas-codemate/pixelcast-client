@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tui\ResetSim\Panel;
 
 use App\Tui\Scenarios\ScenarioResult;
-use App\Tui\Scenarios\ScenarioResultKind;
+use App\Tui\Scenarios\ScenarioResultFormatter;
 use App\Tui\TerminalSafeText;
 use Symfony\Component\Tui\Widget\ContainerWidget;
 use Symfony\Component\Tui\Widget\SelectListWidget;
@@ -56,7 +56,7 @@ final class ResetSimPanel
 
     public function showResult(ScenarioResult $result): void
     {
-        $this->resultLine->setText(TerminalSafeText::stripControlBytes($this->formatResult($result)));
+        $this->resultLine->setText(TerminalSafeText::stripControlBytes(ScenarioResultFormatter::format($result)));
     }
 
     public function clearResult(): void
@@ -67,28 +67,5 @@ final class ResetSimPanel
     public function currentResultText(): string
     {
         return $this->resultLine->getText();
-    }
-
-    private function formatResult(ScenarioResult $result): string
-    {
-        return match ($result->kind) {
-            ScenarioResultKind::Success => $this->formatSuccess($result),
-            ScenarioResultKind::ValidationFailure => 'VALIDATION '.$result->message,
-            ScenarioResultKind::TransportFailure => null !== $result->httpStatus
-                ? \sprintf('FAIL HTTP %d: %s', $result->httpStatus, $result->message)
-                : 'FAIL '.$result->message,
-            ScenarioResultKind::Unreachable => 'UNREACHABLE '.$result->message,
-        };
-    }
-
-    private function formatSuccess(ScenarioResult $result): string
-    {
-        $statusOnly = 'OK '.($result->httpStatus ?? 0);
-
-        if ('' === $result->message || 'OK' === $result->message) {
-            return $statusOnly;
-        }
-
-        return $statusOnly.': '.$result->message;
     }
 }

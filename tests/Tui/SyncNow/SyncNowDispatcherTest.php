@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Tui\SyncNow;
 
+use App\Tests\Tui\SyncNow\Stub\CapturingMessageBusStub;
+use App\Tests\Tui\SyncNow\Stub\ThrowingMessageBusStub;
 use App\Tui\SyncNow\SyncNowDispatcher;
 use App\Tui\SyncNow\SyncNowResultKind;
 use App\Tui\SyncNow\SyncTarget;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 final class SyncNowDispatcherTest extends TestCase
 {
@@ -52,32 +52,4 @@ final class SyncNowDispatcherTest extends TestCase
 
 final class DummySyncMessage
 {
-}
-
-final class CapturingMessageBusStub implements MessageBusInterface
-{
-    /**
-     * @var list<object>
-     */
-    public array $dispatched = [];
-
-    public function dispatch(object $message, array $stamps = []): Envelope
-    {
-        $this->dispatched[] = $message;
-
-        return new Envelope($message);
-    }
-}
-
-final class ThrowingMessageBusStub implements MessageBusInterface
-{
-    public function __construct(
-        private readonly \Throwable $exceptionToThrow,
-    ) {
-    }
-
-    public function dispatch(object $message, array $stamps = []): Envelope
-    {
-        throw $this->exceptionToThrow;
-    }
 }
