@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Tui\Scenarios;
 
+use App\Tests\Tui\Scenarios\Stub\CapturingScenarioTransportStub;
+use App\Tests\Tui\Scenarios\Stub\ThrowingScenarioTransportStub;
 use App\Tui\Scenarios\ScenarioCatalog;
 use App\Tui\Scenarios\ScenarioDefinition;
 use App\Tui\Scenarios\ScenarioDispatcher;
 use App\Tui\Scenarios\ScenarioResult;
-use App\Tui\Scenarios\Transport\ScenarioTransport;
 use App\Tui\Scenarios\Validation\OutboundOpenApiValidatorFactory;
 use App\Tui\Scenarios\Validation\OutboundPayloadValidator;
 use App\Tui\TuiMode;
@@ -122,42 +123,5 @@ final class ScenarioDispatcherTest extends TestCase
         self::assertFalse($result->success);
         self::assertNull($result->httpStatus);
         self::assertStringContainsString('boom', $result->message);
-    }
-}
-
-final class CapturingScenarioTransportStub implements ScenarioTransport
-{
-    /**
-     * @var list<array{method: string, url: string, body: array<string,mixed>|null}>
-     */
-    public array $calls = [];
-
-    public function __construct(
-        private readonly ScenarioResult $resultToReturn,
-    ) {
-    }
-
-    public function send(string $method, string $url, ?array $body): ScenarioResult
-    {
-        $this->calls[] = [
-            'method' => $method,
-            'url' => $url,
-            'body' => $body,
-        ];
-
-        return $this->resultToReturn;
-    }
-}
-
-final class ThrowingScenarioTransportStub implements ScenarioTransport
-{
-    public function __construct(
-        private readonly \Throwable $exceptionToThrow,
-    ) {
-    }
-
-    public function send(string $method, string $url, ?array $body): ScenarioResult
-    {
-        throw $this->exceptionToThrow;
     }
 }

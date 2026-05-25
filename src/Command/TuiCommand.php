@@ -11,6 +11,8 @@ use App\Tui\Inspector\StateInspectorPanel;
 use App\Tui\Menu\TuiMenuFactory;
 use App\Tui\Reachability\DeviceReachabilityProbe;
 use App\Tui\Reachability\DeviceReachabilityResult;
+use App\Tui\ResetSim\Panel\ResetSimPanel;
+use App\Tui\ResetSim\ResetSimulatorAction;
 use App\Tui\Scenarios\Panel\ScenariosPanel;
 use App\Tui\Scenarios\ScenarioCatalog;
 use App\Tui\Scenarios\ScenarioDispatcher;
@@ -50,6 +52,7 @@ final class TuiCommand extends Command
         private readonly ScenarioCatalog $scenarioCatalog,
         private readonly ScenarioDispatcher $scenarioDispatcher,
         private readonly SyncNowDispatcher $syncNowDispatcher,
+        private readonly ResetSimulatorAction $resetSimulatorAction,
     ) {
         parent::__construct();
     }
@@ -87,8 +90,10 @@ final class TuiCommand extends Command
         $scenariosPanel = new ScenariosPanel($this->scenarioCatalog, $mode);
 
         $syncNowPanel = null;
+        $resetSimPanel = null;
         if (TuiMode::Dev === $mode) {
             $syncNowPanel = new SyncNowPanel();
+            $resetSimPanel = new ResetSimPanel();
         }
 
         $viewContainer = new ContainerWidget();
@@ -107,7 +112,7 @@ final class TuiCommand extends Command
             ));
         }
 
-        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel): void {
+        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel): void {
             if ($event->getTarget() !== $menuSelectList) {
                 return;
             }
@@ -115,13 +120,19 @@ final class TuiCommand extends Command
             $menuValue = $event->getValue();
 
             if ('scenarios' === $menuValue) {
-                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, TuiView::Scenarios);
+                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::Scenarios);
 
                 return;
             }
 
             if ('sync-now' === $menuValue && null !== $syncNowPanel) {
-                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, TuiView::SyncNow);
+                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::SyncNow);
+
+                return;
+            }
+
+            if ('reset-sim' === $menuValue && null !== $resetSimPanel) {
+                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::ResetSim);
             }
         });
 
@@ -140,13 +151,13 @@ final class TuiCommand extends Command
             $tui->requestRender();
         });
 
-        $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel): void {
+        $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel): void {
             if ($event->getTarget() !== $scenariosPanel->selectListWidget()) {
                 return;
             }
 
             $scenariosPanel->clearResult();
-            $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, TuiView::Main);
+            $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::Main);
         });
 
         if (null !== $syncNowPanel) {
@@ -168,13 +179,34 @@ final class TuiCommand extends Command
                 $tui->requestRender();
             });
 
-            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel): void {
+            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel): void {
                 if ($event->getTarget() !== $syncNowPanel->selectListWidget()) {
                     return;
                 }
 
                 $syncNowPanel->clearResult();
-                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, TuiView::Main);
+                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::Main);
+            });
+        }
+
+        if (null !== $resetSimPanel) {
+            $tui->addListener(function (SelectEvent $event) use ($tui, $resetSimPanel): void {
+                if ($event->getTarget() !== $resetSimPanel->selectListWidget()) {
+                    return;
+                }
+
+                $result = $this->resetSimulatorAction->reset();
+                $resetSimPanel->showResult($result);
+                $tui->requestRender();
+            });
+
+            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel): void {
+                if ($event->getTarget() !== $resetSimPanel->selectListWidget()) {
+                    return;
+                }
+
+                $resetSimPanel->clearResult();
+                $this->switchView($tui, $viewContainer, $mainBodyContainer, $scenariosPanel, $syncNowPanel, $resetSimPanel, TuiView::Main);
             });
         }
 
@@ -199,6 +231,7 @@ final class TuiCommand extends Command
         ContainerWidget $mainBodyContainer,
         ScenariosPanel $scenariosPanel,
         ?SyncNowPanel $syncNowPanel,
+        ?ResetSimPanel $resetSimPanel,
         TuiView $next,
     ): void {
         if ($this->currentView === $next) {
@@ -209,6 +242,7 @@ final class TuiCommand extends Command
             TuiView::Main => $mainBodyContainer,
             TuiView::Scenarios => $scenariosPanel->widget(),
             TuiView::SyncNow => $syncNowPanel?->widget(),
+            TuiView::ResetSim => $resetSimPanel?->widget(),
         };
 
         if (null === $nextWidget) {
