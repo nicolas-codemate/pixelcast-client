@@ -8,4 +8,5 @@ enum TuiView: string
 {
     case Main = 'main';
     case Scenarios = 'scenarios';
+    case SyncNow = 'sync-now';
 }
