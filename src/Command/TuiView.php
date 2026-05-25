@@ -11,4 +11,5 @@ enum TuiView: string
     case SyncNow = 'sync-now';
     case ResetSim = 'reset-sim';
     case Configuration = 'configuration';
+    case DeviceStatus = 'device-status';
 }
