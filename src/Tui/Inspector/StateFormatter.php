@@ -4,19 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tui\Inspector;
 
+use App\Domain\AppDomain;
+
 final class StateFormatter
 {
-    private const KNOWN_DOMAINS = [
-        'weather',
-        'trackers',
-        'notifications',
-        'customApps',
-        'indicators',
-        'brightness',
-        'settings',
-        'icons',
-    ];
-
     /**
      * @param array<string, mixed>|null $state
      */
@@ -26,9 +17,12 @@ final class StateFormatter
             return 'No data';
         }
 
+        $appDomainKeys = array_map(static fn (AppDomain $domain) => $domain->value, AppDomain::cases());
+        $orderedKeys = [...$appDomainKeys, 'brightness', 'settings'];
+
         $lines = [];
 
-        foreach (self::KNOWN_DOMAINS as $domain) {
+        foreach ($orderedKeys as $domain) {
             $lines[] = \sprintf('[%s]', $domain);
             if (!\array_key_exists($domain, $state)) {
                 $lines[] = '  (empty)';
@@ -37,7 +31,7 @@ final class StateFormatter
             self::appendBodyLines($lines, $state[$domain]);
         }
 
-        $extraDomains = array_diff(array_keys($state), self::KNOWN_DOMAINS);
+        $extraDomains = array_diff(array_keys($state), $orderedKeys);
         sort($extraDomains);
         foreach ($extraDomains as $domain) {
             $lines[] = \sprintf('[%s]', $domain);

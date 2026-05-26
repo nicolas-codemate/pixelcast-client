@@ -45,12 +45,12 @@ final class StateFormatterTest extends TestCase
               installed: ["weather","clock"]
             [indicators]
               battery: true
+            [icons]
+              count: 3
             [brightness]
               level: 80
             [settings]
               theme: dark
-            [icons]
-              count: 3
             EOT;
 
         self::assertSame($expected, $output);
