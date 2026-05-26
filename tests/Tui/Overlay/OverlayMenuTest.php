@@ -4,12 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Tui\Overlay;
 
-use App\Tui\Menu\TuiMenuFactory;
 use App\Tui\Overlay\OverlayMenu;
-use App\Tui\TuiMode;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Tui\Widget\ContainerWidget;
-use Symfony\Component\Tui\Widget\SelectListWidget;
 
 final class OverlayMenuTest extends TestCase
 {
@@ -21,102 +17,45 @@ final class OverlayMenuTest extends TestCase
         ['value' => 'sync-now', 'label' => '[2] Sync Now'],
     ];
 
-    public function testInitialStateIsHiddenAndExposesWidgetAndSelectList(): void
+    public function testIsHiddenOnConstruction(): void
     {
         $overlay = new OverlayMenu(self::SAMPLE_ITEMS);
-
-        self::assertInstanceOf(ContainerWidget::class, $overlay->widget());
-        self::assertInstanceOf(SelectListWidget::class, $overlay->selectListWidget());
 
         $style = $overlay->widget()->getStyle();
         self::assertNotNull($style);
         self::assertTrue($style->getHidden());
-        self::assertFalse($overlay->isVisible());
     }
 
-    public function testExposesItemsItWasConstructedWith(): void
+    public function testSelectListIsPopulatedWithConstructorItems(): void
     {
         $overlay = new OverlayMenu(self::SAMPLE_ITEMS);
-
-        self::assertCount(2, $overlay->items());
-        self::assertSame('scenarios', $overlay->items()[0]['value']);
-        self::assertSame('[1] Scenarios', $overlay->items()[0]['label']);
-        self::assertSame('sync-now', $overlay->items()[1]['value']);
-        self::assertSame('[2] Sync Now', $overlay->items()[1]['label']);
 
         $selected = $overlay->selectListWidget()->getSelectedItem();
         self::assertNotNull($selected);
         self::assertSame('scenarios', $selected['value']);
+        self::assertSame('[1] Scenarios', $selected['label']);
     }
 
-    public function testShowRevealsAndHideConcealsTheOverlay(): void
+    public function testShowRevealsTheOverlay(): void
     {
         $overlay = new OverlayMenu(self::SAMPLE_ITEMS);
 
         $overlay->show();
-        self::assertTrue($overlay->isVisible());
-        $shownStyle = $overlay->widget()->getStyle();
-        self::assertNotNull($shownStyle);
-        self::assertFalse($shownStyle->getHidden());
 
-        $overlay->hide();
-        self::assertFalse($overlay->isVisible());
-        $hiddenStyle = $overlay->widget()->getStyle();
-        self::assertNotNull($hiddenStyle);
-        self::assertTrue($hiddenStyle->getHidden());
+        $style = $overlay->widget()->getStyle();
+        self::assertNotNull($style);
+        self::assertFalse($style->getHidden());
     }
 
-    public function testSetItemsReplacesSelectListContents(): void
+    public function testHideConcealsTheOverlay(): void
     {
         $overlay = new OverlayMenu(self::SAMPLE_ITEMS);
 
-        $overlay->setItems([
-            ['value' => 'configuration', 'label' => '[1] Configuration'],
-        ]);
+        $overlay->show();
+        $overlay->hide();
 
-        self::assertCount(1, $overlay->items());
-        self::assertSame('configuration', $overlay->items()[0]['value']);
-
-        $selected = $overlay->selectListWidget()->getSelectedItem();
-        self::assertNotNull($selected);
-        self::assertSame('configuration', $selected['value']);
-        self::assertSame('[1] Configuration', $selected['label']);
-    }
-
-    public function testListsDevModeEntriesWhenBuiltFromTuiMenuFactory(): void
-    {
-        $devItems = TuiMenuFactory::toSelectListItems(TuiMenuFactory::buildForMode(TuiMode::Dev));
-
-        $overlay = new OverlayMenu($devItems);
-
-        self::assertCount(3, $overlay->items());
-        self::assertSame(
-            ['scenarios', 'sync-now', 'reset-sim'],
-            array_map(static fn (array $item): string => $item['value'], $overlay->items()),
-        );
-        self::assertSame(
-            ['[1] Scenarios', '[2] Sync Now', '[3] Reset Sim'],
-            array_map(static fn (array $item): string => $item['label'], $overlay->items()),
-        );
-    }
-
-    public function testListsProdModeEntriesWhenBuiltFromTuiMenuFactory(): void
-    {
-        $prodItems = TuiMenuFactory::toSelectListItems(TuiMenuFactory::buildForMode(TuiMode::Prod));
-
-        $overlay = new OverlayMenu($prodItems);
-
-        self::assertCount(2, $overlay->items());
-        self::assertSame(
-            ['scenarios', 'configuration'],
-            array_map(static fn (array $item): string => $item['value'], $overlay->items()),
-        );
-        self::assertSame(
-            ['[1] Scenarios', '[2] Configuration'],
-            array_map(static fn (array $item): string => $item['label'], $overlay->items()),
-        );
-
-        $values = array_map(static fn (array $item): string => $item['value'], $overlay->items());
-        self::assertNotContains('device-status', $values);
+        $style = $overlay->widget()->getStyle();
+        self::assertNotNull($style);
+        self::assertTrue($style->getHidden());
     }
 }

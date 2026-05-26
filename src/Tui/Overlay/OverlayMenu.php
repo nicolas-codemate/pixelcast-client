@@ -16,21 +16,20 @@ final class OverlayMenu
     private readonly ContainerWidget $container;
 
     /**
-     * @var list<array{value: string, label: string}>
-     */
-    private array $items;
-
-    /**
      * @param list<array{value: string, label: string}> $items
      */
     public function __construct(array $items)
     {
-        $this->items = $items;
         $this->selectList = new SelectListWidget(items: $items, maxVisible: max(1, \count($items)));
 
         $this->container = new ContainerWidget();
         $this->container->add($this->selectList);
-        $this->container->setStyle($this->buildHiddenStyle());
+        $this->container->setStyle(new Style(
+            padding: Padding::from([0, 1]),
+            border: Border::from([1]),
+            background: 'black',
+            hidden: true,
+        ));
     }
 
     public function widget(): ContainerWidget
@@ -51,38 +50,6 @@ final class OverlayMenu
     public function hide(): void
     {
         $this->setHidden(true);
-    }
-
-    public function isVisible(): bool
-    {
-        return true !== $this->container->getStyle()?->getHidden();
-    }
-
-    /**
-     * @param list<array{value: string, label: string}> $items
-     */
-    public function setItems(array $items): void
-    {
-        $this->items = $items;
-        $this->selectList->setItems($items);
-    }
-
-    /**
-     * @return list<array{value: string, label: string}>
-     */
-    public function items(): array
-    {
-        return $this->items;
-    }
-
-    private function buildHiddenStyle(): Style
-    {
-        return new Style(
-            padding: Padding::from([0, 1]),
-            border: Border::from([1]),
-            background: 'black',
-            hidden: true,
-        );
     }
 
     private function setHidden(bool $hidden): void

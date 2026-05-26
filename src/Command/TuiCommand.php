@@ -150,8 +150,7 @@ final class TuiCommand extends Command
         $tui->add($statusBar->widget());
         $tui->add($overlayMenu->widget());
 
-        // FocusManager auto-focused the overlay's SelectList on attach; clear it
-        // so global InputEvent keys are not consumed by the hidden overlay.
+        // The overlay's SelectList grabs focus on attach; release it so global keys still reach the dashboard.
         $tui->setFocus(null);
 
         $viewWidgets = [
@@ -327,8 +326,6 @@ final class TuiCommand extends Command
                 return;
             }
 
-            // Tab opens the overlay menu: q/s/Esc/arrows/Enter are already taken
-            // and Tab is never produced by a user editing free-text fields.
             if ("\t" === $rawInput) {
                 $event->stopPropagation();
                 $overlayMenu->show();
