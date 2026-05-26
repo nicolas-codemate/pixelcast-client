@@ -12,6 +12,9 @@ final class NotificationsRenderer implements DomainRenderer
     private const string NO_DATA_TEXT = 'no data';
     private const int MAX_ROWS = 8;
 
+    /** @var array<string, int> */
+    private const array PRIORITY_RANK = ['low' => 0, 'normal' => 1, 'high' => 2];
+
     public function render(DeviceDomainState $state): string
     {
         if (false === $state->hasData) {
@@ -47,6 +50,58 @@ final class NotificationsRenderer implements DomainRenderer
         }
 
         return implode("\n", $lines);
+    }
+
+    public function summary(DeviceDomainState $state): string
+    {
+        if (false === $state->hasData) {
+            return '';
+        }
+
+        $payload = $state->payload;
+        if (!\is_array($payload)) {
+            return '';
+        }
+
+        $notifications = $this->extractNotifications($payload);
+        $renderableCount = 0;
+        $topPriority = null;
+        $topRank = null;
+        foreach ($notifications as $notification) {
+            if (null === $this->renderNotificationLine($notification)) {
+                continue;
+            }
+            ++$renderableCount;
+
+            if (!\is_array($notification)) {
+                continue;
+            }
+            $priority = $this->formatString($notification['priority'] ?? null);
+            if (null === $priority) {
+                continue;
+            }
+            $rank = self::PRIORITY_RANK[strtolower($priority)] ?? null;
+            if (null === $rank) {
+                if (null === $topPriority) {
+                    $topPriority = $priority;
+                }
+                continue;
+            }
+            if (null === $topRank || $rank > $topRank) {
+                $topRank = $rank;
+                $topPriority = $priority;
+            }
+        }
+
+        if (0 === $renderableCount) {
+            return '0 notifications';
+        }
+
+        if (null === $topPriority) {
+            return (string) $renderableCount;
+        }
+
+        return $renderableCount.' ('.$topPriority.')';
     }
 
     /**

@@ -86,4 +86,34 @@ final class TrackersRendererTest extends TestCase
 
         self::assertStringNotContainsString("\x1b", $output);
     }
+
+    public function testSummaryReturnsEmptyStringWhenStateHasNoData(): void
+    {
+        $renderer = new TrackersRenderer();
+        $state = new DeviceDomainState(false, null);
+
+        self::assertSame('', $renderer->summary($state));
+    }
+
+    public function testSummaryReturnsExpectedTextWithFullPayload(): void
+    {
+        $renderer = new TrackersRenderer();
+        $state = new DeviceDomainState(true, [
+            'trackers' => [
+                ['label' => 'BTC', 'value' => '42000'],
+                ['label' => 'ETH', 'value' => '3000'],
+                ['label' => 'DOGE', 'value' => '0.15'],
+            ],
+        ]);
+
+        self::assertSame('3 trackers', $renderer->summary($state));
+    }
+
+    public function testSummaryHandlesPartialOrEmptyPayloadGracefully(): void
+    {
+        $renderer = new TrackersRenderer();
+        $state = new DeviceDomainState(true, ['trackers' => []]);
+
+        self::assertSame('0 trackers', $renderer->summary($state));
+    }
 }

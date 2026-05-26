@@ -48,6 +48,27 @@ final class CustomAppsRenderer implements DomainRenderer
         return implode("\n", $lines);
     }
 
+    public function summary(DeviceDomainState $state): string
+    {
+        if (false === $state->hasData) {
+            return '';
+        }
+
+        $payload = $state->payload;
+        if (!\is_array($payload)) {
+            return '';
+        }
+
+        $apps = $payload['apps'] ?? null;
+        if (!\is_array($apps) || [] === $apps) {
+            return '';
+        }
+
+        $totalCount = \count($apps);
+
+        return $totalCount.' '.(1 === $totalCount ? 'app' : 'apps');
+    }
+
     private function extractAppName(mixed $app): ?string
     {
         if (\is_string($app)) {

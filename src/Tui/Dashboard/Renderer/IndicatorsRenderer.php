@@ -34,6 +34,27 @@ final class IndicatorsRenderer implements DomainRenderer
         return implode("\n", $lines);
     }
 
+    public function summary(DeviceDomainState $state): string
+    {
+        if (false === $state->hasData) {
+            return '';
+        }
+
+        $payload = $state->payload;
+        if (!\is_array($payload)) {
+            return '';
+        }
+
+        $filled = 0;
+        foreach (self::SLOT_KEYS as $slotKey) {
+            if (self::EMPTY_SLOT_TEXT !== $this->formatSlotLabel($payload[$slotKey] ?? null)) {
+                ++$filled;
+            }
+        }
+
+        return $filled.'/'.\count(self::SLOT_KEYS).' slots';
+    }
+
     private function formatSlotLabel(mixed $slot): string
     {
         if (null === $slot) {

@@ -49,6 +49,32 @@ final class TrackersRenderer implements DomainRenderer
         return implode("\n", $lines);
     }
 
+    public function summary(DeviceDomainState $state): string
+    {
+        if (false === $state->hasData) {
+            return '';
+        }
+
+        $payload = $state->payload;
+        if (!\is_array($payload)) {
+            return '';
+        }
+
+        $trackers = $payload['trackers'] ?? null;
+        if (!\is_array($trackers)) {
+            return '';
+        }
+
+        $renderableCount = 0;
+        foreach ($trackers as $tracker) {
+            if (null !== $this->renderTrackerLine($tracker)) {
+                ++$renderableCount;
+            }
+        }
+
+        return $renderableCount.' '.(1 === $renderableCount ? 'tracker' : 'trackers');
+    }
+
     private function renderTrackerLine(mixed $tracker): ?string
     {
         if (!\is_array($tracker)) {

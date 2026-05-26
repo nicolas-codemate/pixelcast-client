@@ -72,4 +72,32 @@ final class WeatherRendererTest extends TestCase
 
         self::assertStringNotContainsString("\x1b", $output);
     }
+
+    public function testSummaryReturnsEmptyStringWhenStateHasNoData(): void
+    {
+        $renderer = new WeatherRenderer();
+        $state = new DeviceDomainState(false, null);
+
+        self::assertSame('', $renderer->summary($state));
+    }
+
+    public function testSummaryReturnsExpectedTextWithFullPayload(): void
+    {
+        $renderer = new WeatherRenderer();
+        $state = new DeviceDomainState(true, [
+            'current' => ['tempC' => 21, 'condition' => 'sunny'],
+        ]);
+
+        self::assertSame('21C sunny', $renderer->summary($state));
+    }
+
+    public function testSummaryHandlesPartialOrEmptyPayloadGracefully(): void
+    {
+        $renderer = new WeatherRenderer();
+        $state = new DeviceDomainState(true, [
+            'current' => ['condition' => 'sunny'],
+        ]);
+
+        self::assertSame('sunny', $renderer->summary($state));
+    }
 }

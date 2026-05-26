@@ -176,7 +176,7 @@ final class DevDeviceStateSourceTest extends TestCase
         $snapshot = $source->snapshot();
 
         self::assertSame(
-            ['weather', 'trackers', 'notifications', 'customApps', 'indicators', 'icons'],
+            ['weather', 'trackers', 'notifications', 'indicators', 'icons', 'customApps'],
             array_keys($snapshot),
         );
         self::assertTrue($snapshot['weather']->hasData);

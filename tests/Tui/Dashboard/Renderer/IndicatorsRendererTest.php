@@ -73,4 +73,32 @@ final class IndicatorsRendererTest extends TestCase
 
         self::assertStringNotContainsString("\x1b", $output);
     }
+
+    public function testSummaryReturnsEmptyStringWhenStateHasNoData(): void
+    {
+        $renderer = new IndicatorsRenderer();
+        $state = new DeviceDomainState(false, null);
+
+        self::assertSame('', $renderer->summary($state));
+    }
+
+    public function testSummaryReturnsExpectedTextWithFullPayload(): void
+    {
+        $renderer = new IndicatorsRenderer();
+        $state = new DeviceDomainState(true, [
+            'slot1' => 'battery',
+            'slot2' => ['label' => 'alarm'],
+            'slot3' => null,
+        ]);
+
+        self::assertSame('2/3 slots', $renderer->summary($state));
+    }
+
+    public function testSummaryHandlesPartialOrEmptyPayloadGracefully(): void
+    {
+        $renderer = new IndicatorsRenderer();
+        $state = new DeviceDomainState(true, []);
+
+        self::assertSame('0/3 slots', $renderer->summary($state));
+    }
 }

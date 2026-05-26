@@ -15,9 +15,9 @@ final class AppDomainTest extends TestCase
             'Weather' => 'weather',
             'Trackers' => 'trackers',
             'Notifications' => 'notifications',
-            'CustomApps' => 'customApps',
             'Indicators' => 'indicators',
             'Icons' => 'icons',
+            'CustomApps' => 'customApps',
         ];
 
         $actual = [];

@@ -48,6 +48,27 @@ final class IconsRenderer implements DomainRenderer
         return implode("\n", $lines);
     }
 
+    public function summary(DeviceDomainState $state): string
+    {
+        if (false === $state->hasData) {
+            return '';
+        }
+
+        $payload = $state->payload;
+        if (!\is_array($payload)) {
+            return '';
+        }
+
+        $icons = $payload['icons'] ?? null;
+        if (!\is_array($icons) || [] === $icons) {
+            return '';
+        }
+
+        $totalCount = \count($icons);
+
+        return $totalCount.' '.(1 === $totalCount ? 'icon' : 'icons');
+    }
+
     private function extractIconName(mixed $icon): ?string
     {
         if (\is_string($icon)) {

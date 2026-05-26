@@ -9,4 +9,6 @@ use App\Tui\DeviceState\DeviceDomainState;
 interface DomainRenderer
 {
     public function render(DeviceDomainState $state): string;
+
+    public function summary(DeviceDomainState $state): string;
 }

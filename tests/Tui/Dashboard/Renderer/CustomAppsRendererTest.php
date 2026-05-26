@@ -84,4 +84,30 @@ final class CustomAppsRendererTest extends TestCase
 
         self::assertStringNotContainsString("\x1b", $output);
     }
+
+    public function testSummaryReturnsEmptyStringWhenStateHasNoData(): void
+    {
+        $renderer = new CustomAppsRenderer();
+        $state = new DeviceDomainState(false, null);
+
+        self::assertSame('', $renderer->summary($state));
+    }
+
+    public function testSummaryReturnsExpectedTextWithFullPayload(): void
+    {
+        $renderer = new CustomAppsRenderer();
+        $state = new DeviceDomainState(true, [
+            'apps' => ['stocks', 'agenda'],
+        ]);
+
+        self::assertSame('2 apps', $renderer->summary($state));
+    }
+
+    public function testSummaryHandlesPartialOrEmptyPayloadGracefully(): void
+    {
+        $renderer = new CustomAppsRenderer();
+        $state = new DeviceDomainState(true, ['apps' => []]);
+
+        self::assertSame('', $renderer->summary($state));
+    }
 }
