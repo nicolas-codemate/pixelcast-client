@@ -19,10 +19,6 @@ use App\Tui\DeviceState\Prod\Transport\WeatherTransport;
 use App\Tui\DeviceStatus\Panel\DeviceStatusPanel;
 use App\Tui\DeviceStatus\StatsPoller;
 use App\Tui\DeviceStatus\StatsTransport;
-use App\Tui\Inspector\InspectorPoller;
-use App\Tui\Inspector\InspectorTransport;
-use App\Tui\Inspector\RequestLogPanel;
-use App\Tui\Inspector\StateInspectorPanel;
 use App\Tui\Menu\TuiMenuFactory;
 use App\Tui\Reachability\DeviceReachabilityProbe;
 use App\Tui\Reachability\DeviceReachabilityResult;
@@ -63,7 +59,6 @@ final class TuiCommand extends Command
         #[Autowire('%env(default::PIXELCAST_DEVICE_BASE_URL)%')]
         private readonly ?string $deviceBaseUrl,
         private readonly DeviceReachabilityProbe $deviceReachabilityProbe,
-        private readonly InspectorTransport $inspectorHttpClient,
         private readonly ScenarioCatalog $scenarioCatalog,
         private readonly ScenarioDispatcher $scenarioDispatcher,
         private readonly SyncNowDispatcher $syncNowDispatcher,
@@ -84,28 +79,14 @@ final class TuiCommand extends Command
         $tui = new Tui();
 
         $menuSelectList = $this->buildMainMenuSelectList($mode);
-        $mainBodyContainer = $this->buildMainBodyContainer($menuSelectList);
 
-        $inspectorPoller = null;
-        $stateInspectorPanel = null;
-        $requestLogPanel = null;
+        $headerZone = new ContainerWidget();
+        $headerZone->add($menuSelectList);
+
+        $contentZone = new ContainerWidget();
+        $contentZone->expandVertically(true);
+
         $prodDeviceStateSource = null;
-
-        if (TuiMode::Dev === $mode) {
-            $inspectorPoller = new InspectorPoller(
-                $this->inspectorHttpClient,
-                $this->deviceBaseUrl,
-            );
-            $stateInspectorPanel = new StateInspectorPanel();
-            $requestLogPanel = new RequestLogPanel();
-
-            $initialSnapshot = $inspectorPoller->poll();
-            $stateInspectorPanel->update($initialSnapshot, busy: false);
-            $requestLogPanel->update($initialSnapshot, busy: false);
-
-            $mainBodyContainer->add($stateInspectorPanel->widget());
-            $mainBodyContainer->add($requestLogPanel->widget());
-        }
 
         $scenariosPanel = new ScenariosPanel($this->scenarioCatalog, $mode);
 
@@ -144,22 +125,17 @@ final class TuiCommand extends Command
             );
         }
 
-        $viewContainer = new ContainerWidget();
-        $viewContainer->expandVertically(true);
-        $viewContainer->add($mainBodyContainer);
-
-        $statusBar = new StatusBarWidget();
+        $statusBar = new StatusBarWidget($mode);
         $statusBar->setBaseLine($this->buildStatusBarBaseLine(
-            $mode,
             $reachabilityResult,
             $configurationPanel?->currentDeviceUrl(),
         ));
 
-        $tui->add($viewContainer);
+        $tui->add($headerZone);
+        $tui->add($contentZone);
         $tui->add($statusBar->widget());
 
         $viewWidgets = [
-            TuiView::Main->value => $mainBodyContainer,
             TuiView::Scenarios->value => $scenariosPanel->widget(),
         ];
         if (null !== $syncNowPanel) {
@@ -189,26 +165,21 @@ final class TuiCommand extends Command
             $tui->addListener($this->buildProdDeviceStateTickListener($prodDeviceStateSource));
         }
 
-        if (null !== $inspectorPoller) {
-            $tui->onTick($this->buildInspectorTickListener(
-                $tui,
-                $inspectorPoller,
-                $stateInspectorPanel,
-                $requestLogPanel,
-            ));
-        }
-
-        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $viewContainer, $viewWidgets): void {
+        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $contentZone, $viewWidgets): void {
             if ($event->getTarget() !== $menuSelectList) {
                 return;
             }
 
             $targetView = TuiView::tryFrom($event->getValue());
-            if (null === $targetView || !isset($viewWidgets[$targetView->value])) {
+            if (null === $targetView) {
                 return;
             }
 
-            $this->switchView($tui, $viewContainer, $targetView, $viewWidgets);
+            if (TuiView::Main !== $targetView && !isset($viewWidgets[$targetView->value])) {
+                return;
+            }
+
+            $this->switchView($tui, $contentZone, $targetView, $viewWidgets);
         });
 
         $tui->addListener(function (SelectEvent $event) use ($tui, $scenariosPanel, $mode): void {
@@ -226,13 +197,13 @@ final class TuiCommand extends Command
             $tui->requestRender();
         });
 
-        $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $scenariosPanel): void {
+        $tui->addListener(function (CancelEvent $event) use ($tui, $contentZone, $viewWidgets, $scenariosPanel): void {
             if ($event->getTarget() !== $scenariosPanel->selectListWidget()) {
                 return;
             }
 
             $scenariosPanel->clearResult();
-            $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
+            $this->switchView($tui, $contentZone, TuiView::Main, $viewWidgets);
         });
 
         if (null !== $syncNowPanel) {
@@ -254,13 +225,13 @@ final class TuiCommand extends Command
                 $tui->requestRender();
             });
 
-            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $syncNowPanel): void {
+            $tui->addListener(function (CancelEvent $event) use ($tui, $contentZone, $viewWidgets, $syncNowPanel): void {
                 if ($event->getTarget() !== $syncNowPanel->selectListWidget()) {
                     return;
                 }
 
                 $syncNowPanel->clearResult();
-                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
+                $this->switchView($tui, $contentZone, TuiView::Main, $viewWidgets);
             });
         }
 
@@ -275,40 +246,38 @@ final class TuiCommand extends Command
                 $tui->requestRender();
             });
 
-            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $resetSimPanel): void {
+            $tui->addListener(function (CancelEvent $event) use ($tui, $contentZone, $viewWidgets, $resetSimPanel): void {
                 if ($event->getTarget() !== $resetSimPanel->selectListWidget()) {
                     return;
                 }
 
                 $resetSimPanel->clearResult();
-                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
+                $this->switchView($tui, $contentZone, TuiView::Main, $viewWidgets);
             });
         }
 
         if (null !== $configurationPanel) {
-            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets, $configurationPanel): void {
+            $tui->addListener(function (CancelEvent $event) use ($tui, $contentZone, $viewWidgets, $configurationPanel): void {
                 if ($event->getTarget() !== $configurationPanel->selectListWidget()) {
                     return;
                 }
 
                 $configurationPanel->discardChanges();
-                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
+                $this->switchView($tui, $contentZone, TuiView::Main, $viewWidgets);
             });
         }
 
         if (null !== $deviceStatusPanel) {
-            // DeviceStatusPanel is read-only and exposes no focusable widget, so the
-            // cancel handler keys off the active view instead of an event target.
-            $tui->addListener(function (CancelEvent $event) use ($tui, $viewContainer, $viewWidgets): void {
+            $tui->addListener(function (CancelEvent $event) use ($tui, $contentZone, $viewWidgets): void {
                 if (TuiView::DeviceStatus !== $this->currentView) {
                     return;
                 }
 
-                $this->switchView($tui, $viewContainer, TuiView::Main, $viewWidgets);
+                $this->switchView($tui, $contentZone, TuiView::Main, $viewWidgets);
             });
         }
 
-        $tui->addListener(function (InputEvent $event) use ($tui, $statusBar, $configurationPanel, $mode, $reachabilityResult): void {
+        $tui->addListener(function (InputEvent $event) use ($tui, $statusBar, $configurationPanel, $reachabilityResult): void {
             $rawInput = $event->getData();
             if ('q' === $rawInput || 'Q' === $rawInput) {
                 $event->stopPropagation();
@@ -326,7 +295,6 @@ final class TuiCommand extends Command
                 $outcome = $configurationPanel->commitSave();
                 if (SaveOutcome::Saved === $outcome) {
                     $statusBar->setBaseLine($this->buildStatusBarBaseLine(
-                        $mode,
                         $reachabilityResult,
                         $configurationPanel->currentDeviceUrl(),
                     ));
@@ -341,11 +309,14 @@ final class TuiCommand extends Command
     }
 
     /**
+     * Swap the panel rendered inside the content zone. TuiView::Main means "no panel" —
+     * the content zone is cleared but the header and status bar remain visible.
+     *
      * @param array<string, AbstractWidget> $viewWidgets keyed by TuiView::value
      */
     private function switchView(
         Tui $tui,
-        ContainerWidget $viewContainer,
+        ContainerWidget $contentZone,
         TuiView $next,
         array $viewWidgets,
     ): void {
@@ -353,39 +324,18 @@ final class TuiCommand extends Command
             return;
         }
 
-        if (!isset($viewWidgets[$next->value])) {
+        if (TuiView::Main !== $next && !isset($viewWidgets[$next->value])) {
             return;
         }
 
         $this->currentView = $next;
-        $viewContainer->clear();
-        $viewContainer->add($viewWidgets[$next->value]);
+        $contentZone->clear();
+
+        if (TuiView::Main !== $next) {
+            $contentZone->add($viewWidgets[$next->value]);
+        }
 
         $tui->requestRender();
-    }
-
-    private function buildInspectorTickListener(
-        Tui $tui,
-        InspectorPoller $inspectorPoller,
-        StateInspectorPanel $stateInspectorPanel,
-        RequestLogPanel $requestLogPanel,
-    ): callable {
-        return static function (TickEvent $event) use (
-            $tui,
-            $inspectorPoller,
-            $stateInspectorPanel,
-            $requestLogPanel,
-        ): void {
-            if (!$inspectorPoller->pollIfDue($event->getDeltaTime())) {
-                return;
-            }
-
-            $event->setBusy(true);
-            $snapshot = $inspectorPoller->getLatestSnapshot();
-            $stateInspectorPanel->update($snapshot, busy: false);
-            $requestLogPanel->update($snapshot, busy: false);
-            $tui->requestRender();
-        };
     }
 
     private function buildStatsTickListener(
@@ -428,17 +378,7 @@ final class TuiCommand extends Command
         return new SelectListWidget($selectListItems, maxVisible: \count($selectListItems));
     }
 
-    private function buildMainBodyContainer(SelectListWidget $menuSelectList): ContainerWidget
-    {
-        $mainPanel = new ContainerWidget();
-        $mainPanel->expandVertically(true);
-        $mainPanel->add($menuSelectList);
-
-        return $mainPanel;
-    }
-
     private function buildStatusBarBaseLine(
-        TuiMode $mode,
         DeviceReachabilityResult $reachabilityResult,
         ?string $configurationDeviceUrl,
     ): string {
@@ -449,8 +389,7 @@ final class TuiCommand extends Command
         $targetLabel = $this->formatTargetLabel($effectiveDeviceUrl);
 
         return \sprintf(
-            'MODE: %s   TARGET: %s (%s)   [Q] quit',
-            $mode->displayLabel(),
+            'TARGET: %s (%s)   [Q] quit',
             $targetLabel,
             $reachabilityResult->displayLabel,
         );

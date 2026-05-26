@@ -11,21 +11,21 @@ use PHPUnit\Framework\TestCase;
 
 final class TuiMenuFactoryTest extends TestCase
 {
-    public function testBuildForDevModeProducesFourItemsWithExpectedLabels(): void
+    public function testBuildForDevModeProducesThreeItemsWithExpectedLabels(): void
     {
         $items = TuiMenuFactory::buildForMode(TuiMode::Dev);
 
-        self::assertCount(4, $items);
+        self::assertCount(3, $items);
         self::assertSame(
-            ['1', '2', '3', '4'],
+            ['1', '2', '3'],
             array_map(static fn (TuiMenuItem $item): string => $item->shortcut, $items),
         );
         self::assertSame(
-            ['Scenarios', 'Sync Now', 'Request Log', 'Reset Sim'],
+            ['Scenarios', 'Sync Now', 'Reset Sim'],
             array_map(static fn (TuiMenuItem $item): string => $item->label, $items),
         );
         self::assertSame(
-            ['scenarios', 'sync-now', 'request-log', 'reset-sim'],
+            ['scenarios', 'sync-now', 'reset-sim'],
             array_map(static fn (TuiMenuItem $item): string => $item->value, $items),
         );
     }
@@ -59,8 +59,7 @@ final class TuiMenuFactoryTest extends TestCase
             [
                 ['value' => 'scenarios', 'label' => '[1] Scenarios'],
                 ['value' => 'sync-now', 'label' => '[2] Sync Now'],
-                ['value' => 'request-log', 'label' => '[3] Request Log'],
-                ['value' => 'reset-sim', 'label' => '[4] Reset Sim'],
+                ['value' => 'reset-sim', 'label' => '[3] Reset Sim'],
             ],
             $selectListItems,
         );
