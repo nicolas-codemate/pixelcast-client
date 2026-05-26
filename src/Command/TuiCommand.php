@@ -9,6 +9,13 @@ use App\Config\PixelCastConfigWriter;
 use App\Tui\Configuration\ConfigurationFieldValidator;
 use App\Tui\Configuration\Panel\ConfigurationPanel;
 use App\Tui\Configuration\SaveOutcome;
+use App\Tui\DeviceState\Prod\Http\HttpJsonFetcher;
+use App\Tui\DeviceState\Prod\ProdDeviceStateSource;
+use App\Tui\DeviceState\Prod\Transport\IconsTransport;
+use App\Tui\DeviceState\Prod\Transport\NotificationsTransport;
+use App\Tui\DeviceState\Prod\Transport\SettingsTransport;
+use App\Tui\DeviceState\Prod\Transport\TrackersTransport;
+use App\Tui\DeviceState\Prod\Transport\WeatherTransport;
 use App\Tui\DeviceStatus\Panel\DeviceStatusPanel;
 use App\Tui\DeviceStatus\StatsPoller;
 use App\Tui\DeviceStatus\StatsTransport;
@@ -82,6 +89,7 @@ final class TuiCommand extends Command
         $inspectorPoller = null;
         $stateInspectorPanel = null;
         $requestLogPanel = null;
+        $prodDeviceStateSource = null;
 
         if (TuiMode::Dev === $mode) {
             $inspectorPoller = new InspectorPoller(
@@ -124,6 +132,16 @@ final class TuiCommand extends Command
             $statsPoller = new StatsPoller($this->statsHttpClient, $effectiveDeviceUrl);
             $deviceStatusPanel = new DeviceStatusPanel();
             $deviceStatusPanel->update($statsPoller->poll(), busy: false);
+
+            $httpJsonFetcher = new HttpJsonFetcher();
+            $prodDeviceStateSource = new ProdDeviceStateSource(
+                new WeatherTransport($httpJsonFetcher),
+                new TrackersTransport($httpJsonFetcher),
+                new NotificationsTransport($httpJsonFetcher),
+                new IconsTransport($httpJsonFetcher),
+                new SettingsTransport($httpJsonFetcher),
+                $effectiveDeviceUrl,
+            );
         }
 
         $viewContainer = new ContainerWidget();
@@ -165,6 +183,10 @@ final class TuiCommand extends Command
                 $statsPoller,
                 $deviceStatusPanel,
             ));
+        }
+
+        if (null !== $prodDeviceStateSource) {
+            $tui->addListener($this->buildProdDeviceStateTickListener($prodDeviceStateSource));
         }
 
         if (null !== $inspectorPoller) {
@@ -383,6 +405,18 @@ final class TuiCommand extends Command
             $event->setBusy(true);
             $deviceStatusPanel->update($statsPoller->getLatestSnapshot(), busy: false);
             $tui->requestRender();
+        };
+    }
+
+    private function buildProdDeviceStateTickListener(
+        ProdDeviceStateSource $prodDeviceStateSource,
+    ): callable {
+        return static function (TickEvent $event) use ($prodDeviceStateSource): void {
+            if (!$prodDeviceStateSource->refresh($event->getDeltaTime())) {
+                return;
+            }
+
+            $event->setBusy(true);
         };
     }
 
