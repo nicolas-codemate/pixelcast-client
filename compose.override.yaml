@@ -21,6 +21,7 @@ services:
       php:
         condition: service_started
     working_dir: /app
+    entrypoint: []
     command: php -S 0.0.0.0:8080 -t public/
     volumes:
       - .:/app
