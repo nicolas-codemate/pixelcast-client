@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Tui\Dashboard;
 
 use App\Tui\Dashboard\CollapsibleBlock;
+use App\Tui\Style\Palette;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Tui\Style\Color;
 
 final class CollapsibleBlockTest extends TestCase
 {
@@ -109,5 +111,102 @@ final class CollapsibleBlockTest extends TestCase
         $block->setState(true, 'body');
 
         self::assertSame('> Trackers [on]', $block->headerText());
+    }
+
+    public function testHeaderIncludesSummaryWhileCollapsed(): void
+    {
+        $block = new CollapsibleBlock('Icons');
+
+        $block->setSummary('5 icons');
+
+        self::assertStringEndsWith('5 icons', $block->headerText());
+    }
+
+    public function testHeaderHidesSummaryWhenExpanded(): void
+    {
+        $block = new CollapsibleBlock('Icons');
+        $block->setSummary('5 icons');
+
+        $block->expand();
+
+        self::assertStringNotContainsString('5 icons', $block->headerText());
+    }
+
+    public function testHeaderWidgetIsBoldWhenHasDataIsTrue(): void
+    {
+        $palette = new Palette();
+        $block = new CollapsibleBlock('Weather');
+
+        $block->setState(true, 'body');
+
+        $headerStyle = $block->headerStyle();
+        self::assertNotNull($headerStyle);
+        self::assertTrue($headerStyle->getBold());
+        $color = $headerStyle->getColor();
+        self::assertNotNull($color);
+        self::assertSame(Color::from($palette->headerText)->toHex(), $color->toHex());
+    }
+
+    public function testHeaderWidgetIsDimWhenHasDataIsFalse(): void
+    {
+        $palette = new Palette();
+        $block = new CollapsibleBlock('Weather');
+
+        $block->setState(false, 'no data');
+
+        $headerStyle = $block->headerStyle();
+        self::assertNotNull($headerStyle);
+        self::assertTrue($headerStyle->getDim());
+        $color = $headerStyle->getColor();
+        self::assertNotNull($color);
+        self::assertSame(Color::from($palette->dimText)->toHex(), $color->toHex());
+    }
+
+    public function testOuterContainerBorderUsesAccentColorWhenOn(): void
+    {
+        $palette = new Palette();
+        $block = new CollapsibleBlock('Weather');
+
+        $block->setState(true, 'body');
+
+        $border = $block->widget()->getStyle()?->getBorder();
+        self::assertNotNull($border);
+        $borderColor = $border->color;
+        self::assertNotNull($borderColor);
+        self::assertSame(Color::from($palette->borderAccent)->toHex(), $borderColor->toHex());
+    }
+
+    public function testOuterContainerBorderUsesDimColorWhenOff(): void
+    {
+        $palette = new Palette();
+        $block = new CollapsibleBlock('Weather');
+
+        $border = $block->widget()->getStyle()?->getBorder();
+        self::assertNotNull($border);
+        $borderColor = $border->color;
+        self::assertNotNull($borderColor);
+        self::assertSame(Color::from($palette->borderDim)->toHex(), $borderColor->toHex());
+    }
+
+    public function testSelectedBlockUsesFullBorderInsteadOfTopOnly(): void
+    {
+        $block = new CollapsibleBlock('Weather');
+        $block->setState(true, 'body');
+
+        $unselectedBorder = $block->widget()->getStyle()?->getBorder();
+        self::assertNotNull($unselectedBorder);
+        self::assertSame(1, $unselectedBorder->top);
+        self::assertSame(0, $unselectedBorder->right);
+        self::assertSame(0, $unselectedBorder->bottom);
+        self::assertSame(0, $unselectedBorder->left);
+
+        $block->setSelected(true);
+
+        $selectedBorder = $block->widget()->getStyle()?->getBorder();
+        self::assertNotNull($selectedBorder);
+        self::assertSame(1, $selectedBorder->top);
+        self::assertSame(1, $selectedBorder->right);
+        self::assertSame(1, $selectedBorder->bottom);
+        self::assertSame(1, $selectedBorder->left);
     }
 }

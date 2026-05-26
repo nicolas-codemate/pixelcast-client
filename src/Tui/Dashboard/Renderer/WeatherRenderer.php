@@ -41,6 +41,38 @@ final class WeatherRenderer implements DomainRenderer
         return implode("\n", $lines);
     }
 
+    public function summary(DeviceDomainState $state): string
+    {
+        if (false === $state->hasData) {
+            return '';
+        }
+
+        $payload = $state->payload;
+        if (!\is_array($payload)) {
+            return '';
+        }
+
+        $current = $payload['current'] ?? null;
+        if (!\is_array($current)) {
+            return '';
+        }
+
+        $temperature = $this->formatTemperature($current['tempC'] ?? null);
+        $condition = $this->formatString($current['condition'] ?? null);
+
+        if (null === $temperature && null === $condition) {
+            return '';
+        }
+        if (null === $condition) {
+            return $temperature;
+        }
+        if (null === $temperature) {
+            return $condition;
+        }
+
+        return $temperature.' '.$condition;
+    }
+
     private function renderCurrentLine(mixed $current): ?string
     {
         if (!\is_array($current)) {

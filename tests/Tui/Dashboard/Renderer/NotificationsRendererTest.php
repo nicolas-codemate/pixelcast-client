@@ -88,4 +88,37 @@ final class NotificationsRendererTest extends TestCase
 
         self::assertStringNotContainsString("\x1b", $output);
     }
+
+    public function testSummaryReturnsEmptyStringWhenStateHasNoData(): void
+    {
+        $renderer = new NotificationsRenderer();
+        $state = new DeviceDomainState(false, null);
+
+        self::assertSame('', $renderer->summary($state));
+    }
+
+    public function testSummaryReturnsExpectedTextWithFullPayload(): void
+    {
+        $renderer = new NotificationsRenderer();
+        $state = new DeviceDomainState(true, [
+            'queue' => [
+                ['priority' => 'low', 'text' => 'first'],
+                ['priority' => 'high', 'text' => 'second'],
+            ],
+        ]);
+
+        self::assertSame('2 (high)', $renderer->summary($state));
+    }
+
+    public function testSummaryHandlesPartialOrEmptyPayloadGracefully(): void
+    {
+        $renderer = new NotificationsRenderer();
+        $state = new DeviceDomainState(true, [
+            'queue' => [
+                ['text' => 'lonely'],
+            ],
+        ]);
+
+        self::assertSame('1', $renderer->summary($state));
+    }
 }

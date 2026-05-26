@@ -443,7 +443,7 @@ final class TuiCommand extends Command
         $targetLabel = $this->formatTargetLabel($effectiveDeviceUrl);
 
         return \sprintf(
-            'TARGET: %s (%s)   [Tab] menu  [Q] quit',
+            'TARGET: %s (%s) │ [Tab] menu │ [Q] quit',
             $targetLabel,
             $reachabilityResult->displayLabel,
         );

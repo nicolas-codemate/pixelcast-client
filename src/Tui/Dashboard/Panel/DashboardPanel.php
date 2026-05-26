@@ -14,6 +14,7 @@ use App\Tui\Dashboard\Renderer\NotificationsRenderer;
 use App\Tui\Dashboard\Renderer\TrackersRenderer;
 use App\Tui\Dashboard\Renderer\WeatherRenderer;
 use App\Tui\DeviceState\DeviceStateSource;
+use App\Tui\Style\Palette;
 use Symfony\Component\Tui\Widget\ContainerWidget;
 
 final class DashboardPanel
@@ -31,11 +32,12 @@ final class DashboardPanel
 
     private int $selectedBlockIndex = 0;
 
-    public function __construct()
+    public function __construct(?Palette $palette = null)
     {
+        $palette ??= new Palette();
         $blocks = [];
         foreach (AppDomain::cases() as $domain) {
-            $blocks[$domain->value] = new CollapsibleBlock(self::titleFor($domain));
+            $blocks[$domain->value] = new CollapsibleBlock(self::titleFor($domain), $palette);
         }
         $this->blocks = $blocks;
 
@@ -43,9 +45,9 @@ final class DashboardPanel
             AppDomain::Weather->value => new WeatherRenderer(),
             AppDomain::Trackers->value => new TrackersRenderer(),
             AppDomain::Notifications->value => new NotificationsRenderer(),
-            AppDomain::CustomApps->value => new CustomAppsRenderer(),
             AppDomain::Indicators->value => new IndicatorsRenderer(),
             AppDomain::Icons->value => new IconsRenderer(),
+            AppDomain::CustomApps->value => new CustomAppsRenderer(),
         ];
 
         $this->orderedDomains = AppDomain::cases();
@@ -68,8 +70,10 @@ final class DashboardPanel
     {
         foreach ($this->orderedDomains as $domain) {
             $state = $source->getDomainState($domain);
-            $body = $this->renderers[$domain->value]->render($state);
-            $this->blocks[$domain->value]->setState($state->hasData, $body);
+            $renderer = $this->renderers[$domain->value];
+            $block = $this->blocks[$domain->value];
+            $block->setState($state->hasData, $renderer->render($state));
+            $block->setSummary($renderer->summary($state));
         }
     }
 

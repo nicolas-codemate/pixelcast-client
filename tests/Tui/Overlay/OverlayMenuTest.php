@@ -6,6 +6,7 @@ namespace App\Tests\Tui\Overlay;
 
 use App\Tui\Overlay\OverlayMenu;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Tui\Widget\TextWidget;
 
 final class OverlayMenuTest extends TestCase
 {
@@ -57,5 +58,31 @@ final class OverlayMenuTest extends TestCase
         $style = $overlay->widget()->getStyle();
         self::assertNotNull($style);
         self::assertTrue($style->getHidden());
+    }
+
+    public function testTitleAndFooterAreRenderedInsideTheOverlay(): void
+    {
+        $overlay = new OverlayMenu(self::SAMPLE_ITEMS);
+
+        $children = $overlay->widget()->all();
+        self::assertGreaterThanOrEqual(3, \count($children));
+
+        $first = $children[0];
+        self::assertInstanceOf(TextWidget::class, $first);
+        self::assertSame('Menu', $first->getText());
+
+        $last = $children[\count($children) - 1];
+        self::assertInstanceOf(TextWidget::class, $last);
+        self::assertStringContainsString('[Esc] close', $last->getText());
+    }
+
+    public function testCustomTitleIsRespected(): void
+    {
+        $overlay = new OverlayMenu(self::SAMPLE_ITEMS, 'Actions');
+
+        $children = $overlay->widget()->all();
+        $first = $children[0];
+        self::assertInstanceOf(TextWidget::class, $first);
+        self::assertSame('Actions', $first->getText());
     }
 }

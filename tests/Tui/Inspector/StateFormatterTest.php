@@ -41,12 +41,12 @@ final class StateFormatterTest extends TestCase
               active: 2
             [notifications]
               unread: 0
-            [customApps]
-              installed: ["weather","clock"]
             [indicators]
               battery: true
             [icons]
               count: 3
+            [customApps]
+              installed: ["weather","clock"]
             [brightness]
               level: 80
             [settings]

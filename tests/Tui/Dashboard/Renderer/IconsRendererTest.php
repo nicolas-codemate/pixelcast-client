@@ -85,4 +85,30 @@ final class IconsRendererTest extends TestCase
 
         self::assertStringNotContainsString("\x1b", $output);
     }
+
+    public function testSummaryReturnsEmptyStringWhenStateHasNoData(): void
+    {
+        $renderer = new IconsRenderer();
+        $state = new DeviceDomainState(false, null);
+
+        self::assertSame('', $renderer->summary($state));
+    }
+
+    public function testSummaryReturnsExpectedTextWithFullPayload(): void
+    {
+        $renderer = new IconsRenderer();
+        $state = new DeviceDomainState(true, [
+            'icons' => ['weather', 'clock', 'mail', 'calendar', 'sport'],
+        ]);
+
+        self::assertSame('5 icons', $renderer->summary($state));
+    }
+
+    public function testSummaryHandlesPartialOrEmptyPayloadGracefully(): void
+    {
+        $renderer = new IconsRenderer();
+        $state = new DeviceDomainState(true, ['icons' => []]);
+
+        self::assertSame('', $renderer->summary($state));
+    }
 }

@@ -134,6 +134,16 @@ final class DashboardPanelTest extends TestCase
         self::assertStringNotContainsString("\x1b", $weatherBodyText);
     }
 
+    public function testEnumCasesFollowCanonicalOrder(): void
+    {
+        $domainValues = array_map(static fn (AppDomain $domain) => $domain->value, AppDomain::cases());
+
+        self::assertSame(
+            ['weather', 'trackers', 'notifications', 'indicators', 'icons', 'customApps'],
+            $domainValues,
+        );
+    }
+
     public function testToggleSelectedRevealsOnlySelectedBlockBodyAndKeepsOthersHidden(): void
     {
         $statesByDomainValue = [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tui\StatusBar;
 
+use App\Tui\Style\Palette;
 use App\Tui\TuiMode;
 use Symfony\Component\Tui\Style\Direction;
 use Symfony\Component\Tui\Style\Style;
@@ -13,7 +14,7 @@ use Symfony\Component\Tui\Widget\TextWidget;
 final class StatusBarWidget
 {
     private const string UNSAVED_INDICATOR = 'UNSAVED CHANGES';
-    private const string SEPARATOR = '   ';
+    private const string SEPARATOR = ' │ ';
 
     private readonly ContainerWidget $container;
     private readonly TextWidget $chipWidget;
@@ -22,9 +23,9 @@ final class StatusBarWidget
     private string $baseLine = '';
     private bool $hasUnsavedChanges = false;
 
-    public function __construct(TuiMode $mode)
+    public function __construct(TuiMode $mode, ?Palette $palette = null)
     {
-        $this->chipStyle = $this->buildChipStyle($mode);
+        $this->chipStyle = $this->buildChipStyle($mode, $palette ?? new Palette());
         $this->chipWidget = new TextWidget(' '.$mode->displayLabel().' ');
         $this->chipWidget->setStyle($this->chipStyle);
 
@@ -86,11 +87,19 @@ final class StatusBarWidget
         $this->restLineWidget->setText($text);
     }
 
-    private function buildChipStyle(TuiMode $mode): Style
+    private function buildChipStyle(TuiMode $mode, Palette $palette): Style
     {
         return match ($mode) {
-            TuiMode::Dev => new Style(background: 'green', color: 'black', bold: true),
-            TuiMode::Prod => new Style(background: 'red', color: 'white', bold: true),
+            TuiMode::Dev => new Style(
+                background: $palette->devChipBackground,
+                color: $palette->devChipForeground,
+                bold: true,
+            ),
+            TuiMode::Prod => new Style(
+                background: $palette->prodChipBackground,
+                color: $palette->prodChipForeground,
+                bold: true,
+            ),
         };
     }
 }
