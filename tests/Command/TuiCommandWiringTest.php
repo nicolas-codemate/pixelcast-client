@@ -10,6 +10,8 @@ use App\Config\PixelCastConfigWriter;
 use App\Tui\Configuration\ConfigurationFieldValidator;
 use App\Tui\DeviceStatus\StatsHttpClient;
 use App\Tui\DeviceStatus\StatsTransport;
+use App\Tui\Inspector\InspectorHttpClient;
+use App\Tui\Inspector\InspectorTransport;
 use App\Tui\ResetSim\ResetSimulatorAction;
 use App\Tui\Scenarios\ScenarioCatalog;
 use App\Tui\Scenarios\ScenarioDispatcher;
@@ -117,5 +119,14 @@ final class TuiCommandWiringTest extends KernelTestCase
         $transport = self::getContainer()->get(StatsTransport::class);
 
         self::assertInstanceOf(StatsHttpClient::class, $transport);
+    }
+
+    public function testInspectorTransportResolvesToInspectorHttpClient(): void
+    {
+        self::bootKernel();
+
+        $transport = self::getContainer()->get(InspectorTransport::class);
+
+        self::assertInstanceOf(InspectorHttpClient::class, $transport);
     }
 }
