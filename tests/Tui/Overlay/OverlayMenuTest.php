@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Tui\Overlay;
 
+use App\Tui\Menu\TuiMenuFactory;
 use App\Tui\Overlay\OverlayMenu;
+use App\Tui\TuiMode;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Tui\Widget\ContainerWidget;
 use Symfony\Component\Tui\Widget\SelectListWidget;
@@ -79,5 +81,42 @@ final class OverlayMenuTest extends TestCase
         self::assertNotNull($selected);
         self::assertSame('configuration', $selected['value']);
         self::assertSame('[1] Configuration', $selected['label']);
+    }
+
+    public function testListsDevModeEntriesWhenBuiltFromTuiMenuFactory(): void
+    {
+        $devItems = TuiMenuFactory::toSelectListItems(TuiMenuFactory::buildForMode(TuiMode::Dev));
+
+        $overlay = new OverlayMenu($devItems);
+
+        self::assertCount(3, $overlay->items());
+        self::assertSame(
+            ['scenarios', 'sync-now', 'reset-sim'],
+            array_map(static fn (array $item): string => $item['value'], $overlay->items()),
+        );
+        self::assertSame(
+            ['[1] Scenarios', '[2] Sync Now', '[3] Reset Sim'],
+            array_map(static fn (array $item): string => $item['label'], $overlay->items()),
+        );
+    }
+
+    public function testListsProdModeEntriesWhenBuiltFromTuiMenuFactory(): void
+    {
+        $prodItems = TuiMenuFactory::toSelectListItems(TuiMenuFactory::buildForMode(TuiMode::Prod));
+
+        $overlay = new OverlayMenu($prodItems);
+
+        self::assertCount(2, $overlay->items());
+        self::assertSame(
+            ['scenarios', 'configuration'],
+            array_map(static fn (array $item): string => $item['value'], $overlay->items()),
+        );
+        self::assertSame(
+            ['[1] Scenarios', '[2] Configuration'],
+            array_map(static fn (array $item): string => $item['label'], $overlay->items()),
+        );
+
+        $values = array_map(static fn (array $item): string => $item['value'], $overlay->items());
+        self::assertNotContains('device-status', $values);
     }
 }
