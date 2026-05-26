@@ -26,7 +26,6 @@ final class TuiMenuFactory
         return [
             $sharedScenariosItem,
             new TuiMenuItem('2', 'Configuration', 'configuration'),
-            new TuiMenuItem('3', 'Device Status', 'device-status'),
         ];
     }
 
