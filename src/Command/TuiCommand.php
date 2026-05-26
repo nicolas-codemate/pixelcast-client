@@ -25,6 +25,7 @@ use App\Tui\DeviceStatus\StatsTransport;
 use App\Tui\Inspector\InspectorPoller;
 use App\Tui\Inspector\InspectorTransport;
 use App\Tui\Menu\TuiMenuFactory;
+use App\Tui\Overlay\OverlayMenu;
 use App\Tui\Reachability\DeviceReachabilityProbe;
 use App\Tui\Reachability\DeviceReachabilityResult;
 use App\Tui\ResetSim\Panel\ResetSimPanel;
@@ -51,7 +52,6 @@ use Symfony\Component\Tui\Event\TickEvent;
 use Symfony\Component\Tui\Tui;
 use Symfony\Component\Tui\Widget\AbstractWidget;
 use Symfony\Component\Tui\Widget\ContainerWidget;
-use Symfony\Component\Tui\Widget\SelectListWidget;
 
 #[AsCommand(name: 'app:tui', description: 'Opens the PixelCast unified terminal interface')]
 final class TuiCommand extends Command
@@ -84,13 +84,14 @@ final class TuiCommand extends Command
 
         $tui = new Tui();
 
-        $menuSelectList = $this->buildMainMenuSelectList($mode);
-
         $headerZone = new ContainerWidget();
-        $headerZone->add($menuSelectList);
 
         $contentZone = new ContainerWidget();
         $contentZone->expandVertically(true);
+
+        $overlayMenu = new OverlayMenu(
+            TuiMenuFactory::toSelectListItems(TuiMenuFactory::buildForMode($mode)),
+        );
 
         $scenariosPanel = new ScenariosPanel($this->scenarioCatalog, $mode);
 
@@ -147,6 +148,10 @@ final class TuiCommand extends Command
         $tui->add($headerZone);
         $tui->add($contentZone);
         $tui->add($statusBar->widget());
+        $tui->add($overlayMenu->widget());
+
+        // The overlay's SelectList grabs focus on attach; release it so global keys still reach the dashboard.
+        $tui->setFocus(null);
 
         $viewWidgets = [
             TuiView::Scenarios->value => $scenariosPanel->widget(),
@@ -166,7 +171,6 @@ final class TuiCommand extends Command
             });
         }
         if (null !== $statsPoller) {
-            $viewWidgets[TuiView::DeviceStatus->value] = $deviceStatusPanel->widget();
             $tui->onTick($this->buildStatsTickListener(
                 $tui,
                 $statsPoller,
@@ -177,8 +181,8 @@ final class TuiCommand extends Command
         $tui->addListener($this->buildDeviceStateTickListener($tui, $deviceStateSource, $dashboardPanel));
 
         $dashboardWidget = $dashboardPanel->widget();
-        $tui->addListener(function (SelectEvent $event) use ($tui, $menuSelectList, $contentZone, $viewWidgets, $dashboardWidget): void {
-            if ($event->getTarget() !== $menuSelectList) {
+        $tui->addListener(function (SelectEvent $event) use ($tui, $overlayMenu, $contentZone, $viewWidgets, $dashboardWidget): void {
+            if ($event->getTarget() !== $overlayMenu->selectListWidget()) {
                 return;
             }
 
@@ -191,7 +195,19 @@ final class TuiCommand extends Command
                 return;
             }
 
+            $overlayMenu->hide();
+            $tui->setFocus(null);
             $this->switchView($tui, $contentZone, $targetView, $viewWidgets, $dashboardWidget);
+        });
+
+        $tui->addListener(static function (CancelEvent $event) use ($tui, $overlayMenu): void {
+            if ($event->getTarget() !== $overlayMenu->selectListWidget()) {
+                return;
+            }
+
+            $overlayMenu->hide();
+            $tui->setFocus(null);
+            $tui->requestRender();
         });
 
         $tui->addListener(function (SelectEvent $event) use ($tui, $scenariosPanel, $mode): void {
@@ -279,17 +295,7 @@ final class TuiCommand extends Command
             });
         }
 
-        if (null !== $deviceStatusPanel) {
-            $tui->addListener(function (CancelEvent $event) use ($tui, $contentZone, $viewWidgets, $dashboardWidget): void {
-                if (TuiView::DeviceStatus !== $this->currentView) {
-                    return;
-                }
-
-                $this->switchView($tui, $contentZone, TuiView::Main, $viewWidgets, $dashboardWidget);
-            });
-        }
-
-        $tui->addListener(function (InputEvent $event) use ($tui, $statusBar, $configurationPanel, $reachabilityResult, $dashboardPanel): void {
+        $tui->addListener(function (InputEvent $event) use ($tui, $overlayMenu, $statusBar, $configurationPanel, $reachabilityResult, $dashboardPanel): void {
             $rawInput = $event->getData();
             if ('q' === $rawInput || 'Q' === $rawInput) {
                 $event->stopPropagation();
@@ -317,6 +323,15 @@ final class TuiCommand extends Command
             }
 
             if (TuiView::Main !== $this->currentView) {
+                return;
+            }
+
+            if ("\t" === $rawInput) {
+                $event->stopPropagation();
+                $overlayMenu->show();
+                $tui->setFocus($overlayMenu->selectListWidget());
+                $tui->requestRender();
+
                 return;
             }
 
@@ -417,14 +432,6 @@ final class TuiCommand extends Command
         };
     }
 
-    private function buildMainMenuSelectList(TuiMode $mode): SelectListWidget
-    {
-        $menuItems = TuiMenuFactory::buildForMode($mode);
-        $selectListItems = TuiMenuFactory::toSelectListItems($menuItems);
-
-        return new SelectListWidget($selectListItems, maxVisible: \count($selectListItems));
-    }
-
     private function buildStatusBarBaseLine(
         DeviceReachabilityResult $reachabilityResult,
         ?string $configurationDeviceUrl,
@@ -436,7 +443,7 @@ final class TuiCommand extends Command
         $targetLabel = $this->formatTargetLabel($effectiveDeviceUrl);
 
         return \sprintf(
-            'TARGET: %s (%s)   [Q] quit',
+            'TARGET: %s (%s)   [Tab] menu  [Q] quit',
             $targetLabel,
             $reachabilityResult->displayLabel,
         );

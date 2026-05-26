@@ -30,21 +30,21 @@ final class TuiMenuFactoryTest extends TestCase
         );
     }
 
-    public function testBuildForProdModeProducesThreeItemsWithExpectedLabels(): void
+    public function testBuildForProdModeProducesTwoItemsWithExpectedLabels(): void
     {
         $items = TuiMenuFactory::buildForMode(TuiMode::Prod);
 
-        self::assertCount(3, $items);
+        self::assertCount(2, $items);
         self::assertSame(
-            ['1', '2', '3'],
+            ['1', '2'],
             array_map(static fn (TuiMenuItem $item): string => $item->shortcut, $items),
         );
         self::assertSame(
-            ['Scenarios', 'Configuration', 'Device Status'],
+            ['Scenarios', 'Configuration'],
             array_map(static fn (TuiMenuItem $item): string => $item->label, $items),
         );
         self::assertSame(
-            ['scenarios', 'configuration', 'device-status'],
+            ['scenarios', 'configuration'],
             array_map(static fn (TuiMenuItem $item): string => $item->value, $items),
         );
     }
