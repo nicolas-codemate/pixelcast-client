@@ -17,6 +17,7 @@ return (new PhpCsFixer\Config())
         '@PHP85Migration' => true,
         'declare_strict_types' => true,
         'phpdoc_align' => ['align' => 'left'],
+        'phpdoc_to_comment' => ['ignored_tags' => ['var']],
     ])
     ->setFinder($finder)
     ->setCacheFile(__DIR__.'/var/cache/php-cs-fixer.cache');

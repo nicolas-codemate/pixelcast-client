@@ -19,8 +19,7 @@ final class TuiMenuFactory
             return [
                 $sharedScenariosItem,
                 new TuiMenuItem('2', 'Sync Now', 'sync-now'),
-                new TuiMenuItem('3', 'Request Log', 'request-log'),
-                new TuiMenuItem('4', 'Reset Sim', 'reset-sim'),
+                new TuiMenuItem('3', 'Reset Sim', 'reset-sim'),
             ];
         }
 
