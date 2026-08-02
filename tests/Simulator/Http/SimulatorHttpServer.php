@@ -19,7 +19,7 @@ final class SimulatorHttpServer
 
     private function __construct(
         private readonly Process $process,
-        private readonly string $baseUrl,
+        public readonly string $baseUrl,
         private readonly string $temporaryDirectory,
         private readonly string $stateFilePath,
     ) {
