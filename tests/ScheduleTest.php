@@ -22,18 +22,30 @@ final class ScheduleTest extends TestCase
 
     public function testWeatherIsScheduledEveryThirtyMinutes(): void
     {
-        $recurringMessages = self::createSchedule()->getSchedule()->getRecurringMessages();
+        $schedule = self::createSchedule();
+        $expectedRecurringMessage = RecurringMessage::every('30 minutes', $schedule->syncMessages()['weather']);
 
-        self::assertCount(1, $recurringMessages);
-        self::assertSame('every 30 minutes', (string) $recurringMessages[0]->getTrigger());
+        $scheduledIds = self::scheduledIds($schedule);
+
+        self::assertContains($expectedRecurringMessage->getId(), $scheduledIds);
     }
 
-    public function testScheduleAndRegistryShareTheSameDefinition(): void
+    public function testEveryRegisteredSyncTypeIsAlsoScheduled(): void
     {
-        $recurringMessages = self::createSchedule()->getSchedule()->getRecurringMessages();
-        $expectedRecurringMessage = RecurringMessage::every('30 minutes', new SyncWeatherMessage());
+        $schedule = self::createSchedule();
 
-        self::assertSame($expectedRecurringMessage->getId(), $recurringMessages[0]->getId());
+        self::assertCount(\count($schedule->syncMessages()), self::scheduledIds($schedule));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function scheduledIds(Schedule $schedule): array
+    {
+        return array_values(array_map(
+            static fn (RecurringMessage $recurringMessage): string => $recurringMessage->getId(),
+            $schedule->getSchedule()->getRecurringMessages(),
+        ));
     }
 
     private static function createSchedule(): Schedule

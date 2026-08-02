@@ -188,9 +188,9 @@ final class SyncCommandTest extends TestCase
 
     /**
      * @param array<string, object> $syncMessages
-     * @param list<SyncOutcome> $outcomesInDispatchOrder
+     * @param list<SyncOutcome>|null $outcomesInDispatchOrder
      */
-    private function createTester(array $syncMessages, array $outcomesInDispatchOrder = []): CommandTester
+    private function createTester(array $syncMessages, ?array $outcomesInDispatchOrder = null): CommandTester
     {
         $this->messageBus = new CapturingMessageBusStub($outcomesInDispatchOrder);
 

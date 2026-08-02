@@ -18,10 +18,10 @@ final class CapturingMessageBusStub implements MessageBusInterface
     public array $dispatchedMessages = [];
 
     /**
-     * @param list<SyncOutcome> $outcomesInDispatchOrder leave empty to return envelopes without any HandledStamp
+     * @param list<SyncOutcome>|null $outcomesInDispatchOrder null to return envelopes without any HandledStamp
      */
     public function __construct(
-        private array $outcomesInDispatchOrder = [],
+        private ?array $outcomesInDispatchOrder = null,
     ) {
     }
 
@@ -34,11 +34,14 @@ final class CapturingMessageBusStub implements MessageBusInterface
 
         $envelope = Envelope::wrap($message, $stamps);
 
-        if ([] === $this->outcomesInDispatchOrder) {
+        if (null === $this->outcomesInDispatchOrder) {
             return $envelope;
         }
 
         $outcome = array_shift($this->outcomesInDispatchOrder);
+        if (null === $outcome) {
+            throw new \LogicException('The stub ran out of outcomes: more messages were dispatched than expected.');
+        }
 
         return $envelope->with(new HandledStamp($outcome, 'stub'));
     }

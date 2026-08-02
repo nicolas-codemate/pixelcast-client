@@ -13,13 +13,8 @@ use Symfony\Component\Scheduler\ScheduleProviderInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsSchedule]
-final class Schedule implements ScheduleProviderInterface, SyncMessageRegistry
+final readonly class Schedule implements ScheduleProviderInterface, SyncMessageRegistry
 {
-    private const string WEATHER_TYPE = 'weather';
-    private const string WEATHER_FREQUENCY = '30 minutes';
-
-    private ?SymfonySchedule $schedule = null;
-
     public function __construct(
         private CacheInterface $cache,
     ) {
@@ -35,10 +30,6 @@ final class Schedule implements ScheduleProviderInterface, SyncMessageRegistry
 
     public function getSchedule(): SymfonySchedule
     {
-        if (null !== $this->schedule) {
-            return $this->schedule;
-        }
-
         $schedule = new SymfonySchedule()
             ->stateful($this->cache)
             ->processOnlyLastMissedRun(true);
@@ -47,9 +38,7 @@ final class Schedule implements ScheduleProviderInterface, SyncMessageRegistry
             $schedule->add(RecurringMessage::every($syncDefinition['frequency'], $syncDefinition['message']));
         }
 
-        $this->schedule = $schedule;
-
-        return $this->schedule;
+        return $schedule;
     }
 
     /**
@@ -60,9 +49,9 @@ final class Schedule implements ScheduleProviderInterface, SyncMessageRegistry
     private static function syncDefinitions(): array
     {
         return [
-            self::WEATHER_TYPE => [
+            'weather' => [
                 'message' => new SyncWeatherMessage(),
-                'frequency' => self::WEATHER_FREQUENCY,
+                'frequency' => '30 minutes',
             ],
         ];
     }

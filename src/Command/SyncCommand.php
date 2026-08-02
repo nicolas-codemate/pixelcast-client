@@ -94,7 +94,7 @@ final class SyncCommand extends Command
             $outcome = $this->dispatchAndReadOutcome($message);
             $io->writeln(\sprintf('  %s: %s', $typeToDispatch, self::describeOutcome($outcome)));
 
-            if (SyncOutcome::Skipped === $outcome || SyncOutcome::Failed === $outcome) {
+            if (null !== $outcome && SyncOutcome::Pushed !== $outcome) {
                 $typesThatReachedNothing[] = $typeToDispatch;
             }
         }
@@ -112,14 +112,7 @@ final class SyncCommand extends Command
 
     private function dispatchAndReadOutcome(object $message): ?SyncOutcome
     {
-        $envelope = $this->messageBus->dispatch($message);
-        $handledStamp = $envelope->last(HandledStamp::class);
-
-        if (!$handledStamp instanceof HandledStamp) {
-            return null;
-        }
-
-        $handlerResult = $handledStamp->getResult();
+        $handlerResult = $this->messageBus->dispatch($message)->last(HandledStamp::class)?->getResult();
 
         return $handlerResult instanceof SyncOutcome ? $handlerResult : null;
     }
