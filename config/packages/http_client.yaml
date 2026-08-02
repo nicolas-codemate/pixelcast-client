@@ -1,0 +1,20 @@
+framework:
+    http_client:
+        default_options:
+            timeout: 2
+            max_redirects: 3
+            headers:
+                Accept: application/json
+
+        scoped_clients:
+            device.client:
+                # Trailing slash required: without it, resolving a relative path against
+                # the base URI drops its last segment and the /api prefix with it.
+                base_uri: '%env(PIXELCAST_DEVICE_BASE_URL)%/'
+                max_duration: 3
+
+            weather.client:
+                base_uri: 'https://api.open-meteo.com/v1/'
+                timeout: 5
+                retry_failed:
+                    max_retries: 2

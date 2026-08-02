@@ -21,6 +21,6 @@ final class SettingsTransport
             return null;
         }
 
-        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/api/settings');
+        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/settings');
     }
 }

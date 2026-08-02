@@ -12,8 +12,11 @@ use App\Scenario\Validation\OutboundOpenApiValidatorFactory;
 use App\Scenario\Validation\OutboundPayloadValidator;
 use App\Tests\Scenario\Stub\CapturingScenarioTransportStub;
 use App\Tests\Scenario\Stub\ThrowingScenarioTransportStub;
+use App\Tests\Stub\RecordingLoggerStub;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LogLevel;
+use Psr\Log\NullLogger;
 
 final class ScenarioDispatcherTest extends TestCase
 {
@@ -49,13 +52,18 @@ final class ScenarioDispatcherTest extends TestCase
         );
 
         $transport = new CapturingScenarioTransportStub(ScenarioResult::success(200, 'OK 200'));
-        $dispatcher = new ScenarioDispatcher($this->validator, $transport, self::TEST_DEVICE_BASE_URL);
+        $logger = new RecordingLoggerStub();
+        $dispatcher = new ScenarioDispatcher($this->validator, $transport, $logger, self::TEST_DEVICE_BASE_URL);
 
         $result = $dispatcher->dispatch($invalidNotification);
 
         self::assertFalse($result->success);
         self::assertNull($result->httpStatus);
         self::assertSame([], $transport->calls);
+
+        self::assertCount(1, $logger->records);
+        self::assertSame(LogLevel::WARNING, $logger->records[0]['level']);
+        self::assertSame('validation_failure', $logger->records[0]['context']['kind']);
     }
 
     public function testResetScenarioBypassesValidationAndCallsTransportOnce(): void
@@ -64,7 +72,7 @@ final class ScenarioDispatcherTest extends TestCase
         self::assertNotNull($reset);
 
         $transport = new CapturingScenarioTransportStub(ScenarioResult::success(200, 'OK 200'));
-        $dispatcher = new ScenarioDispatcher($this->validator, $transport, self::TEST_DEVICE_BASE_URL);
+        $dispatcher = new ScenarioDispatcher($this->validator, $transport, new NullLogger(), self::TEST_DEVICE_BASE_URL);
 
         $result = $dispatcher->dispatch($reset);
 
@@ -82,7 +90,7 @@ final class ScenarioDispatcherTest extends TestCase
         self::assertNotNull($weather);
 
         $transport = new CapturingScenarioTransportStub(ScenarioResult::success(200, 'OK 200'));
-        $dispatcher = new ScenarioDispatcher($this->validator, $transport, self::TEST_DEVICE_BASE_URL);
+        $dispatcher = new ScenarioDispatcher($this->validator, $transport, new NullLogger(), self::TEST_DEVICE_BASE_URL);
 
         $result = $dispatcher->dispatch($weather);
 
@@ -100,7 +108,7 @@ final class ScenarioDispatcherTest extends TestCase
         self::assertNotNull($tracker);
 
         $transport = new CapturingScenarioTransportStub(ScenarioResult::success(200, 'OK 200'));
-        $dispatcher = new ScenarioDispatcher($this->validator, $transport, self::TEST_DEVICE_BASE_URL);
+        $dispatcher = new ScenarioDispatcher($this->validator, $transport, new NullLogger(), self::TEST_DEVICE_BASE_URL);
 
         $result = $dispatcher->dispatch($tracker);
 
@@ -115,12 +123,19 @@ final class ScenarioDispatcherTest extends TestCase
         self::assertNotNull($weather);
 
         $throwingTransport = new ThrowingScenarioTransportStub(new \RuntimeException('boom'));
-        $dispatcher = new ScenarioDispatcher($this->validator, $throwingTransport, self::TEST_DEVICE_BASE_URL);
+        $logger = new RecordingLoggerStub();
+        $dispatcher = new ScenarioDispatcher($this->validator, $throwingTransport, $logger, self::TEST_DEVICE_BASE_URL);
 
         $result = $dispatcher->dispatch($weather);
 
         self::assertFalse($result->success);
         self::assertNull($result->httpStatus);
         self::assertStringContainsString('boom', $result->message);
+
+        self::assertCount(1, $logger->records);
+        self::assertSame(LogLevel::WARNING, $logger->records[0]['level']);
+        self::assertSame('Scenario dispatch failed', $logger->records[0]['message']);
+        self::assertSame('weather', $logger->records[0]['context']['scenario']);
+        self::assertSame('Transport error: boom', $logger->records[0]['context']['error']);
     }
 }

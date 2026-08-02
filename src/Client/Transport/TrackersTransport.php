@@ -21,6 +21,6 @@ final class TrackersTransport
             return null;
         }
 
-        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/api/trackers');
+        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/trackers');
     }
 }

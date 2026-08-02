@@ -19,7 +19,6 @@ final class PixelCastConfigLoaderTest extends TestCase
 
         $config = $loader->load();
 
-        self::assertSame('http://pixelcast.test/api', $config->deviceUrl);
         self::assertSame(120, $config->weatherInterval);
         self::assertSame(30, $config->trackerInterval);
         self::assertSame('openmeteo', $config->weatherSource);
@@ -72,7 +71,6 @@ final class PixelCastConfigLoaderTest extends TestCase
     public function testToRawMapJoinsTrackedAssetsWithCommaSpace(): void
     {
         $config = new PixelCastConfig(
-            deviceUrl: 'http://pixelcast.test/api',
             weatherInterval: 120,
             trackerInterval: 30,
             trackedAssets: ['BTC', 'AAPL', 'SPY', 'ETH'],
@@ -84,6 +82,6 @@ final class PixelCastConfigLoaderTest extends TestCase
 
         self::assertSame('BTC, AAPL, SPY, ETH', $rawMap['tracked_assets']);
         self::assertSame(120, $rawMap['weather_interval']);
-        self::assertSame('http://pixelcast.test/api', $rawMap['device_url']);
+        self::assertSame('openmeteo', $rawMap['weather_source']);
     }
 }

@@ -13,15 +13,17 @@ use App\Client\Transport\TrackersTransport;
 use App\Client\Transport\WeatherTransport;
 use App\Domain\AppDomain;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\MockHttpClient;
 
 final class ProdDeviceStateSourceTest extends TestCase
 {
-    private const string BASE_URL = 'http://device.test';
-    private const string WEATHER_URL = self::BASE_URL.'/api/weather';
-    private const string TRACKERS_URL = self::BASE_URL.'/api/trackers';
-    private const string NOTIFICATIONS_URL = self::BASE_URL.'/api/notify/list';
-    private const string ICONS_URL = self::BASE_URL.'/api/icons';
-    private const string SETTINGS_URL = self::BASE_URL.'/api/settings';
+    private const string BASE_URL = 'http://device.test/api';
+    private const string WEATHER_URL = self::BASE_URL.'/weather';
+    private const string TRACKERS_URL = self::BASE_URL.'/trackers';
+    private const string NOTIFICATIONS_URL = self::BASE_URL.'/notify/list';
+    private const string ICONS_URL = self::BASE_URL.'/icons';
+    private const string SETTINGS_URL = self::BASE_URL.'/settings';
 
     public function testNoRequestIsSentBeforeTheStateIsRead(): void
     {
@@ -141,7 +143,7 @@ final class ProdDeviceStateSourceTest extends TestCase
 
         self::assertFalse($state->hasData);
         self::assertNull($state->payload);
-        self::assertArrayNotHasKey(self::BASE_URL.'/api/indicators', $fetcher->callCounts);
+        self::assertArrayNotHasKey(self::BASE_URL.'/indicators', $fetcher->callCounts);
     }
 
     public function testGetDomainStateCustomAppsAlwaysHasNoData(): void
@@ -153,8 +155,8 @@ final class ProdDeviceStateSourceTest extends TestCase
 
         self::assertFalse($state->hasData);
         self::assertNull($state->payload);
-        self::assertArrayNotHasKey(self::BASE_URL.'/api/customapps', $fetcher->callCounts);
-        self::assertArrayNotHasKey(self::BASE_URL.'/api/customApps', $fetcher->callCounts);
+        self::assertArrayNotHasKey(self::BASE_URL.'/customapps', $fetcher->callCounts);
+        self::assertArrayNotHasKey(self::BASE_URL.'/customApps', $fetcher->callCounts);
     }
 
     public function testSnapshotReturnsAllSixAppDomainKeys(): void
@@ -205,7 +207,7 @@ final class StubHttpJsonFetcher extends HttpJsonFetcher
 
     public function __construct()
     {
-        parent::__construct(0.001);
+        parent::__construct(new MockHttpClient(), new NullLogger());
     }
 
     public function fetchJson(string $url): ?array

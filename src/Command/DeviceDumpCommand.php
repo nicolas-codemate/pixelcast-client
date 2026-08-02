@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Client\DeviceBaseUrl;
 use App\Client\Reachability\DeviceReachabilityProbe;
 use App\Client\Reachability\DeviceReachabilityStatus;
 use App\Client\State\DeviceStateSourceFactory;
@@ -46,11 +47,11 @@ final class DeviceDumpCommand extends Command
 
         /** @var string|null $target */
         $target = $input->getOption('target');
-        $baseUrl = $target ?? $this->deviceBaseUrl;
+        $baseUrl = DeviceBaseUrl::resolve($target ?? $this->deviceBaseUrl);
 
         $reachability = $this->deviceReachabilityProbe->probe($baseUrl);
         if (DeviceReachabilityStatus::Reachable !== $reachability->status) {
-            $io->error(\sprintf('Target %s is %s.', $baseUrl ?? 'n/a', strtolower($reachability->displayLabel)));
+            $io->error(\sprintf('Target %s is %s.', $baseUrl, strtolower($reachability->displayLabel)));
 
             return Command::FAILURE;
         }

@@ -55,10 +55,6 @@ services:
 
     App\Scenario\Transport\ScenarioTransport: '@App\Scenario\Transport\ScenarioHttpClient'
 
-    App\Client\Stats\StatsHttpClient: ~
-
-    App\Client\Stats\StatsTransport: '@App\Client\Stats\StatsHttpClient'
-
     App\Client\Inspector\InspectorHttpClient: ~
 
     App\Client\Inspector\InspectorTransport: '@App\Client\Inspector\InspectorHttpClient'

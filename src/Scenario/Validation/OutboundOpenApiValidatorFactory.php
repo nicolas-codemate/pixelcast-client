@@ -12,6 +12,7 @@ use cebe\openapi\spec\OpenApi;
 use cebe\openapi\spec\Server;
 use League\OpenAPIValidation\PSR7\RequestValidator;
 use League\OpenAPIValidation\PSR7\ValidatorBuilder;
+use Nyholm\Psr7\Uri;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final class OutboundOpenApiValidatorFactory
@@ -40,11 +41,24 @@ final class OutboundOpenApiValidatorFactory
             ReferenceContext::RESOLVE_MODE_ALL,
         );
 
-        // Spec advertises http://pixelcast.local/api; outbound calls target the configured device, so override servers.
-        $openApi->servers = [new Server(['url' => DeviceBaseUrl::resolve($this->deviceBaseUrl)])];
+        // The /api prefix belongs to the firmware and stays as declared in the spec.
+        $specServerUrl = $openApi->servers[0]->url;
+        $openApi->servers = [new Server(['url' => $this->replaceServerAuthority($specServerUrl)])];
 
         return new ValidatorBuilder()
             ->fromSchema($openApi)
             ->getRequestValidator();
+    }
+
+    private function replaceServerAuthority(string $specServerUrl): string
+    {
+        $resolvedBaseUrl = DeviceBaseUrl::resolve($this->deviceBaseUrl);
+        $deviceBaseUri = new Uri($resolvedBaseUrl);
+
+        if ('' === $deviceBaseUri->getScheme() || '' === $deviceBaseUri->getAuthority()) {
+            throw new \InvalidArgumentException(\sprintf('Device base URL "%s" is not a valid absolute URL.', $resolvedBaseUrl));
+        }
+
+        return (string) $deviceBaseUri->withPath(new Uri($specServerUrl)->getPath());
     }
 }

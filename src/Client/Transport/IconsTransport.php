@@ -21,6 +21,6 @@ final class IconsTransport
             return null;
         }
 
-        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/api/icons');
+        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/icons');
     }
 }

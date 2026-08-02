@@ -8,7 +8,6 @@ use App\Config\Exception\PixelCastConfigException;
 
 final readonly class PixelCastConfig
 {
-    private const string KEY_DEVICE_URL = 'device_url';
     private const string KEY_WEATHER_INTERVAL = 'weather_interval';
     private const string KEY_TRACKER_INTERVAL = 'tracker_interval';
     private const string KEY_TRACKED_ASSETS = 'tracked_assets';
@@ -19,7 +18,6 @@ final readonly class PixelCastConfig
      * @param list<string> $trackedAssets
      */
     public function __construct(
-        public string $deviceUrl,
         public int $weatherInterval,
         public int $trackerInterval,
         public array $trackedAssets,
@@ -53,7 +51,6 @@ final readonly class PixelCastConfig
      */
     public static function fromArray(array $raw): self
     {
-        $deviceUrl = self::requireString($raw, self::KEY_DEVICE_URL);
         $weatherInterval = self::requirePositiveInt($raw, self::KEY_WEATHER_INTERVAL);
         $trackerInterval = self::requirePositiveInt($raw, self::KEY_TRACKER_INTERVAL);
         $trackedAssetsRaw = self::requireString($raw, self::KEY_TRACKED_ASSETS);
@@ -61,7 +58,6 @@ final readonly class PixelCastConfig
         $trackerSource = self::requireString($raw, self::KEY_TRACKER_SOURCE);
 
         return new self(
-            $deviceUrl,
             $weatherInterval,
             $trackerInterval,
             self::splitTrackedAssets($trackedAssetsRaw),
@@ -76,7 +72,6 @@ final readonly class PixelCastConfig
     public function toRawMap(): array
     {
         return [
-            self::KEY_DEVICE_URL => $this->deviceUrl,
             self::KEY_WEATHER_INTERVAL => $this->weatherInterval,
             self::KEY_TRACKER_INTERVAL => $this->trackerInterval,
             self::KEY_TRACKED_ASSETS => implode(', ', $this->trackedAssets),

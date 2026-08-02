@@ -21,6 +21,6 @@ final class WeatherTransport
             return null;
         }
 
-        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/api/weather');
+        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/weather');
     }
 }

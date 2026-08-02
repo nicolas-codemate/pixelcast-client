@@ -53,7 +53,6 @@ final class PixelCastConfigWriterTest extends TestCase
 
         $loaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
         $updated = new PixelCastConfig(
-            deviceUrl: $loaded->deviceUrl,
             weatherInterval: 600,
             trackerInterval: $loaded->trackerInterval,
             trackedAssets: $loaded->trackedAssets,
@@ -82,7 +81,6 @@ final class PixelCastConfigWriterTest extends TestCase
         $this->copyFixtureToTemp('missing-tracked-assets.yaml');
 
         $config = new PixelCastConfig(
-            deviceUrl: 'http://pixelcast.test/api',
             weatherInterval: 120,
             trackerInterval: 30,
             trackedAssets: ['BTC', 'AAPL', 'SPY', 'ETH'],
@@ -156,18 +154,17 @@ final class PixelCastConfigWriterTest extends TestCase
 
         $loaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
         $updated = new PixelCastConfig(
-            deviceUrl: 'http://example.test/api',
             weatherInterval: $loaded->weatherInterval,
             trackerInterval: $loaded->trackerInterval,
             trackedAssets: $loaded->trackedAssets,
-            weatherSource: $loaded->weatherSource,
+            weatherSource: 'openmeteo: forecast',
             trackerSource: $loaded->trackerSource,
         );
 
         new PixelCastConfigWriter($this->temporaryConfigPath)->save($updated);
 
         $reloaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
-        self::assertSame('http://example.test/api', $reloaded->deviceUrl);
+        self::assertSame('openmeteo: forecast', $reloaded->weatherSource);
     }
 
     private function copyFixtureToTemp(string $fixtureName): string
@@ -188,7 +185,6 @@ final class PixelCastConfigWriterTest extends TestCase
         $instance = $reflection->newInstanceWithoutConstructor();
 
         foreach ([
-            'deviceUrl' => 'http://pixelcast.test/api',
             'weatherInterval' => -1,
             'trackerInterval' => 30,
             'trackedAssets' => ['BTC'],

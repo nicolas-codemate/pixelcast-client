@@ -21,6 +21,6 @@ final class NotificationsTransport
             return null;
         }
 
-        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/api/notify/list');
+        return $this->fetcher->fetchJson(rtrim($baseUrl, '/').'/notify/list');
     }
 }
