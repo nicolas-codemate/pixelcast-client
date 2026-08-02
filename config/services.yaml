@@ -63,5 +63,7 @@ services:
 
     App\Provider\Weather\WeatherProviderInterface: '@App\Provider\Weather\OpenMeteoWeatherProvider'
 
+    App\SyncMessageRegistry: '@App\Schedule'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
