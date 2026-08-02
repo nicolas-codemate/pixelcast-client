@@ -58,6 +58,10 @@ final class PixelCastConfigWriterTest extends TestCase
             trackedAssets: $loaded->trackedAssets,
             weatherSource: $loaded->weatherSource,
             trackerSource: $loaded->trackerSource,
+            weatherLatitude: $loaded->weatherLatitude,
+            weatherLongitude: $loaded->weatherLongitude,
+            weatherUnits: $loaded->weatherUnits,
+            weatherLocale: $loaded->weatherLocale,
         );
 
         new PixelCastConfigWriter($this->temporaryConfigPath)->save($updated);
@@ -86,6 +90,10 @@ final class PixelCastConfigWriterTest extends TestCase
             trackedAssets: ['BTC', 'AAPL', 'SPY', 'ETH'],
             weatherSource: 'openmeteo',
             trackerSource: 'yahoo-finance',
+            weatherLatitude: 48.8566,
+            weatherLongitude: 2.3522,
+            weatherUnits: 'metric',
+            weatherLocale: 'fr',
         );
 
         new PixelCastConfigWriter($this->temporaryConfigPath)->save($config);
@@ -159,12 +167,65 @@ final class PixelCastConfigWriterTest extends TestCase
             trackedAssets: $loaded->trackedAssets,
             weatherSource: 'openmeteo: forecast',
             trackerSource: $loaded->trackerSource,
+            weatherLatitude: $loaded->weatherLatitude,
+            weatherLongitude: $loaded->weatherLongitude,
+            weatherUnits: $loaded->weatherUnits,
+            weatherLocale: $loaded->weatherLocale,
         );
 
         new PixelCastConfigWriter($this->temporaryConfigPath)->save($updated);
 
         $reloaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
         self::assertSame('openmeteo: forecast', $reloaded->weatherSource);
+    }
+
+    public function testSaveWritesFloatCoordinatesWithoutLosingPrecision(): void
+    {
+        $this->copyFixtureToTemp('with-comments.yaml');
+
+        $loaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
+        $updated = new PixelCastConfig(
+            weatherInterval: $loaded->weatherInterval,
+            trackerInterval: $loaded->trackerInterval,
+            trackedAssets: $loaded->trackedAssets,
+            weatherSource: $loaded->weatherSource,
+            trackerSource: $loaded->trackerSource,
+            weatherLatitude: -33.8688,
+            weatherLongitude: $loaded->weatherLongitude,
+            weatherUnits: $loaded->weatherUnits,
+            weatherLocale: $loaded->weatherLocale,
+        );
+
+        new PixelCastConfigWriter($this->temporaryConfigPath)->save($updated);
+
+        $reloaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
+        self::assertSame(-33.8688, $reloaded->weatherLatitude);
+        self::assertSame(2.3522, $reloaded->weatherLongitude);
+    }
+
+    public function testSaveKeepsWholeNumberCoordinatesReadableAsFloat(): void
+    {
+        $this->copyFixtureToTemp('with-comments.yaml');
+
+        $loaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
+        $updated = new PixelCastConfig(
+            weatherInterval: $loaded->weatherInterval,
+            trackerInterval: $loaded->trackerInterval,
+            trackedAssets: $loaded->trackedAssets,
+            weatherSource: $loaded->weatherSource,
+            trackerSource: $loaded->trackerSource,
+            weatherLatitude: 48.0,
+            weatherLongitude: $loaded->weatherLongitude,
+            weatherUnits: $loaded->weatherUnits,
+            weatherLocale: $loaded->weatherLocale,
+        );
+
+        new PixelCastConfigWriter($this->temporaryConfigPath)->save($updated);
+
+        self::assertStringContainsString("weather_latitude: 48.0\n", (string) file_get_contents($this->temporaryConfigPath));
+
+        $reloaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
+        self::assertSame(48.0, $reloaded->weatherLatitude);
     }
 
     private function copyFixtureToTemp(string $fixtureName): string
@@ -190,6 +251,10 @@ final class PixelCastConfigWriterTest extends TestCase
             'trackedAssets' => ['BTC'],
             'weatherSource' => 'openmeteo',
             'trackerSource' => 'yahoo-finance',
+            'weatherLatitude' => 48.8566,
+            'weatherLongitude' => 2.3522,
+            'weatherUnits' => 'metric',
+            'weatherLocale' => 'fr',
         ] as $propertyName => $value) {
             $property = $reflection->getProperty($propertyName);
             $property->setValue($instance, $value);

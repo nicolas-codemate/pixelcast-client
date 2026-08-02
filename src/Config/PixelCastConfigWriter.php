@@ -144,7 +144,7 @@ final class PixelCastConfigWriter
             return (string) $value;
         }
 
-        if (\is_string($value)) {
+        if (\is_string($value) || \is_float($value)) {
             $dumped = Yaml::dump($value, 0, 2, Yaml::DUMP_NULL_AS_TILDE);
 
             return rtrim($dumped, "\n");

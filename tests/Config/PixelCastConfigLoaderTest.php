@@ -23,6 +23,10 @@ final class PixelCastConfigLoaderTest extends TestCase
         self::assertSame(30, $config->trackerInterval);
         self::assertSame('openmeteo', $config->weatherSource);
         self::assertSame('yahoo-finance', $config->trackerSource);
+        self::assertSame(48.8566, $config->weatherLatitude);
+        self::assertSame(2.3522, $config->weatherLongitude);
+        self::assertSame('metric', $config->weatherUnits);
+        self::assertSame('fr', $config->weatherLocale);
     }
 
     public function testLoadThrowsWhenFileMissing(): void
@@ -59,6 +63,36 @@ final class PixelCastConfigLoaderTest extends TestCase
         $loader->load();
     }
 
+    public function testLoadThrowsWhenLatitudeIsOutOfBounds(): void
+    {
+        $loader = new PixelCastConfigLoader(self::FIXTURES_DIR.'/invalid-weather-latitude.yaml');
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('weather_latitude');
+
+        $loader->load();
+    }
+
+    public function testLoadThrowsWhenWeatherUnitsIsNotAllowed(): void
+    {
+        $loader = new PixelCastConfigLoader(self::FIXTURES_DIR.'/invalid-weather-units.yaml');
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('expected one of: metric, imperial');
+
+        $loader->load();
+    }
+
+    public function testLoadThrowsWhenWeatherLocaleIsNotAllowed(): void
+    {
+        $loader = new PixelCastConfigLoader(self::FIXTURES_DIR.'/invalid-weather-locale.yaml');
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('expected one of: fr, en');
+
+        $loader->load();
+    }
+
     public function testLoadParsesTrackedAssetsAsTrimmedList(): void
     {
         $loader = new PixelCastConfigLoader(self::FIXTURES_DIR.'/valid.yaml');
@@ -76,6 +110,10 @@ final class PixelCastConfigLoaderTest extends TestCase
             trackedAssets: ['BTC', 'AAPL', 'SPY', 'ETH'],
             weatherSource: 'openmeteo',
             trackerSource: 'yahoo-finance',
+            weatherLatitude: 48.8566,
+            weatherLongitude: 2.3522,
+            weatherUnits: 'metric',
+            weatherLocale: 'fr',
         );
 
         $rawMap = $config->toRawMap();
@@ -83,5 +121,7 @@ final class PixelCastConfigLoaderTest extends TestCase
         self::assertSame('BTC, AAPL, SPY, ETH', $rawMap['tracked_assets']);
         self::assertSame(120, $rawMap['weather_interval']);
         self::assertSame('openmeteo', $rawMap['weather_source']);
+        self::assertSame(48.8566, $rawMap['weather_latitude']);
+        self::assertSame('fr', $rawMap['weather_locale']);
     }
 }
