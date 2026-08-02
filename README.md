@@ -8,7 +8,7 @@ PixelCast target, so a change can be checked on the matrix display itself.
 ```
 bin/console app:scenario                 # list every scenario id
 bin/console app:scenario weather         # send one scenario
-bin/console app:scenario weather --target=http://192.168.1.42
+bin/console app:scenario weather --target=http://192.168.1.42/api
 ```
 
 Without `--target`, the destination comes from `PIXELCAST_DEVICE_BASE_URL`
@@ -32,16 +32,19 @@ to extend the list.
 ```
 bin/console app:device:dump                    # every domain
 bin/console app:device:dump --domain=weather   # one domain
-bin/console app:device:dump --target=http://192.168.1.42
+bin/console app:device:dump --target=http://192.168.1.42/api
 ```
 
-In dev the state is read from the simulator's `/__inspect` endpoint, which
+In dev the state is read from the simulator's `/api/__inspect` endpoint, which
 returns every domain at once. In prod it is read from the firmware REST API,
 one GET per domain; the firmware exposes no GET for indicator slots or custom
 apps, so those two always come back empty.
 
+Like the firmware, the simulator serves every route under `/api`, `__inspect`
+and `__reset` included, so a target URL always ends with `/api`.
+
 The simulator runs under `php -S`, which starts a fresh PHP process per
 request, so it persists its domain state and its request log in
 `var/simulator/state-<env>.json` between calls. Set
-`PIXELCAST_SIMULATOR_STATE_FILE` to store it elsewhere, and `POST /__reset`
+`PIXELCAST_SIMULATOR_STATE_FILE` to store it elsewhere, and `POST /api/__reset`
 to reset every domain and delete the file.

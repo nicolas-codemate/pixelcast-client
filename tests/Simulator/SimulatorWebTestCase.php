@@ -20,7 +20,7 @@ abstract class SimulatorWebTestCase extends WebTestCase
         // successive requests behave like successive php -S processes reading
         // the same persisted state; the reset below is what isolates tests.
         $this->client->disableReboot();
-        $this->client->request('POST', '/__reset');
+        $this->client->request('POST', '/api/__reset');
     }
 
     /**

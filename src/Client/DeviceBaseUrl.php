@@ -6,7 +6,7 @@ namespace App\Client;
 
 final class DeviceBaseUrl
 {
-    public const string DEFAULT = 'http://simulator:8080';
+    public const string DEFAULT = 'http://simulator:8080/api';
 
     public static function resolve(?string $configured): string
     {

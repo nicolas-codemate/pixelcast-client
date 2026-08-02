@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ScenarioDispatcherTest extends TestCase
 {
-    private const string TEST_DEVICE_BASE_URL = 'http://simulator:8080';
+    private const string TEST_DEVICE_BASE_URL = 'http://simulator:8080/api';
 
     private OutboundPayloadValidator $validator;
     private ScenarioCatalog $catalog;

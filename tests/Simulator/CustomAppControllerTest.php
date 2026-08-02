@@ -10,7 +10,7 @@ final class CustomAppControllerTest extends SimulatorWebTestCase
 {
     public function testPostThenListIncludesApp(): void
     {
-        $this->postJson('/custom?name=foo', [
+        $this->postJson('/api/custom?name=foo', [
             'name' => 'foo',
             'text' => 'hello',
             'icon' => 'smiley',
@@ -24,7 +24,7 @@ final class CustomAppControllerTest extends SimulatorWebTestCase
             (string) $this->client->getResponse()->getContent(),
         );
 
-        $this->client->request('GET', '/apps');
+        $this->client->request('GET', '/api/apps');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
         $payload = $this->jsonResponse();
@@ -41,7 +41,7 @@ final class CustomAppControllerTest extends SimulatorWebTestCase
 
     public function testDeleteUnknownReturns404(): void
     {
-        $this->deleteRequest('/custom?name=foo');
+        $this->deleteRequest('/api/custom?name=foo');
 
         self::assertSame(Response::HTTP_NOT_FOUND, $this->client->getResponse()->getStatusCode());
 

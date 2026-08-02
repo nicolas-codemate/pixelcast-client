@@ -10,7 +10,7 @@ final class SystemControllerTest extends SimulatorWebTestCase
 {
     public function testStatsReturns200AndBrightness(): void
     {
-        $this->client->request('GET', '/stats');
+        $this->client->request('GET', '/api/stats');
 
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
@@ -20,7 +20,7 @@ final class SystemControllerTest extends SimulatorWebTestCase
 
     public function testRebootReturnsSuccessImmediately(): void
     {
-        $this->client->request('POST', '/reboot');
+        $this->client->request('POST', '/api/reboot');
 
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
@@ -28,23 +28,23 @@ final class SystemControllerTest extends SimulatorWebTestCase
         self::assertTrue($payload['success'] ?? false);
 
         // Process must still be alive after a simulated reboot.
-        $this->client->request('GET', '/stats');
+        $this->client->request('GET', '/api/stats');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
     }
 
     public function testPostBrightnessUpdatesStats(): void
     {
-        $this->postJson('/brightness', ['brightness' => 200]);
+        $this->postJson('/api/brightness', ['brightness' => 200]);
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
-        $this->client->request('GET', '/stats');
+        $this->client->request('GET', '/api/stats');
         $payload = $this->jsonResponse();
         self::assertSame(200, $payload['brightness'] ?? null);
     }
 
     public function testGetSettingsReturnsDefaults(): void
     {
-        $this->client->request('GET', '/settings');
+        $this->client->request('GET', '/api/settings');
 
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
@@ -54,10 +54,10 @@ final class SystemControllerTest extends SimulatorWebTestCase
 
     public function testPostSettingsPatch(): void
     {
-        $this->postJson('/settings', ['autoRotate' => false]);
+        $this->postJson('/api/settings', ['autoRotate' => false]);
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
-        $this->client->request('GET', '/settings');
+        $this->client->request('GET', '/api/settings');
         $payload = $this->jsonResponse();
         self::assertFalse($payload['autoRotate'] ?? null);
     }
