@@ -7,7 +7,12 @@ namespace App\Tests\Config;
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\PixelCastConfig;
 use App\Config\PixelCastConfigLoader;
+use App\Config\WeatherLocale;
+use App\Config\WeatherUnits;
+use App\Tests\Factory\PixelCastConfigFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
 
 final class PixelCastConfigLoaderTest extends TestCase
 {
@@ -23,6 +28,10 @@ final class PixelCastConfigLoaderTest extends TestCase
         self::assertSame(30, $config->trackerInterval);
         self::assertSame('openmeteo', $config->weatherSource);
         self::assertSame('yahoo-finance', $config->trackerSource);
+        self::assertSame(48.8566, $config->weatherLatitude);
+        self::assertSame(2.3522, $config->weatherLongitude);
+        self::assertSame(WeatherUnits::Metric, $config->weatherUnits);
+        self::assertSame(WeatherLocale::French, $config->weatherLocale);
     }
 
     public function testLoadThrowsWhenFileMissing(): void
@@ -59,6 +68,28 @@ final class PixelCastConfigLoaderTest extends TestCase
         $loader->load();
     }
 
+    /**
+     * @return iterable<string, array{string, mixed, string}>
+     */
+    public static function provideRejectedValueCases(): iterable
+    {
+        yield 'latitude out of bounds' => ['weather_latitude', 120.5, 'weather_latitude'];
+        yield 'unknown weather units' => ['weather_units', 'kelvin', 'expected one of: metric, imperial'];
+        yield 'unknown weather locale' => ['weather_locale', 'de', 'expected one of: fr, en'];
+    }
+
+    #[DataProvider('provideRejectedValueCases')]
+    public function testFromArrayRejectsAnInvalidValue(string $key, mixed $invalidValue, string $expectedMessageFragment): void
+    {
+        $raw = self::validRawMap();
+        $raw[$key] = $invalidValue;
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage($expectedMessageFragment);
+
+        PixelCastConfig::fromArray($raw);
+    }
+
     public function testLoadParsesTrackedAssetsAsTrimmedList(): void
     {
         $loader = new PixelCastConfigLoader(self::FIXTURES_DIR.'/valid.yaml');
@@ -70,18 +101,22 @@ final class PixelCastConfigLoaderTest extends TestCase
 
     public function testToRawMapJoinsTrackedAssetsWithCommaSpace(): void
     {
-        $config = new PixelCastConfig(
-            weatherInterval: 120,
-            trackerInterval: 30,
-            trackedAssets: ['BTC', 'AAPL', 'SPY', 'ETH'],
-            weatherSource: 'openmeteo',
-            trackerSource: 'yahoo-finance',
-        );
-
-        $rawMap = $config->toRawMap();
+        $rawMap = PixelCastConfigFactory::validConfig()->toRawMap();
 
         self::assertSame('BTC, AAPL, SPY, ETH', $rawMap['tracked_assets']);
         self::assertSame(120, $rawMap['weather_interval']);
         self::assertSame('openmeteo', $rawMap['weather_source']);
+        self::assertSame(48.8566, $rawMap['weather_latitude']);
+        self::assertSame('fr', $rawMap['weather_locale']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function validRawMap(): array
+    {
+        $validFixturePath = self::FIXTURES_DIR.'/valid.yaml';
+
+        return PixelCastConfig::asStringKeyedMap(Yaml::parseFile($validFixturePath), $validFixturePath);
     }
 }

@@ -140,21 +140,11 @@ final class PixelCastConfigWriter
 
     private function formatScalar(mixed $value): string
     {
-        if (\is_int($value)) {
-            return (string) $value;
+        if (!\is_scalar($value)) {
+            throw PixelCastConfigException::invalidValue('<scalar>', \sprintf('unsupported scalar type "%s"', get_debug_type($value)));
         }
 
-        if (\is_string($value)) {
-            $dumped = Yaml::dump($value, 0, 2, Yaml::DUMP_NULL_AS_TILDE);
-
-            return rtrim($dumped, "\n");
-        }
-
-        if (\is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        throw PixelCastConfigException::invalidValue('<scalar>', \sprintf('unsupported scalar type "%s"', get_debug_type($value)));
+        return rtrim(Yaml::dump($value, 0, 2, Yaml::DUMP_NULL_AS_TILDE), "\n");
     }
 
     private function assertContentIsLoadable(string $buffer): void

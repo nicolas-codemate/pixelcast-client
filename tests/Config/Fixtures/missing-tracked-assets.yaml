@@ -9,3 +9,15 @@ weather_source: openmeteo
 
 # Identifier of the tracker data provider.
 tracker_source: yahoo-finance
+
+# Latitude of the location used for weather data.
+weather_latitude: 48.8566
+
+# Longitude of the location used for weather data.
+weather_longitude: 2.3522
+
+# Unit system for weather temperatures (metric or imperial).
+weather_units: metric
+
+# Locale used for the 3-letter forecast day labels (fr or en).
+weather_locale: fr

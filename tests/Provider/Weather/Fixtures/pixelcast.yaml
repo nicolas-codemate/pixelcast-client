@@ -1,7 +1,7 @@
-# Sample configuration used by PixelCastConfigLoaderTest.
-weather_interval: 120
-tracker_interval: 30
-tracked_assets: BTC,  AAPL ,SPY ,, ETH
+# Sample configuration used by OpenMeteoWeatherProviderTest.
+weather_interval: 300
+tracker_interval: 60
+tracked_assets: BTC, AAPL, SPY, ETH
 weather_source: openmeteo
 tracker_source: yahoo-finance
 weather_latitude: 48.8566
