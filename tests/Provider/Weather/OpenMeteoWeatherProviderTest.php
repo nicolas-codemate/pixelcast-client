@@ -171,7 +171,7 @@ final class OpenMeteoWeatherProviderTest extends TestCase
 
     private static function fixtureResponse(): MockResponse
     {
-        return new MockResponse(self::encodeForecast(self::decodedFixture()));
+        return new MockResponse(self::rawFixture());
     }
 
     private static function forecastWithCurrentWeatherCode(int $weatherCode): string
@@ -196,17 +196,22 @@ final class OpenMeteoWeatherProviderTest extends TestCase
         return self::encodeForecast($forecast);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private static function decodedFixture(): array
+    private static function rawFixture(): string
     {
         $rawJson = file_get_contents(self::FIXTURES_DIR.'/open-meteo-forecast.json');
         if (false === $rawJson) {
             self::fail('The Open-Meteo fixture could not be read.');
         }
 
-        $decoded = json_decode($rawJson, true, 512, \JSON_THROW_ON_ERROR);
+        return $rawJson;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function decodedFixture(): array
+    {
+        $decoded = json_decode(self::rawFixture(), true, 512, \JSON_THROW_ON_ERROR);
         if (!\is_array($decoded)) {
             self::fail('The Open-Meteo fixture is not a JSON object.');
         }

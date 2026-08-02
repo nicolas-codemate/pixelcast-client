@@ -91,6 +91,8 @@ pixelcast-client/
 |   |   |-- PixelCastConfig.php         # VO des clés de pixelcast.yaml (dont les 4 clés weather_*)
 |   |   |-- PixelCastConfigLoader.php   # Lecture et validation de pixelcast.yaml
 |   |   |-- PixelCastConfigWriter.php   # Réécriture non destructive (commentaires conservés)
+|   |   |-- WeatherUnits.php            # metric / imperial
+|   |   |-- WeatherLocale.php           # Libellés de jour sur 3 lettres (fr / en)
 |   |   |-- Exception/
 |   |   |   |-- PixelCastConfigException.php
 |   |   |-- TrackerAsset.php            # VO: symbol, icon, color, currency, type (à venir)
@@ -100,8 +102,6 @@ pixelcast-client/
 |   |   |   |-- WeatherProviderInterface.php   # -> WeatherPayload
 |   |   |   |-- OpenMeteoWeatherProvider.php   # 1 appel Open-Meteo + cache 25min
 |   |   |   |-- WmoWeatherCodeIconMapper.php   # Code WMO + is_day -> icône built-in
-|   |   |   |-- WeatherUnits.php               # metric / imperial
-|   |   |   |-- WeatherLocale.php              # Libellés de jour sur 3 lettres (fr / en)
 |   |   |-- Tracker/
 |   |   |   |-- TrackerProviderInterface.php   # -> TrackerData[]
 |   |   |   |-- CoinGeckoProvider.php          # Batch fetch + sparkline downsample

@@ -2,20 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Provider\Weather;
+namespace App\Tests\Config;
 
-use App\Provider\Weather\WeatherLocale;
+use App\Config\WeatherLocale;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class WeatherLocaleTest extends TestCase
 {
     private const int FORECAST_DAY_LABEL_LENGTH = 3;
-
-    public function testValuesListsTheLocalesAcceptedByTheConfiguration(): void
-    {
-        self::assertSame(['fr', 'en'], WeatherLocale::values());
-    }
 
     /**
      * @return iterable<string, array{WeatherLocale, string, string}>

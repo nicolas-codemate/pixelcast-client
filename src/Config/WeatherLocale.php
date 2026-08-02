@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Provider\Weather;
+namespace App\Config;
 
 enum WeatherLocale: string
 {
@@ -28,14 +28,6 @@ enum WeatherLocale: string
         6 => 'SAT',
         7 => 'SUN',
     ];
-
-    /**
-     * @return list<string>
-     */
-    public static function values(): array
-    {
-        return array_column(self::cases(), 'value');
-    }
 
     public function dayLabelFor(\DateTimeImmutable $date): string
     {

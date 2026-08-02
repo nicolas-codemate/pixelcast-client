@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Config;
 
 use App\Config\Exception\PixelCastConfigException;
-use App\Provider\Weather\WeatherLocale;
-use App\Provider\Weather\WeatherUnits;
 
 final readonly class PixelCastConfig
 {
@@ -36,8 +34,8 @@ final readonly class PixelCastConfig
         public string $trackerSource,
         public float $weatherLatitude,
         public float $weatherLongitude,
-        public string $weatherUnits,
-        public string $weatherLocale,
+        public WeatherUnits $weatherUnits,
+        public WeatherLocale $weatherLocale,
     ) {
     }
 
@@ -73,8 +71,8 @@ final readonly class PixelCastConfig
         $trackerSource = self::requireString($raw, self::KEY_TRACKER_SOURCE);
         $weatherLatitude = self::requireBoundedFloat($raw, self::KEY_WEATHER_LATITUDE, self::MINIMUM_LATITUDE, self::MAXIMUM_LATITUDE);
         $weatherLongitude = self::requireBoundedFloat($raw, self::KEY_WEATHER_LONGITUDE, self::MINIMUM_LONGITUDE, self::MAXIMUM_LONGITUDE);
-        $weatherUnits = self::requireAllowedString($raw, self::KEY_WEATHER_UNITS, WeatherUnits::values());
-        $weatherLocale = self::requireAllowedString($raw, self::KEY_WEATHER_LOCALE, WeatherLocale::values());
+        $weatherUnits = self::requireEnum($raw, self::KEY_WEATHER_UNITS, WeatherUnits::class);
+        $weatherLocale = self::requireEnum($raw, self::KEY_WEATHER_LOCALE, WeatherLocale::class);
 
         return new self(
             $weatherInterval,
@@ -102,8 +100,8 @@ final readonly class PixelCastConfig
             self::KEY_TRACKER_SOURCE => $this->trackerSource,
             self::KEY_WEATHER_LATITUDE => $this->weatherLatitude,
             self::KEY_WEATHER_LONGITUDE => $this->weatherLongitude,
-            self::KEY_WEATHER_UNITS => $this->weatherUnits,
-            self::KEY_WEATHER_LOCALE => $this->weatherLocale,
+            self::KEY_WEATHER_UNITS => $this->weatherUnits->value,
+            self::KEY_WEATHER_LOCALE => $this->weatherLocale->value,
         ];
     }
 
@@ -169,18 +167,22 @@ final readonly class PixelCastConfig
     }
 
     /**
+     * @template TBackedEnum of \BackedEnum
+     *
      * @param array<string, mixed> $raw
-     * @param list<string> $allowedValues
+     * @param class-string<TBackedEnum> $enumClass
+     *
+     * @return TBackedEnum
      */
-    private static function requireAllowedString(array $raw, string $key, array $allowedValues): string
+    private static function requireEnum(array $raw, string $key, string $enumClass): \BackedEnum
     {
-        $value = self::requireString($raw, $key);
+        $matchedCase = $enumClass::tryFrom(self::requireString($raw, $key));
 
-        if (!\in_array($value, $allowedValues, true)) {
-            throw PixelCastConfigException::invalidValue($key, \sprintf('expected one of: %s', implode(', ', $allowedValues)));
+        if (null === $matchedCase) {
+            throw PixelCastConfigException::invalidValue($key, \sprintf('expected one of: %s', implode(', ', array_column($enumClass::cases(), 'value'))));
         }
 
-        return $value;
+        return $matchedCase;
     }
 
     /**

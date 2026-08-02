@@ -9,6 +9,8 @@ use App\Client\Weather\ForecastDay;
 use App\Client\Weather\WeatherIcon;
 use App\Client\Weather\WeatherPayload;
 use App\Config\PixelCastConfigLoader;
+use App\Config\WeatherLocale;
+use App\Config\WeatherUnits;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -38,15 +40,13 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
     public function fetchWeather(): ?WeatherPayload
     {
         $config = $this->configLoader->load();
-        $weatherUnits = WeatherUnits::from($config->weatherUnits);
-        $weatherLocale = WeatherLocale::from($config->weatherLocale);
 
-        $rawForecast = $this->fetchRawForecast($config->weatherLatitude, $config->weatherLongitude, $weatherUnits);
+        $rawForecast = $this->fetchRawForecast($config->weatherLatitude, $config->weatherLongitude, $config->weatherUnits);
         if (null === $rawForecast) {
             return null;
         }
 
-        return $this->buildPayload($rawForecast, $weatherLocale);
+        return $this->buildPayload($rawForecast, $config->weatherLocale);
     }
 
     /**
@@ -72,7 +72,7 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
 
     private static function buildCacheKey(float $latitude, float $longitude, WeatherUnits $weatherUnits): string
     {
-        return self::CACHE_KEY_PREFIX.hash('xxh128', \sprintf('%.4F|%.4F|%s', $latitude, $longitude, $weatherUnits->value));
+        return self::CACHE_KEY_PREFIX.\sprintf('%.4F_%.4F_%s', $latitude, $longitude, $weatherUnits->value);
     }
 
     /**
@@ -90,7 +90,7 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
                     'daily' => self::DAILY_FIELDS,
                     'forecast_days' => self::FORECAST_DAY_COUNT,
                     'timezone' => 'auto',
-                    'temperature_unit' => $weatherUnits->temperatureUnitParameter(),
+                    'temperature_unit' => self::temperatureUnitParameter($weatherUnits),
                 ],
             ])->toArray();
 
@@ -104,6 +104,14 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
 
             return null;
         }
+    }
+
+    private static function temperatureUnitParameter(WeatherUnits $weatherUnits): string
+    {
+        return match ($weatherUnits) {
+            WeatherUnits::Metric => 'celsius',
+            WeatherUnits::Imperial => 'fahrenheit',
+        };
     }
 
     /**

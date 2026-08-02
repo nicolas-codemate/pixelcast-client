@@ -8,6 +8,9 @@ use App\Config\Exception\PixelCastConfigException;
 use App\Config\PixelCastConfig;
 use App\Config\PixelCastConfigLoader;
 use App\Config\PixelCastConfigWriter;
+use App\Config\WeatherLocale;
+use App\Config\WeatherUnits;
+use App\Tests\Factory\PixelCastConfigFactory;
 use PHPUnit\Framework\TestCase;
 
 final class PixelCastConfigWriterTest extends TestCase
@@ -52,17 +55,7 @@ final class PixelCastConfigWriterTest extends TestCase
         self::assertIsArray($originalLines);
 
         $loaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
-        $updated = new PixelCastConfig(
-            weatherInterval: 600,
-            trackerInterval: $loaded->trackerInterval,
-            trackedAssets: $loaded->trackedAssets,
-            weatherSource: $loaded->weatherSource,
-            trackerSource: $loaded->trackerSource,
-            weatherLatitude: $loaded->weatherLatitude,
-            weatherLongitude: $loaded->weatherLongitude,
-            weatherUnits: $loaded->weatherUnits,
-            weatherLocale: $loaded->weatherLocale,
-        );
+        $updated = PixelCastConfigFactory::copyWith($loaded, weatherInterval: 600);
 
         new PixelCastConfigWriter($this->temporaryConfigPath)->save($updated);
 
@@ -84,17 +77,7 @@ final class PixelCastConfigWriterTest extends TestCase
     {
         $this->copyFixtureToTemp('missing-tracked-assets.yaml');
 
-        $config = new PixelCastConfig(
-            weatherInterval: 120,
-            trackerInterval: 30,
-            trackedAssets: ['BTC', 'AAPL', 'SPY', 'ETH'],
-            weatherSource: 'openmeteo',
-            trackerSource: 'yahoo-finance',
-            weatherLatitude: 48.8566,
-            weatherLongitude: 2.3522,
-            weatherUnits: 'metric',
-            weatherLocale: 'fr',
-        );
+        $config = PixelCastConfigFactory::validConfig();
 
         new PixelCastConfigWriter($this->temporaryConfigPath)->save($config);
 
@@ -161,17 +144,7 @@ final class PixelCastConfigWriterTest extends TestCase
         $this->copyFixtureToTemp('with-comments.yaml');
 
         $loaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
-        $updated = new PixelCastConfig(
-            weatherInterval: $loaded->weatherInterval,
-            trackerInterval: $loaded->trackerInterval,
-            trackedAssets: $loaded->trackedAssets,
-            weatherSource: 'openmeteo: forecast',
-            trackerSource: $loaded->trackerSource,
-            weatherLatitude: $loaded->weatherLatitude,
-            weatherLongitude: $loaded->weatherLongitude,
-            weatherUnits: $loaded->weatherUnits,
-            weatherLocale: $loaded->weatherLocale,
-        );
+        $updated = PixelCastConfigFactory::copyWith($loaded, weatherSource: 'openmeteo: forecast');
 
         new PixelCastConfigWriter($this->temporaryConfigPath)->save($updated);
 
@@ -184,17 +157,7 @@ final class PixelCastConfigWriterTest extends TestCase
         $this->copyFixtureToTemp('with-comments.yaml');
 
         $loaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
-        $updated = new PixelCastConfig(
-            weatherInterval: $loaded->weatherInterval,
-            trackerInterval: $loaded->trackerInterval,
-            trackedAssets: $loaded->trackedAssets,
-            weatherSource: $loaded->weatherSource,
-            trackerSource: $loaded->trackerSource,
-            weatherLatitude: -33.8688,
-            weatherLongitude: $loaded->weatherLongitude,
-            weatherUnits: $loaded->weatherUnits,
-            weatherLocale: $loaded->weatherLocale,
-        );
+        $updated = PixelCastConfigFactory::copyWith($loaded, weatherLatitude: -33.8688);
 
         new PixelCastConfigWriter($this->temporaryConfigPath)->save($updated);
 
@@ -208,17 +171,7 @@ final class PixelCastConfigWriterTest extends TestCase
         $this->copyFixtureToTemp('with-comments.yaml');
 
         $loaded = new PixelCastConfigLoader($this->temporaryConfigPath)->load();
-        $updated = new PixelCastConfig(
-            weatherInterval: $loaded->weatherInterval,
-            trackerInterval: $loaded->trackerInterval,
-            trackedAssets: $loaded->trackedAssets,
-            weatherSource: $loaded->weatherSource,
-            trackerSource: $loaded->trackerSource,
-            weatherLatitude: 48.0,
-            weatherLongitude: $loaded->weatherLongitude,
-            weatherUnits: $loaded->weatherUnits,
-            weatherLocale: $loaded->weatherLocale,
-        );
+        $updated = PixelCastConfigFactory::copyWith($loaded, weatherLatitude: 48.0);
 
         new PixelCastConfigWriter($this->temporaryConfigPath)->save($updated);
 
@@ -253,8 +206,8 @@ final class PixelCastConfigWriterTest extends TestCase
             'trackerSource' => 'yahoo-finance',
             'weatherLatitude' => 48.8566,
             'weatherLongitude' => 2.3522,
-            'weatherUnits' => 'metric',
-            'weatherLocale' => 'fr',
+            'weatherUnits' => WeatherUnits::Metric,
+            'weatherLocale' => WeatherLocale::French,
         ] as $propertyName => $value) {
             $property = $reflection->getProperty($propertyName);
             $property->setValue($instance, $value);
