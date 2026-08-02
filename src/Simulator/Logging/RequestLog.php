@@ -31,6 +31,32 @@ final class RequestLog
         );
     }
 
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function exportForPersistence(): array
+    {
+        return $this->snapshotEntries();
+    }
+
+    /**
+     * @param list<array<string, mixed>> $persistedEntries
+     */
+    public function restoreFromPersistence(array $persistedEntries): void
+    {
+        $restoredEntries = [];
+
+        foreach ($persistedEntries as $persistedEntry) {
+            try {
+                $restoredEntries[] = RequestLogEntry::fromArray($persistedEntry);
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        $this->entries = \array_slice($restoredEntries, -self::CAPACITY);
+    }
+
     public function reset(): void
     {
         $this->entries = [];

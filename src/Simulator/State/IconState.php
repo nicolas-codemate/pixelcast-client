@@ -66,6 +66,22 @@ final class IconState implements ResettableState
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function exportForPersistence(): array
+    {
+        return ['icons' => $this->icons];
+    }
+
+    /**
+     * @param array<string, mixed> $persistedState
+     */
+    public function restoreFromPersistence(array $persistedState): void
+    {
+        $this->icons = PersistedStateReader::payloadMap($persistedState['icons'] ?? null);
+    }
+
     public function domainKey(): string
     {
         return 'icons';

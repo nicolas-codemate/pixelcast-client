@@ -39,3 +39,9 @@ In dev the state is read from the simulator's `/__inspect` endpoint, which
 returns every domain at once. In prod it is read from the firmware REST API,
 one GET per domain; the firmware exposes no GET for indicator slots or custom
 apps, so those two always come back empty.
+
+The simulator runs under `php -S`, which starts a fresh PHP process per
+request, so it persists its domain state and its request log in
+`var/simulator/state-<env>.json` between calls. Set
+`PIXELCAST_SIMULATOR_STATE_FILE` to store it elsewhere, and `POST /__reset`
+to reset every domain and delete the file.

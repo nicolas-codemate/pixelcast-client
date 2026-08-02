@@ -16,8 +16,9 @@ abstract class SimulatorWebTestCase extends WebTestCase
         parent::setUp();
         $this->client = static::createClient();
         // KernelBrowser reboots the kernel between requests by default, which
-        // discards in-memory simulator state. Pin the kernel for the whole
-        // test so successive requests share the same state container.
+        // rebuilds the container on every call. Pin it for the whole test so
+        // successive requests behave like successive php -S processes reading
+        // the same persisted state; the reset below is what isolates tests.
         $this->client->disableReboot();
         $this->client->request('POST', '/__reset');
     }
