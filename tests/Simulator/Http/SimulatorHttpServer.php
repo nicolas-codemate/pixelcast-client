@@ -14,19 +14,21 @@ use Symfony\Component\Process\Process;
 final class SimulatorHttpServer
 {
     private const float READINESS_TIMEOUT_SECONDS = 30.0;
-    private const int READINESS_POLL_INTERVAL_MICROSECONDS = 100_000;
+    private const int READINESS_POLL_INTERVAL_MICROSECONDS = 10_000;
     private const int REQUEST_TIMEOUT_SECONDS = 10;
 
     private function __construct(
         private readonly Process $process,
         private readonly string $baseUrl,
         private readonly string $temporaryDirectory,
+        private readonly string $stateFilePath,
     ) {
     }
 
     public static function start(string $projectDirectory): self
     {
         $temporaryDirectory = sys_get_temp_dir().'/pixelcast-simulator-http-'.bin2hex(random_bytes(6));
+        $stateFilePath = $temporaryDirectory.'/state.json';
         $port = self::reserveFreePort();
 
         $process = new Process(
@@ -45,13 +47,13 @@ final class SimulatorHttpServer
                 'APP_DEBUG' => '1',
                 // Debug mode logs every dispatched event to stderr; -1 keeps only errors.
                 'SHELL_VERBOSITY' => '-1',
-                'PIXELCAST_SIMULATOR_STATE_FILE' => $temporaryDirectory.'/state.json',
+                'PIXELCAST_SIMULATOR_STATE_FILE' => $stateFilePath,
             ],
         );
         $process->setTimeout(null);
         $process->start();
 
-        $server = new self($process, 'http://127.0.0.1:'.$port, $temporaryDirectory);
+        $server = new self($process, 'http://127.0.0.1:'.$port, $temporaryDirectory, $stateFilePath);
 
         try {
             $server->awaitReady();
@@ -77,21 +79,16 @@ final class SimulatorHttpServer
         return $this->send('POST', $path, null === $jsonBody ? null : json_encode($jsonBody, \JSON_THROW_ON_ERROR));
     }
 
-    public function stateFilePath(): string
-    {
-        return $this->temporaryDirectory.'/state.json';
-    }
-
     /**
      * @return array<string, mixed>
      */
     public function decodedStateFile(): array
     {
-        if (!is_file($this->stateFilePath())) {
-            throw new \RuntimeException('The simulator wrote no state file at '.$this->stateFilePath());
+        if (!is_file($this->stateFilePath)) {
+            throw new \RuntimeException('The simulator wrote no state file at '.$this->stateFilePath);
         }
 
-        $contents = new Filesystem()->readFile($this->stateFilePath());
+        $contents = new Filesystem()->readFile($this->stateFilePath);
         $persistedState = PersistedStateReader::payload(json_decode($contents, true));
 
         if (null === $persistedState) {

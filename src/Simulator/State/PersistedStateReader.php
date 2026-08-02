@@ -39,19 +39,7 @@ final class PersistedStateReader
      */
     public static function payloadList(mixed $value): array
     {
-        if (!\is_array($value)) {
-            return [];
-        }
-
-        $payloads = [];
-        foreach ($value as $item) {
-            $payload = self::payload($item);
-            if (null !== $payload) {
-                $payloads[] = $payload;
-            }
-        }
-
-        return $payloads;
+        return array_values(self::payloadMap($value));
     }
 
     /**

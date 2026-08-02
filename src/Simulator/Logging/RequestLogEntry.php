@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Simulator\Logging;
 
+use App\Simulator\State\PersistedStateReader;
 use App\Simulator\Validation\ValidationResult;
 
 final readonly class RequestLogEntry
@@ -32,29 +33,18 @@ final readonly class RequestLogEntry
             throw new \InvalidArgumentException('A persisted request log entry needs a string method and path.');
         }
 
-        $timestamp = $data['timestamp'] ?? null;
-        $parsedTimestamp = \is_string($timestamp)
-            ? \DateTimeImmutable::createFromFormat('!'.\DateTimeInterface::ATOM, $timestamp)
-            : false;
+        $timestamp = PersistedStateReader::atomDate($data['timestamp'] ?? null);
 
-        if (false === $parsedTimestamp) {
+        if (null === $timestamp) {
             throw new \InvalidArgumentException('A persisted request log entry needs an ATOM timestamp.');
         }
-
-        $body = $data['body'] ?? null;
-        /** @var array<string, mixed>|null $restoredBody */
-        $restoredBody = \is_array($body) ? $body : null;
-
-        $validation = $data['validation'] ?? null;
-        /** @var array<string, mixed> $restoredValidation */
-        $restoredValidation = \is_array($validation) ? $validation : [];
 
         return new self(
             method: $method,
             path: $path,
-            body: $restoredBody,
-            timestamp: $parsedTimestamp,
-            validationResult: ValidationResult::fromArray($restoredValidation),
+            body: PersistedStateReader::payload($data['body'] ?? null),
+            timestamp: $timestamp,
+            validationResult: ValidationResult::fromArray(PersistedStateReader::payload($data['validation'] ?? null) ?? []),
         );
     }
 

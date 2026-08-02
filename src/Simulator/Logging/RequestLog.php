@@ -49,7 +49,7 @@ final class RequestLog
         foreach ($persistedEntries as $persistedEntry) {
             try {
                 $restoredEntries[] = RequestLogEntry::fromArray($persistedEntry);
-            } catch (\Throwable) {
+            } catch (\InvalidArgumentException) {
                 continue;
             }
         }

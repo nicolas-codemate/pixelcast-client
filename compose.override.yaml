@@ -22,7 +22,9 @@ services:
         condition: service_started
     working_dir: /app
     entrypoint: []
-    command: php -S 0.0.0.0:8080 -t public/
+    # php -S hides inherited environment variables from $_SERVER and $_ENV,
+    # where Dotenv looks for APP_ENV before falling back to .env.
+    command: php -d variables_order=EGPCS -S 0.0.0.0:8080 -t public/
     volumes:
       - .:/app
     environment:
