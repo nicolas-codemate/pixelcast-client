@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Scenario\Stub;
+namespace App\Tests\Stub;
 
 use Psr\Log\AbstractLogger;
 

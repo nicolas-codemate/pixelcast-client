@@ -13,6 +13,8 @@ use App\Client\Transport\TrackersTransport;
 use App\Client\Transport\WeatherTransport;
 use App\Domain\AppDomain;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\MockHttpClient;
 
 final class ProdDeviceStateSourceTest extends TestCase
 {
@@ -205,7 +207,7 @@ final class StubHttpJsonFetcher extends HttpJsonFetcher
 
     public function __construct()
     {
-        parent::__construct(0.001);
+        parent::__construct(new MockHttpClient(), new NullLogger());
     }
 
     public function fetchJson(string $url): ?array
