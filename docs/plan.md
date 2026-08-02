@@ -395,6 +395,7 @@ services:
 | `lint` | PHPStan analyse |
 | `cs-fix` | PHP-CS-Fixer (auto-correction) |
 | `cs-check` | PHP-CS-Fixer (dry-run, sans modification) |
+| `sync` | Déclenche un sync manuellement (`app:sync`) |
 | `sync-api` | Télécharge les specs OpenAPI/AsyncAPI dans `sync/` |
 
 ---
