@@ -4,7 +4,7 @@
 
 Application Symfony CLI qui collecte des données depuis des APIs externes (météo, crypto, ETF/indices) et les pousse vers un écran matriciel ESP32 via son API REST. Hébergé sur un NUC, Docker-only (pas de PHP local), pas de serveur web.
 
-**Premier batch** : Weather (OpenWeatherMap) + Trackers financiers (CoinGecko crypto + Twelve Data ETF/indices)
+**Premier batch** : Weather (Open-Meteo) + Trackers financiers (CoinGecko crypto + Twelve Data ETF/indices)
 **Batch suivant** : Capteurs Netatmo
 
 ---
@@ -12,9 +12,9 @@ Application Symfony CLI qui collecte des données depuis des APIs externes (mét
 ## Architecture Overview
 
 ```
-[OpenWeatherMap] ---\
-[CoinGecko]     ----+--> [Symfony CLI App] --HTTP--> [ESP32 Pixelcast]  (prod)
-[Twelve Data]   ---/     (scheduler loop)        \-> [Simulator]         (dev, #15)
+[Open-Meteo]  ---\
+[CoinGecko]   ----+--> [Symfony CLI App] --HTTP--> [ESP32 Pixelcast]  (prod)
+[Twelve Data] ---/     (scheduler loop)        \-> [Simulator]         (dev, #15)
 ```
 
 **Pattern central** : Provider (fetch + map) -> Message/Handler (orchestrate) -> PixelcastClient (push)
@@ -29,7 +29,7 @@ Le Scheduler Symfony dispatch des `RecurringMessage` consommés par `messenger:c
 - Symfony 8.0 (skeleton, console, http-client, messenger, scheduler, cache, monolog-bundle)
 - Twelve Data pour ETF/indices (800 req/jour gratuit, API stable et documentée)
 - CoinGecko pour crypto (30 req/min gratuit)
-- OpenWeatherMap One Call 3.0 (1000 req/jour gratuit, current + 8j forecast en 1 call)
+- Open-Meteo pour la météo (sans clé API, 10 000 req/jour gratuit, current + `forecast_days=7` en 1 call)
 - PHPStan ^2.1 + PHP-CS-Fixer
 
 ---
@@ -61,10 +61,11 @@ pixelcast-client/
 |       |-- settings.yaml
 |-- .env                              # Defaults (PIXELCAST_DEVICE_BASE_URL, API keys placeholders)
 |-- .env.local                        # Secrets (gitignored)
+|-- pixelcast.yaml.dist               # Modèle commité : assets trackés + localisation météo
+|-- pixelcast.yaml                    # Config réelle (gitignored), lue par PixelCastConfigLoader
 |-- config/
-|   |-- pixelcast.yaml                # Assets trackés + weather location (chargé comme paramètres)
 |   |-- packages/
-|       |-- http_client.yaml          # 4 scoped clients (pixelcast, coingecko, openweathermap, twelvedata)
+|       |-- http_client.yaml          # scoped clients : device.client, weather.client (coingecko / twelvedata à venir)
 |       |-- messenger.yaml            # sync:// transport for scheduler
 |       |-- cache.yaml                # filesystem adapter
 |       |-- monolog.yaml              # stderr (Docker-friendly)
@@ -72,10 +73,12 @@ pixelcast-client/
 |   |-- Client/
 |   |   |-- PixelcastClientInterface.php
 |   |   |-- PixelcastClient.php       # HTTP client ESP32, 1 méthode par endpoint
-|   |   |-- Dto/Request/
+|   |   |-- Weather/
 |   |   |   |-- WeatherPayload.php    # POST /weather body
 |   |   |   |-- CurrentWeather.php
 |   |   |   |-- ForecastDay.php
+|   |   |   |-- WeatherIcon.php       # Les 10 icônes built-in du firmware
+|   |   |-- Dto/Request/
 |   |   |   |-- TrackerPayload.php    # POST /tracker body
 |   |   |   |-- NotificationPayload.php
 |   |   |   |-- CustomAppPayload.php
@@ -84,16 +87,21 @@ pixelcast-client/
 |   |   |-- Exception/
 |   |       |-- DeviceUnreachableException.php
 |   |
-|   |-- Configuration/
-|   |   |-- PixelcastConfiguration.php  # Service qui lit les paramètres YAML (pas de config tree)
-|   |   |-- TrackerAsset.php            # VO: symbol, icon, color, currency, type
-|   |   |-- WeatherLocation.php         # VO: lat, lon, units
+|   |-- Config/
+|   |   |-- PixelCastConfig.php         # VO des clés de pixelcast.yaml (dont les 4 clés weather_*)
+|   |   |-- PixelCastConfigLoader.php   # Lecture et validation de pixelcast.yaml
+|   |   |-- PixelCastConfigWriter.php   # Réécriture non destructive (commentaires conservés)
+|   |   |-- Exception/
+|   |   |   |-- PixelCastConfigException.php
+|   |   |-- TrackerAsset.php            # VO: symbol, icon, color, currency, type (à venir)
 |   |
 |   |-- Provider/
 |   |   |-- Weather/
-|   |   |   |-- WeatherProviderInterface.php  # -> WeatherPayload
-|   |   |   |-- OpenWeatherMapProvider.php     # Fetch OWM One Call 3.0 + cache 25min
-|   |   |   |-- WeatherIconMapper.php          # OWM icon code -> ESP32 icon name (mapping à ajuster côté firmware)
+|   |   |   |-- WeatherProviderInterface.php   # -> WeatherPayload
+|   |   |   |-- OpenMeteoWeatherProvider.php   # 1 appel Open-Meteo + cache 25min
+|   |   |   |-- WmoWeatherCodeIconMapper.php   # Code WMO + is_day -> icône built-in
+|   |   |   |-- WeatherUnits.php               # metric / imperial
+|   |   |   |-- WeatherLocale.php              # Libellés de jour sur 3 lettres (fr / en)
 |   |   |-- Tracker/
 |   |   |   |-- TrackerProviderInterface.php   # -> TrackerData[]
 |   |   |   |-- CoinGeckoProvider.php          # Batch fetch + sparkline downsample
@@ -117,17 +125,24 @@ pixelcast-client/
 |       |-- NotifyCommand.php              # pixelcast:notify "text" [--icon] [--duration]
 |
 |-- tests/
-    |-- Unit/
-    |   |-- Client/Dto/                # toArray() produit le bon JSON
-    |   |-- Provider/Weather/          # Mapping OWM -> payload avec fixtures
-    |   |-- Provider/Tracker/          # Mapping CoinGecko/TwelveData avec fixtures
-    |-- Integration/
-    |   |-- MessageHandler/            # Handler avec MockHttpClient + SpyPixelcastClient
-    |-- Fixtures/
-        |-- openweathermap_onecall.json
-        |-- coingecko_markets.json
-        |-- twelvedata_quote.json
-        |-- twelvedata_timeseries.json
+    |-- Client/
+    |   |-- Weather/                   # DTOs : toArray() produit le bon JSON
+    |-- Config/
+    |   |-- Fixtures/                  # pixelcast.yaml valides et invalides
+    |-- Provider/
+    |   |-- Weather/                   # Mapping Open-Meteo -> payload, table WMO, libellés de jour
+    |   |   |-- Fixtures/
+    |   |       |-- open-meteo-forecast.json
+    |   |       |-- pixelcast.yaml
+    |   |       |-- pixelcast-imperial.yaml
+    |   |-- Tracker/                   # Mapping CoinGecko/TwelveData avec fixtures (à venir)
+    |       |-- Fixtures/
+    |           |-- coingecko_markets.json
+    |           |-- twelvedata_quote.json
+    |           |-- twelvedata_timeseries.json
+    |-- MessageHandler/                # Handler avec MockHttpClient + SpyPixelcastClient (à venir)
+    |-- Stub/
+        |-- RecordingLoggerStub.php
 ```
 
 ---
@@ -142,11 +157,13 @@ pixelcast-client/
 - Yahoo Finance unofficial est fragile : pas de support, rate limiting sans warning, peut casser à tout moment
 - Pour un daemon long-running sur un NUC, la fiabilité prime
 
-### Pourquoi OpenWeatherMap One Call 3.0
+### Pourquoi Open-Meteo
 
-- 1 seul appel retourne current + forecast 8 jours
-- 1000 calls/jour gratuit, on en fait 48 (toutes les 30min)
-- Met à jour toutes les 10min côté OWM
+- Aucune clé API : rien à créer, rien à faire tourner ni à renouveler sur le NUC
+- 1 seul appel retourne current + `forecast_days=7`, ce qui colle exactement au `maxItems: 7` du firmware
+- Les codes WMO forment une table fermée et documentée : le mapping vers les 10 icônes built-in est une fonction pure et testable code par code
+- 10 000 calls/jour gratuit, on en fait 48 (toutes les 30min)
+- Limite assumée : gratuit pour usage non commercial, sans SLA. `WeatherProviderInterface` et la clé `weather_source` permettent de basculer plus tard sur un autre service (OpenWeatherMap par exemple) sans toucher au handler, au client ni au scheduler
 
 ### Pourquoi pas de base de données
 
@@ -155,11 +172,11 @@ pixelcast-client/
 - Pas d'historique nécessaire pour le premier batch
 - SQLite envisageable plus tard (Netatmo OAuth refresh tokens)
 
-### Config légère : paramètres YAML, pas de Configuration tree
+### Config légère : fichier YAML plat, pas de Configuration tree
 
-- `config/pixelcast.yaml` définit des `parameters:` Symfony
-- Import via `services.yaml`
-- `PixelcastConfiguration` est un simple service avec bind qui expose des méthodes typées
+- `pixelcast.yaml` vit à la racine du projet (modèle commité `pixelcast.yaml.dist`, fichier réel gitignored)
+- Il est lu et validé par `PixelCastConfigLoader`, pas par le conteneur : ni `parameters:`, ni import dans `services.yaml`
+- `PixelCastConfig` expose des propriétés typées, `PixelCastConfigWriter` réécrit le fichier en conservant commentaires et lignes vides
 - Pas de boilerplate Configuration/Extension pour un projet perso
 
 ---
@@ -170,48 +187,75 @@ pixelcast-client/
 
 ```dotenv
 PIXELCAST_DEVICE_BASE_URL=http://pixelcast.local/api
-OPENWEATHERMAP_API_KEY=
 COINGECKO_API_KEY=
 TWELVEDATA_API_KEY=
 ```
 
-### config/pixelcast.yaml (commité)
+Open-Meteo ne demande pas de clé API : aucune variable d'environnement pour la météo.
+
+### pixelcast.yaml (racine, gitignored — modèle commité : `pixelcast.yaml.dist`)
+
+Fichier plat lu et validé par `PixelCastConfigLoader`. Il n'est pas importé dans `services.yaml`
+et ne définit aucun `parameters:` Symfony.
 
 ```yaml
-# Importé dans services.yaml via: imports: [{ resource: 'pixelcast.yaml' }]
-parameters:
-    pixelcast.weather.latitude: 48.8566
-    pixelcast.weather.longitude: 2.3522
-    pixelcast.weather.units: metric
-    pixelcast.trackers:
-        crypto:
-            - { symbol: BTC, coingecko_id: bitcoin, icon: btc, symbol_color: "#F7931A", currency: EUR }
-            - { symbol: ETH, coingecko_id: ethereum, icon: eth, symbol_color: "#627EEA", currency: EUR }
-        etf:
-            - { symbol: IWDA.AS, display_name: IWDA, icon: etf, symbol_color: "#0078D4", currency: EUR }
-        indices:
-            - { symbol: IXIC, display_name: NASDAQ, icon: nasdaq, symbol_color: "#00BCF2", currency: USD }
+# Polling interval for the weather syncer (seconds).
+weather_interval: 300
+
+# Polling interval for the tracker syncer (seconds).
+tracker_interval: 60
+
+# Comma-separated list of tracked asset symbols.
+tracked_assets: BTC, AAPL, SPY, ETH
+
+# Identifier of the weather data provider.
+weather_source: openmeteo
+
+# Identifier of the tracker data provider.
+tracker_source: yahoo-finance
+
+# Latitude of the location used for weather data.
+weather_latitude: 48.8566
+
+# Longitude of the location used for weather data.
+weather_longitude: 2.3522
+
+# Unit system for weather temperatures (metric or imperial).
+weather_units: metric
+
+# Locale used for the 3-letter forecast day labels (fr or en).
+weather_locale: fr
 ```
 
-### config/packages/http_client.yaml (4 scoped clients)
+Le détail par asset tracké (identifiant CoinGecko, icône, couleur, devise) reste à définir :
+`tracked_assets` ne porte aujourd'hui que la liste des symboles.
+
+### config/packages/http_client.yaml (scoped clients)
 
 ```yaml
 framework:
     http_client:
+        default_options:
+            timeout: 2
+            max_redirects: 3
+            headers:
+                Accept: application/json
+
         scoped_clients:
-            pixelcast.http_client:
-                base_uri: '%env(PIXELCAST_DEVICE_BASE_URL)%'
+            device.client:
+                # Trailing slash required: without it, resolving a relative path against
+                # the base URI drops its last segment and the /api prefix with it.
+                base_uri: '%env(PIXELCAST_DEVICE_BASE_URL)%/'
+                max_duration: 3
+
+            weather.client:
+                base_uri: 'https://api.open-meteo.com/v1/'
                 timeout: 5
-            coingecko.http_client:
-                base_uri: 'https://api.coingecko.com/api/v3/'
-                timeout: 10
-            openweathermap.http_client:
-                base_uri: 'https://api.openweathermap.org/data/3.0/'
-                timeout: 10
-            twelvedata.http_client:
-                base_uri: 'https://api.twelvedata.com/'
-                timeout: 10
+                retry_failed:
+                    max_retries: 2
 ```
+
+`coingecko.client` et `twelvedata.client` seront ajoutés avec leurs providers respectifs.
 
 ---
 
@@ -501,7 +545,7 @@ L'ajout de Netatmo ne touche aucun code existant :
 
 1. **Skeleton** : `composer create-project`, deps, Docker, Makefile, config -> `bin/console list` fonctionne
 2. **PixelcastClient + DTOs** : Client HTTP + tous les DTOs -> client prêt
-3. **Weather pipeline** : Provider OWM + IconMapper + Handler -> weather fonctionnel
+3. **Weather pipeline** : Provider Open-Meteo + mapping WMO + Handler -> weather fonctionnel
 4. **Crypto trackers** : CoinGecko provider + Handler -> crypto fonctionnel
 5. **ETF/Indices** : TwelveData provider -> ajoute IWDA, NASDAQ
 6. **Scheduler + Commandes** : ScheduleProvider + SyncCommand + NotifyCommand -> `make sync-weather` et `make up` fonctionnent
@@ -523,7 +567,7 @@ L'ajout de Netatmo ne touche aucun code existant :
 
 ## Points à vérifier avant implémentation
 
-- [ ] Noms d'icônes météo supportés par le firmware ESP32 (pour ajuster `WeatherIconMapper`)
-- [ ] Créer les clés API : OpenWeatherMap, CoinGecko (demo), Twelve Data
+- [x] Noms d'icônes météo supportés par le firmware ESP32 : les 10 icônes built-in sont documentées dans `sync/schemas/weather.yaml` et reprises par l'enum `WeatherIcon`
+- [ ] Créer les clés API : CoinGecko (demo), Twelve Data (Open-Meteo n'en demande pas)
 - [ ] Définir les assets exacts à tracker (symbols, couleurs, devises)
 - [ ] Vérifier la connectivité NUC -> ESP32 (mDNS ou IP fixe)
