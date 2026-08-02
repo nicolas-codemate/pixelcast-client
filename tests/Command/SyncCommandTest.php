@@ -33,6 +33,39 @@ final class SyncCommandTest extends TestCase
         self::assertSame([], $this->messageBus->dispatchedMessages);
     }
 
+    public function testEmptyRegistryStillRejectsAnUnknownType(): void
+    {
+        $tester = $this->createTester([]);
+
+        $exitCode = $tester->execute(['type' => 'weather']);
+
+        self::assertSame(Command::INVALID, $exitCode);
+        self::assertStringContainsString('Available: none', $tester->getDisplay());
+        self::assertSame([], $this->messageBus->dispatchedMessages);
+    }
+
+    public function testEmptyRegistryStillRejectsATypeCombinedWithAll(): void
+    {
+        $tester = $this->createTester([]);
+
+        $exitCode = $tester->execute(['type' => 'weather', '--all' => true]);
+
+        self::assertSame(Command::INVALID, $exitCode);
+        self::assertStringContainsString('not both', $tester->getDisplay());
+        self::assertSame([], $this->messageBus->dispatchedMessages);
+    }
+
+    public function testEmptyRegistryWithAllWarnsAndDispatchesNothing(): void
+    {
+        $tester = $this->createTester([]);
+
+        $exitCode = $tester->execute(['--all' => true]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('No sync type is registered', $tester->getDisplay());
+        self::assertSame([], $this->messageBus->dispatchedMessages);
+    }
+
     public function testDirectTypeDispatchesOnlyThatMessage(): void
     {
         $weatherMessage = new \stdClass();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Scheduler\SyncMessageRegistry;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\Schedule as SymfonySchedule;
 use Symfony\Component\Scheduler\ScheduleProviderInterface;

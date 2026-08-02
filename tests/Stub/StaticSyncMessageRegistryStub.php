@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Stub;
 
-use App\SyncMessageRegistry;
+use App\Scheduler\SyncMessageRegistry;
 
 final class StaticSyncMessageRegistryStub implements SyncMessageRegistry
 {

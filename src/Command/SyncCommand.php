@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\SyncMessageRegistry;
+use App\Scheduler\SyncMessageRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -39,11 +39,6 @@ final class SyncCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         $syncMessages = $this->syncMessageRegistry->syncMessages();
-        if ([] === $syncMessages) {
-            $io->warning('No sync type is registered, nothing to dispatch.');
-
-            return Command::SUCCESS;
-        }
 
         /** @var bool $dispatchAll */
         $dispatchAll = $input->getOption('all');
@@ -60,7 +55,7 @@ final class SyncCommand extends Command
             $io->error(\sprintf(
                 'Unknown sync type "%s". Available: %s.',
                 $requestedType,
-                implode(', ', array_keys($syncMessages)),
+                [] === $syncMessages ? 'none' : implode(', ', array_keys($syncMessages)),
             ));
 
             return Command::INVALID;
@@ -70,6 +65,12 @@ final class SyncCommand extends Command
             $io->error('No sync type given. Pass a type argument or --all when running non-interactively.');
 
             return Command::INVALID;
+        }
+
+        if ([] === $syncMessages) {
+            $io->warning('No sync type is registered, nothing to dispatch.');
+
+            return Command::SUCCESS;
         }
 
         if ($dispatchAll) {

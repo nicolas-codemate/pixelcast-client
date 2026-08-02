@@ -22,6 +22,6 @@ final class CapturingMessageBusStub implements MessageBusInterface
     {
         $this->dispatchedMessages[] = $message;
 
-        return new Envelope($message, $stamps);
+        return Envelope::wrap($message, $stamps);
     }
 }

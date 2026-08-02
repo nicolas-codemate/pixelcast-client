@@ -549,16 +549,16 @@ L'ajout de Netatmo ne touche aucun code existant :
 3. **Weather pipeline** : Provider Open-Meteo + mapping WMO + Handler -> weather fonctionnel
 4. **Crypto trackers** : CoinGecko provider + Handler -> crypto fonctionnel
 5. **ETF/Indices** : TwelveData provider -> ajoute IWDA, NASDAQ
-6. **Scheduler + Commandes** : ScheduleProvider + SyncCommand + NotifyCommand -> `make sync-weather` et `make up` fonctionnent
+6. **Scheduler + Commandes** : ScheduleProvider + SyncCommand + NotifyCommand -> `make sync ARGS="weather"` et `make up` fonctionnent
 7. **Polish** : PHPStan, CS-Fixer, tests, README
 
 ---
 
 ## Vérification
 
-- `make sync-weather` -> vérifier visuellement sur l'écran que la météo s'affiche
-- `make sync-crypto` -> vérifier les cours crypto sur l'écran
-- `make sync` -> sync all, vérifier que tout s'enchaîne
+- `make sync ARGS="weather"` -> vérifier visuellement sur l'écran que la météo s'affiche
+- `make sync ARGS="crypto"` -> vérifier les cours crypto sur l'écran
+- `make sync ARGS="--all"` -> sync all, vérifier que tout s'enchaîne
 - `docker compose exec php php bin/console debug:scheduler` -> vérifier les schedules
 - `make up && make logs` -> observer les cycles de sync pendant 30min
 - `make test` -> tous les tests passent
