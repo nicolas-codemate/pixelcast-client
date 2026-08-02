@@ -1,6 +1,3 @@
-# Base URL of the PixelCast device API (no trailing slash).
-device_url: http://pixelcast.local/api
-
 # Polling interval for the weather syncer (seconds).
 weather_interval: 300
 
