@@ -40,11 +40,31 @@ final class OutboundOpenApiValidatorFactory
             ReferenceContext::RESOLVE_MODE_ALL,
         );
 
-        // Spec advertises http://pixelcast.local/api; outbound calls target the configured device, so override servers.
-        $openApi->servers = [new Server(['url' => DeviceBaseUrl::resolve($this->deviceBaseUrl)])];
+        // The /api prefix belongs to the firmware and stays as declared in the spec; only the host changes per target.
+        $specServerUrl = $openApi->servers[0]->url;
+        $openApi->servers = [new Server(['url' => $this->replaceServerAuthority($specServerUrl)])];
 
         return new ValidatorBuilder()
             ->fromSchema($openApi)
             ->getRequestValidator();
+    }
+
+    private function replaceServerAuthority(string $specServerUrl): string
+    {
+        $deviceBaseUrl = DeviceBaseUrl::resolve($this->deviceBaseUrl);
+        $parsedDeviceBaseUrl = parse_url($deviceBaseUrl);
+
+        if (false === $parsedDeviceBaseUrl || !isset($parsedDeviceBaseUrl['scheme'], $parsedDeviceBaseUrl['host'])) {
+            throw new \InvalidArgumentException(\sprintf('Device base URL "%s" is not a valid absolute URL.', $deviceBaseUrl));
+        }
+
+        $deviceAuthority = $parsedDeviceBaseUrl['scheme'].'://'.$parsedDeviceBaseUrl['host'];
+        if (isset($parsedDeviceBaseUrl['port'])) {
+            $deviceAuthority .= ':'.$parsedDeviceBaseUrl['port'];
+        }
+
+        $specServerPath = parse_url($specServerUrl, \PHP_URL_PATH);
+
+        return $deviceAuthority.(\is_string($specServerPath) ? $specServerPath : '');
     }
 }
