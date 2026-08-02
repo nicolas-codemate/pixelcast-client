@@ -24,9 +24,10 @@ class HttpJsonFetcher
     public function fetchJson(string $url): ?array
     {
         try {
-            $response = $this->deviceClient->request('GET', $url);
-            $statusCode = $response->getStatusCode();
-            $rawBody = $response->getContent(false);
+            /** @var array<string, mixed> $decoded */
+            $decoded = $this->deviceClient->request('GET', $url)->toArray();
+
+            return $decoded;
         } catch (HttpClientExceptionInterface $httpError) {
             $this->logger->warning('Device request failed', [
                 'url' => $url,
@@ -35,22 +36,5 @@ class HttpJsonFetcher
 
             return null;
         }
-
-        if ($statusCode < 200 || $statusCode >= 300) {
-            $this->logger->warning('Device request returned an unexpected status', [
-                'url' => $url,
-                'status' => $statusCode,
-            ]);
-
-            return null;
-        }
-
-        $decoded = json_decode($rawBody, true);
-        if (!\is_array($decoded)) {
-            return null;
-        }
-
-        /** @var array<string, mixed> $decoded */
-        return $decoded;
     }
 }

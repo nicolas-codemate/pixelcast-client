@@ -7,21 +7,11 @@ namespace App\Tests\Scenario\Validation;
 use App\Scenario\Validation\OutboundOpenApiValidatorFactory;
 use Nyholm\Psr7\Request;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use PHPUnit\Framework\TestCase;
 
-final class OutboundOpenApiValidatorFactoryTest extends KernelTestCase
+final class OutboundOpenApiValidatorFactoryTest extends TestCase
 {
-    private string $projectDir;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        self::bootKernel();
-
-        /** @var string $projectDir */
-        $projectDir = self::getContainer()->getParameter('kernel.project_dir');
-        $this->projectDir = $projectDir;
-    }
+    private const string PROJECT_DIR = __DIR__.'/../../..';
 
     /**
      * @return iterable<string, array{string}>
@@ -35,7 +25,7 @@ final class OutboundOpenApiValidatorFactoryTest extends KernelTestCase
     #[DataProvider('deviceBaseUrlProvider')]
     public function testSpecPathPrefixIsKeptWhateverTheConfiguredBaseUrl(string $deviceBaseUrl): void
     {
-        $validator = new OutboundOpenApiValidatorFactory($this->projectDir, $deviceBaseUrl)->create();
+        $validator = new OutboundOpenApiValidatorFactory(self::PROJECT_DIR, $deviceBaseUrl)->create();
 
         $matchedOperation = $validator->validate(new Request('GET', 'http://simulator:8080/api/weather'));
 
@@ -44,7 +34,7 @@ final class OutboundOpenApiValidatorFactoryTest extends KernelTestCase
 
     public function testMalformedDeviceBaseUrlIsRejected(): void
     {
-        $factory = new OutboundOpenApiValidatorFactory($this->projectDir, 'not-a-url');
+        $factory = new OutboundOpenApiValidatorFactory(self::PROJECT_DIR, 'not-a-url');
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('not-a-url');

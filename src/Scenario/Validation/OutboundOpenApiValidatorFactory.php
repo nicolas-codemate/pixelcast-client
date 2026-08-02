@@ -12,6 +12,7 @@ use cebe\openapi\spec\OpenApi;
 use cebe\openapi\spec\Server;
 use League\OpenAPIValidation\PSR7\RequestValidator;
 use League\OpenAPIValidation\PSR7\ValidatorBuilder;
+use Nyholm\Psr7\Uri;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final class OutboundOpenApiValidatorFactory
@@ -40,7 +41,7 @@ final class OutboundOpenApiValidatorFactory
             ReferenceContext::RESOLVE_MODE_ALL,
         );
 
-        // The /api prefix belongs to the firmware and stays as declared in the spec; only the host changes per target.
+        // The /api prefix belongs to the firmware and stays as declared in the spec.
         $specServerUrl = $openApi->servers[0]->url;
         $openApi->servers = [new Server(['url' => $this->replaceServerAuthority($specServerUrl)])];
 
@@ -51,20 +52,13 @@ final class OutboundOpenApiValidatorFactory
 
     private function replaceServerAuthority(string $specServerUrl): string
     {
-        $deviceBaseUrl = DeviceBaseUrl::resolve($this->deviceBaseUrl);
-        $parsedDeviceBaseUrl = parse_url($deviceBaseUrl);
+        $resolvedBaseUrl = DeviceBaseUrl::resolve($this->deviceBaseUrl);
+        $deviceBaseUri = new Uri($resolvedBaseUrl);
 
-        if (false === $parsedDeviceBaseUrl || !isset($parsedDeviceBaseUrl['scheme'], $parsedDeviceBaseUrl['host'])) {
-            throw new \InvalidArgumentException(\sprintf('Device base URL "%s" is not a valid absolute URL.', $deviceBaseUrl));
+        if ('' === $deviceBaseUri->getScheme() || '' === $deviceBaseUri->getAuthority()) {
+            throw new \InvalidArgumentException(\sprintf('Device base URL "%s" is not a valid absolute URL.', $resolvedBaseUrl));
         }
 
-        $deviceAuthority = $parsedDeviceBaseUrl['scheme'].'://'.$parsedDeviceBaseUrl['host'];
-        if (isset($parsedDeviceBaseUrl['port'])) {
-            $deviceAuthority .= ':'.$parsedDeviceBaseUrl['port'];
-        }
-
-        $specServerPath = parse_url($specServerUrl, \PHP_URL_PATH);
-
-        return $deviceAuthority.(\is_string($specServerPath) ? $specServerPath : '');
+        return (string) $deviceBaseUri->withPath(new Uri($specServerUrl)->getPath());
     }
 }
