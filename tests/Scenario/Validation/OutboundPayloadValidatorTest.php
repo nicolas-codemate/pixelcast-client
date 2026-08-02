@@ -82,4 +82,27 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
         self::assertNotNull($result->errorMessage);
         self::assertStringContainsStringIgnoringCase('text', $result->errorMessage);
     }
+
+    public function testValidateRequestAcceptsAWeatherPayload(): void
+    {
+        $result = $this->validator->validateRequest('POST', '/weather', [], [
+            'current' => ['icon' => 'w_rain', 'temp' => 9],
+        ]);
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
+    public function testValidateRequestRejectsAnEightDayForecast(): void
+    {
+        $forecast = array_fill(0, 8, ['day' => 'LUN', 'icon' => 'w_rain', 'temp_min' => 4, 'temp_max' => 12]);
+
+        $result = $this->validator->validateRequest('POST', '/weather', [], [
+            'current' => ['icon' => 'w_rain', 'temp' => 9],
+            'forecast' => $forecast,
+        ]);
+
+        self::assertFalse($result->valid);
+        self::assertNotNull($result->errorMessage);
+    }
 }
