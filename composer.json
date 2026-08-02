@@ -18,7 +18,6 @@
         "symfony/psr-http-message-bridge": "8.1.*",
         "symfony/runtime": "8.1.*",
         "symfony/scheduler": "8.1.*",
-        "symfony/tui": "8.1.*",
         "symfony/yaml": "8.1.*"
     },
     "config": {
