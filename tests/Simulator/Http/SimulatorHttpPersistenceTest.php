@@ -5,33 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Simulator\Http;
 
 use App\Simulator\State\PersistedStateReader;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Response;
 
-final class SimulatorHttpPersistenceTest extends TestCase
+final class SimulatorHttpPersistenceTest extends SimulatorHttpTestCase
 {
     private const array WEATHER_PAYLOAD = [
         'current' => ['icon' => 'w_rain', 'temp' => 9],
         'forecast' => [],
     ];
-
-    private SimulatorHttpServer $server;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->server = SimulatorHttpServer::start(\dirname(__DIR__, 3));
-    }
-
-    protected function tearDown(): void
-    {
-        if (isset($this->server)) {
-            $this->server->stop();
-        }
-
-        parent::tearDown();
-    }
 
     public function testStatePostedInOneProcessIsVisibleInAnother(): void
     {
@@ -87,17 +68,6 @@ final class SimulatorHttpPersistenceTest extends TestCase
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function inspect(): array
-    {
-        $inspectResponse = $this->server->get('/api/__inspect');
-        self::assertSame(Response::HTTP_OK, $inspectResponse->statusCode, $this->explain($inspectResponse));
-
-        return $inspectResponse->decodedBody();
-    }
-
-    /**
      * @param array<string, mixed> $inspectPayload
      *
      * @return array<string, mixed>
@@ -105,20 +75,5 @@ final class SimulatorHttpPersistenceTest extends TestCase
     private static function domainState(array $inspectPayload, string $domainKey): array
     {
         return PersistedStateReader::payloadMap($inspectPayload['state'] ?? null)[$domainKey] ?? [];
-    }
-
-    /**
-     * @param array<string, mixed> $inspectPayload
-     *
-     * @return list<array<string, mixed>>
-     */
-    private static function loggedRequests(array $inspectPayload): array
-    {
-        return PersistedStateReader::payloadList($inspectPayload['requests'] ?? null);
-    }
-
-    private function explain(SimulatorHttpResponse $response): string
-    {
-        return $response->body."\n".$this->server->serverOutput();
     }
 }

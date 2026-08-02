@@ -95,11 +95,7 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
 
     public function testValidateRequestRejectsAnEightDayForecast(): void
     {
-        $forecast = [];
-
-        for ($dayIndex = 0; $dayIndex < 8; ++$dayIndex) {
-            $forecast[] = ['day' => 'LUN', 'icon' => 'w_rain', 'temp_min' => 4, 'temp_max' => 12];
-        }
+        $forecast = array_fill(0, 8, ['day' => 'LUN', 'icon' => 'w_rain', 'temp_min' => 4, 'temp_max' => 12]);
 
         $result = $this->validator->validateRequest('POST', '/weather', [], [
             'current' => ['icon' => 'w_rain', 'temp' => 9],

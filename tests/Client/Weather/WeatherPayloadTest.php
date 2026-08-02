@@ -67,17 +67,11 @@ final class WeatherPayloadTest extends TestCase
      */
     private static function buildForecastDays(int $dayCount): array
     {
-        $forecastDays = [];
-
-        for ($dayIndex = 0; $dayIndex < $dayCount; ++$dayIndex) {
-            $forecastDays[] = new ForecastDay(
-                dayLabel: 'LUN',
-                icon: WeatherIcon::ClearDay,
-                minimumTemperature: 4,
-                maximumTemperature: 12,
-            );
-        }
-
-        return $forecastDays;
+        return array_fill(0, $dayCount, new ForecastDay(
+            dayLabel: 'LUN',
+            icon: WeatherIcon::ClearDay,
+            minimumTemperature: 4,
+            maximumTemperature: 12,
+        ));
     }
 }

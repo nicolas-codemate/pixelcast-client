@@ -18,6 +18,7 @@ use App\Scenario\Validation\OutboundOpenApiValidatorFactory;
 use App\Scenario\Validation\OutboundPayloadValidator;
 use League\OpenAPIValidation\PSR7\RequestValidator;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -27,14 +28,43 @@ final class PixelcastClientTest extends TestCase
     private const string TEST_DEVICE_BASE_URL = 'http://device.test/api';
     private const string EXPECTED_WEATHER_URL = 'http://device.test/api/weather';
 
-    private RequestValidator $requestValidator;
+    // Parsing the vendored spec costs more than every test of this class combined.
+    private static RequestValidator $requestValidator;
+
     private OutboundPayloadValidator $outboundPayloadValidator;
+
+    public static function setUpBeforeClass(): void
+    {
+        parent::setUpBeforeClass();
+
+        self::$requestValidator = new OutboundOpenApiValidatorFactory(\dirname(__DIR__, 2), self::TEST_DEVICE_BASE_URL)->create();
+    }
+
+    /**
+     * @return iterable<string, array{int, string, class-string<PixelcastClientException>, string}>
+     */
+    public static function failureStatusProvider(): iterable
+    {
+        yield 'bad request carries the device message' => [400, '{"error":"bad temp"}', InvalidPayloadException::class, '/bad temp/'];
+        yield 'not found names the path' => [404, '{"error":"unknown route"}', ResourceNotFoundException::class, '#/weather#'];
+        yield 'no free slot' => [500, '{"error":"no free slot"}', DeviceBusyException::class, '/500/'];
+        yield 'queue full' => [503, '{"error":"queue full"}', DeviceBusyException::class, '/503/'];
+        yield 'unmapped status' => [418, 'teapot', DeviceUnreachableException::class, '/418/'];
+    }
+
+    /**
+     * @return iterable<string, array{int}>
+     */
+    public static function busyStatusProvider(): iterable
+    {
+        yield 'slot exhausted' => [500];
+        yield 'queue full' => [503];
+    }
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->requestValidator = new OutboundOpenApiValidatorFactory(\dirname(__DIR__, 2), self::TEST_DEVICE_BASE_URL)->create();
         $this->outboundPayloadValidator = $this->buildOutboundPayloadValidator(self::TEST_DEVICE_BASE_URL);
     }
 
@@ -68,54 +98,34 @@ final class PixelcastClientTest extends TestCase
         self::fail('The client sent a payload its own validator rejects.');
     }
 
-    public function testBadRequestThrowsInvalidPayloadExceptionCarryingTheDeviceMessage(): void
+    /**
+     * @param class-string<PixelcastClientException> $expectedException
+     */
+    #[DataProvider('failureStatusProvider')]
+    public function testFailureStatusMapsToADedicatedException(int $httpStatus, string $responseBody, string $expectedException, string $expectedMessagePattern): void
     {
-        $client = $this->buildClient(new MockResponse('{"error":"bad temp"}', ['http_code' => 400]));
+        $client = $this->buildClient(new MockResponse($responseBody, ['http_code' => $httpStatus]));
 
-        $this->expectException(InvalidPayloadException::class);
-        $this->expectExceptionMessageMatches('/bad temp/');
+        $this->expectException($expectedException);
+        $this->expectExceptionMessageMatches($expectedMessagePattern);
 
         $client->pushWeather(self::buildPayload());
     }
 
-    public function testNotFoundThrowsResourceNotFoundException(): void
+    #[DataProvider('busyStatusProvider')]
+    public function testDeviceBusyExceptionKeepsTheHttpStatusApart(int $httpStatus): void
     {
-        $client = $this->buildClient(new MockResponse('{"error":"unknown route"}', ['http_code' => 404]));
-
-        $this->expectException(ResourceNotFoundException::class);
-        $this->expectExceptionMessageMatches('#/weather#');
-
-        $client->pushWeather(self::buildPayload());
-    }
-
-    public function testInternalErrorThrowsDeviceBusyExceptionWithStatus500(): void
-    {
-        $client = $this->buildClient(new MockResponse('{"error":"no free slot"}', ['http_code' => 500]));
+        $client = $this->buildClient(new MockResponse('{"error":"busy"}', ['http_code' => $httpStatus]));
 
         try {
             $client->pushWeather(self::buildPayload());
         } catch (DeviceBusyException $deviceBusy) {
-            self::assertSame(500, $deviceBusy->httpStatus);
+            self::assertSame($httpStatus, $deviceBusy->httpStatus);
 
             return;
         }
 
-        self::fail('The client accepted an HTTP 500 answer.');
-    }
-
-    public function testServiceUnavailableThrowsDeviceBusyExceptionWithStatus503(): void
-    {
-        $client = $this->buildClient(new MockResponse('{"error":"queue full"}', ['http_code' => 503]));
-
-        try {
-            $client->pushWeather(self::buildPayload());
-        } catch (DeviceBusyException $deviceBusy) {
-            self::assertSame(503, $deviceBusy->httpStatus);
-
-            return;
-        }
-
-        self::fail('The client accepted an HTTP 503 answer.');
+        self::fail(\sprintf('The client accepted an HTTP %d answer.', $httpStatus));
     }
 
     public function testTransportFailureThrowsDeviceUnreachableException(): void
@@ -124,25 +134,6 @@ final class PixelcastClientTest extends TestCase
 
         $this->expectException(DeviceUnreachableException::class);
         $this->expectExceptionMessageMatches('/connection refused/');
-
-        $client->pushWeather(self::buildPayload());
-    }
-
-    public function testUnmappedStatusThrowsDeviceUnreachableException(): void
-    {
-        $client = $this->buildClient(new MockResponse('teapot', ['http_code' => 418]));
-
-        $this->expectException(DeviceUnreachableException::class);
-        $this->expectExceptionMessageMatches('/418/');
-
-        $client->pushWeather(self::buildPayload());
-    }
-
-    public function testMappedFailuresShareTheClientExceptionInterface(): void
-    {
-        $client = $this->buildClient(new MockResponse('{"error":"bad temp"}', ['http_code' => 400]));
-
-        $this->expectException(PixelcastClientException::class);
 
         $client->pushWeather(self::buildPayload());
     }
@@ -157,7 +148,7 @@ final class PixelcastClientTest extends TestCase
 
     private function buildOutboundPayloadValidator(string $deviceBaseUrl): OutboundPayloadValidator
     {
-        return new OutboundPayloadValidator($this->requestValidator, new Psr17Factory(), $deviceBaseUrl);
+        return new OutboundPayloadValidator(self::$requestValidator, new Psr17Factory(), $deviceBaseUrl);
     }
 
     private static function buildPayload(): WeatherPayload
