@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Simulator\Http;
 
+use App\Client\PixelcastClient;
+use App\Scenario\Validation\OutboundOpenApiValidatorFactory;
+use App\Scenario\Validation\OutboundPayloadValidator;
 use App\Simulator\State\PersistedStateReader;
+use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpFoundation\Response;
 
 abstract class SimulatorHttpTestCase extends TestCase
@@ -28,6 +33,17 @@ abstract class SimulatorHttpTestCase extends TestCase
         parent::tearDown();
     }
 
+    protected function buildPixelcastClient(): PixelcastClient
+    {
+        $deviceBaseUrl = $this->server->baseUrl.'/api';
+        $validatorFactory = new OutboundOpenApiValidatorFactory(\dirname(__DIR__, 3), $deviceBaseUrl);
+
+        return new PixelcastClient(
+            HttpClient::createForBaseUri($deviceBaseUrl.'/'),
+            new OutboundPayloadValidator($validatorFactory->create(), new Psr17Factory(), $deviceBaseUrl),
+        );
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -47,6 +63,16 @@ abstract class SimulatorHttpTestCase extends TestCase
     protected static function loggedRequests(array $inspectPayload): array
     {
         return PersistedStateReader::payloadList($inspectPayload['requests'] ?? null);
+    }
+
+    /**
+     * @param array<string, mixed> $inspectPayload
+     *
+     * @return array<string, mixed>
+     */
+    protected static function domainState(array $inspectPayload, string $domainKey): array
+    {
+        return PersistedStateReader::payloadMap($inspectPayload['state'] ?? null)[$domainKey] ?? [];
     }
 
     protected function explain(SimulatorHttpResponse $response): string

@@ -66,14 +66,4 @@ final class SimulatorHttpPersistenceTest extends SimulatorHttpTestCase
         $prefixedResponse = $this->server->post('/api/weather', self::WEATHER_PAYLOAD);
         self::assertSame(Response::HTTP_OK, $prefixedResponse->statusCode, $this->explain($prefixedResponse));
     }
-
-    /**
-     * @param array<string, mixed> $inspectPayload
-     *
-     * @return array<string, mixed>
-     */
-    private static function domainState(array $inspectPayload, string $domainKey): array
-    {
-        return PersistedStateReader::payloadMap($inspectPayload['state'] ?? null)[$domainKey] ?? [];
-    }
 }
