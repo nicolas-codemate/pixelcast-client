@@ -4,15 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Simulator\Http;
 
-use App\Client\PixelcastClient;
 use App\Client\Weather\CurrentWeather;
 use App\Client\Weather\ForecastDay;
 use App\Client\Weather\WeatherIcon;
 use App\Client\Weather\WeatherPayload;
-use App\Scenario\Validation\OutboundOpenApiValidatorFactory;
-use App\Scenario\Validation\OutboundPayloadValidator;
-use Nyholm\Psr7\Factory\Psr17Factory;
-use Symfony\Component\HttpClient\HttpClient;
 
 final class PixelcastClientHttpTest extends SimulatorHttpTestCase
 {
@@ -26,7 +21,7 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
             ],
         );
 
-        $this->buildClient()->pushWeather($payload);
+        $this->buildPixelcastClient()->pushWeather($payload);
 
         $loggedRequests = self::loggedRequests($this->inspect());
         self::assertCount(1, $loggedRequests, $this->server->serverOutput());
@@ -36,16 +31,5 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         self::assertSame('/api/weather', $weatherRequest['path'] ?? null);
         self::assertSame(['valid' => true], $weatherRequest['validation'] ?? null);
         self::assertSame($payload->toArray(), $weatherRequest['body'] ?? null);
-    }
-
-    private function buildClient(): PixelcastClient
-    {
-        $deviceBaseUrl = $this->server->baseUrl.'/api';
-        $validatorFactory = new OutboundOpenApiValidatorFactory(\dirname(__DIR__, 3), $deviceBaseUrl);
-
-        return new PixelcastClient(
-            HttpClient::createForBaseUri($deviceBaseUrl.'/'),
-            new OutboundPayloadValidator($validatorFactory->create(), new Psr17Factory(), $deviceBaseUrl),
-        );
     }
 }
