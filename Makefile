@@ -86,5 +86,5 @@ sync-api: ## fetch and vendor OpenAPI + AsyncAPI specs into sync/
 		curl -fLsS -o sync/$$f $(SYNC_API_BASE_URL)/$$f; \
 	done
 
-inspect: ## dump current simulator state via GET /__inspect
-	@curl -fsS "http://localhost:$${PIXELCAST_SIMULATOR_HOST_PORT:-8088}/__inspect" | jq .
+inspect: ## dump current simulator state via GET /api/__inspect
+	@curl -fsS "http://localhost:$${PIXELCAST_SIMULATOR_HOST_PORT:-8088}/api/__inspect" | jq .

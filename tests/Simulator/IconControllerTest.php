@@ -10,7 +10,7 @@ final class IconControllerTest extends SimulatorWebTestCase
 {
     public function testListInitiallyEmpty(): void
     {
-        $this->client->request('GET', '/icons');
+        $this->client->request('GET', '/api/icons');
 
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
@@ -31,7 +31,7 @@ final class IconControllerTest extends SimulatorWebTestCase
             (string) $this->client->getResponse()->getContent(),
         );
 
-        $this->client->request('GET', '/icons');
+        $this->client->request('GET', '/api/icons');
         $payload = $this->jsonResponse();
         self::assertSame(1, $payload['count'] ?? null);
     }
@@ -41,7 +41,7 @@ final class IconControllerTest extends SimulatorWebTestCase
         $this->registerSmileyIcon();
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
-        $this->client->request('GET', '/icons/smiley');
+        $this->client->request('GET', '/api/icons/smiley');
         $response = $this->client->getResponse();
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
 
@@ -69,7 +69,7 @@ final class IconControllerTest extends SimulatorWebTestCase
 
         $this->client->request(
             method: 'POST',
-            uri: '/icons?name=smiley',
+            uri: '/api/icons?name=smiley',
             server: ['CONTENT_TYPE' => 'multipart/form-data; boundary='.$boundary],
             content: $body,
         );
@@ -77,14 +77,14 @@ final class IconControllerTest extends SimulatorWebTestCase
 
     public function testGetUnknownIconReturns404(): void
     {
-        $this->client->request('GET', '/icons/notthere');
+        $this->client->request('GET', '/api/icons/notthere');
 
         self::assertSame(Response::HTTP_NOT_FOUND, $this->client->getResponse()->getStatusCode());
     }
 
     public function testDeleteUnknownReturns404(): void
     {
-        $this->deleteRequest('/icons?name=notthere');
+        $this->deleteRequest('/api/icons?name=notthere');
 
         self::assertSame(Response::HTTP_NOT_FOUND, $this->client->getResponse()->getStatusCode());
     }

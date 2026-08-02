@@ -66,6 +66,28 @@ final class WeatherState implements ResettableState
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function exportForPersistence(): array
+    {
+        return [
+            'current' => $this->current,
+            'forecast' => $this->forecast,
+            'lastUpdatedAt' => $this->lastUpdatedAt?->format(\DateTimeInterface::ATOM),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $persistedState
+     */
+    public function restoreFromPersistence(array $persistedState): void
+    {
+        $this->current = PersistedStateReader::payload($persistedState['current'] ?? null);
+        $this->forecast = PersistedStateReader::payloadList($persistedState['forecast'] ?? null);
+        $this->lastUpdatedAt = PersistedStateReader::atomDate($persistedState['lastUpdatedAt'] ?? null);
+    }
+
     public function domainKey(): string
     {
         return 'weather';

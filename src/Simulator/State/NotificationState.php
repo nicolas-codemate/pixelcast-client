@@ -83,6 +83,22 @@ final class NotificationState implements ResettableState
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function exportForPersistence(): array
+    {
+        return ['queue' => $this->queue];
+    }
+
+    /**
+     * @param array<string, mixed> $persistedState
+     */
+    public function restoreFromPersistence(array $persistedState): void
+    {
+        $this->queue = PersistedStateReader::payloadList($persistedState['queue'] ?? null);
+    }
+
     public function domainKey(): string
     {
         return 'notifications';

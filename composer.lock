@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9e5cde9cce4061c999440f57ea4f1793",
+    "content-hash": "16d5e2238bad7c1ea53d15d2b55c5f97",
     "packages": [
         {
             "name": "devizzent/cebe-php-openapi",
@@ -7253,16 +7253,16 @@
         },
         {
             "name": "symfony/process",
-            "version": "v8.1.0-BETA2",
+            "version": "v8.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/process.git",
-                "reference": "93d6507ad72e3f2df1cc8d41bbbc431fef1b7b74"
+                "reference": "c4a9e58f235a6bf7f97ffbfedae2687353ac79e5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/process/zipball/93d6507ad72e3f2df1cc8d41bbbc431fef1b7b74",
-                "reference": "93d6507ad72e3f2df1cc8d41bbbc431fef1b7b74",
+                "url": "https://api.github.com/repos/symfony/process/zipball/c4a9e58f235a6bf7f97ffbfedae2687353ac79e5",
+                "reference": "c4a9e58f235a6bf7f97ffbfedae2687353ac79e5",
                 "shasum": ""
             },
             "require": {
@@ -7294,7 +7294,7 @@
             "description": "Executes commands in sub-processes",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/process/tree/v8.1.0-BETA2"
+                "source": "https://github.com/symfony/process/tree/v8.1.0"
             },
             "funding": [
                 {
@@ -7314,7 +7314,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-11T16:58:04+00:00"
+            "time": "2026-05-29T05:06:50+00:00"
         },
         {
             "name": "symfony/stopwatch",

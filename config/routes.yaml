@@ -13,3 +13,4 @@ controllers:
 simulator:
     resource: ../src/Simulator/Controller/
     type: attribute
+    prefix: /api

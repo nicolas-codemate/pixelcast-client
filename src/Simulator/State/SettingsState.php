@@ -44,6 +44,28 @@ final class SettingsState implements ResettableState
         return $this->settings;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function exportForPersistence(): array
+    {
+        return ['settings' => $this->settings];
+    }
+
+    /**
+     * @param array<string, mixed> $persistedState
+     */
+    public function restoreFromPersistence(array $persistedState): void
+    {
+        $persistedSettings = PersistedStateReader::payload($persistedState['settings'] ?? null);
+
+        if (null === $persistedSettings) {
+            return;
+        }
+
+        $this->settings = array_replace(self::DEFAULT_SETTINGS, $persistedSettings);
+    }
+
     public function domainKey(): string
     {
         return 'settings';

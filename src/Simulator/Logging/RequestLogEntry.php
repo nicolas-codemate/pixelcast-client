@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Simulator\Logging;
 
+use App\Simulator\State\PersistedStateReader;
 use App\Simulator\Validation\ValidationResult;
 
 final readonly class RequestLogEntry
@@ -18,6 +19,33 @@ final readonly class RequestLogEntry
         public \DateTimeImmutable $timestamp,
         public ValidationResult $validationResult,
     ) {
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function fromArray(array $data): self
+    {
+        $method = $data['method'] ?? null;
+        $path = $data['path'] ?? null;
+
+        if (!\is_string($method) || !\is_string($path)) {
+            throw new \InvalidArgumentException('A persisted request log entry needs a string method and path.');
+        }
+
+        $timestamp = PersistedStateReader::atomDate($data['timestamp'] ?? null);
+
+        if (null === $timestamp) {
+            throw new \InvalidArgumentException('A persisted request log entry needs an ATOM timestamp.');
+        }
+
+        return new self(
+            method: $method,
+            path: $path,
+            body: PersistedStateReader::payload($data['body'] ?? null),
+            timestamp: $timestamp,
+            validationResult: ValidationResult::fromArray(PersistedStateReader::payload($data['validation'] ?? null) ?? []),
+        );
     }
 
     /**

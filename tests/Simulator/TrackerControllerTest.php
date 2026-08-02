@@ -23,14 +23,14 @@ final class TrackerControllerTest extends SimulatorWebTestCase
 
     public function testPostThenListIncludesTracker(): void
     {
-        $this->postJson('/tracker?name=BTC', self::validTrackerPayload());
+        $this->postJson('/api/tracker?name=BTC', self::validTrackerPayload());
         self::assertSame(
             Response::HTTP_OK,
             $this->client->getResponse()->getStatusCode(),
             (string) $this->client->getResponse()->getContent(),
         );
 
-        $this->client->request('GET', '/trackers');
+        $this->client->request('GET', '/api/trackers');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
         $payload = $this->jsonResponse();
@@ -45,7 +45,7 @@ final class TrackerControllerTest extends SimulatorWebTestCase
 
     public function testDeleteUnknownReturns404(): void
     {
-        $this->deleteRequest('/tracker?name=NONEXISTENT');
+        $this->deleteRequest('/api/tracker?name=NONEXISTENT');
 
         self::assertSame(Response::HTTP_NOT_FOUND, $this->client->getResponse()->getStatusCode());
 
@@ -55,16 +55,16 @@ final class TrackerControllerTest extends SimulatorWebTestCase
 
     public function testGetUnknownReturns404(): void
     {
-        $this->client->request('GET', '/tracker?name=NONEXISTENT');
+        $this->client->request('GET', '/api/tracker?name=NONEXISTENT');
 
         self::assertSame(Response::HTTP_NOT_FOUND, $this->client->getResponse()->getStatusCode());
     }
 
     public function testGetExistingReturnsPayload(): void
     {
-        $this->postJson('/tracker?name=BTC', self::validTrackerPayload());
+        $this->postJson('/api/tracker?name=BTC', self::validTrackerPayload());
 
-        $this->client->request('GET', '/tracker?name=BTC');
+        $this->client->request('GET', '/api/tracker?name=BTC');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
         $payload = $this->jsonResponse();

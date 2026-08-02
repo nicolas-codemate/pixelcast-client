@@ -10,7 +10,7 @@ final class IndicatorControllerTest extends SimulatorWebTestCase
 {
     public function testSetSlot1(): void
     {
-        $this->postJson('/indicator1', [
+        $this->postJson('/api/indicator1', [
             'mode' => 'solid',
             'color' => '#FF0000',
         ]);
@@ -27,7 +27,7 @@ final class IndicatorControllerTest extends SimulatorWebTestCase
 
     public function testClearSlot2(): void
     {
-        $this->deleteRequest('/indicator2');
+        $this->deleteRequest('/api/indicator2');
 
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 

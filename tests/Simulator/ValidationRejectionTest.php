@@ -10,7 +10,7 @@ final class ValidationRejectionTest extends SimulatorWebTestCase
 {
     public function testInvalidWeatherPayloadIs400(): void
     {
-        $this->postJson('/weather', ['invalid_field' => true]);
+        $this->postJson('/api/weather', ['invalid_field' => true]);
 
         self::assertSame(Response::HTTP_BAD_REQUEST, $this->client->getResponse()->getStatusCode());
 
@@ -20,21 +20,21 @@ final class ValidationRejectionTest extends SimulatorWebTestCase
 
     public function testStateUnchangedAfterRejection(): void
     {
-        $this->client->request('GET', '/weather');
+        $this->client->request('GET', '/api/weather');
         $before = $this->jsonResponse();
         self::assertFalse($before['valid'] ?? null);
 
-        $this->postJson('/weather', ['invalid_field' => true]);
+        $this->postJson('/api/weather', ['invalid_field' => true]);
         self::assertSame(Response::HTTP_BAD_REQUEST, $this->client->getResponse()->getStatusCode());
 
-        $this->client->request('GET', '/weather');
+        $this->client->request('GET', '/api/weather');
         $after = $this->jsonResponse();
         self::assertFalse($after['valid'] ?? null);
     }
 
     public function testInvalidTrackerPayloadIs400(): void
     {
-        $this->postJson('/tracker?name=BTC', ['value' => 'should-be-number']);
+        $this->postJson('/api/tracker?name=BTC', ['value' => 'should-be-number']);
 
         self::assertSame(Response::HTTP_BAD_REQUEST, $this->client->getResponse()->getStatusCode());
 

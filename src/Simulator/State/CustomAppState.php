@@ -65,6 +65,22 @@ final class CustomAppState implements ResettableState
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function exportForPersistence(): array
+    {
+        return ['apps' => $this->apps];
+    }
+
+    /**
+     * @param array<string, mixed> $persistedState
+     */
+    public function restoreFromPersistence(array $persistedState): void
+    {
+        $this->apps = PersistedStateReader::payloadMap($persistedState['apps'] ?? null);
+    }
+
     public function domainKey(): string
     {
         return 'customApps';

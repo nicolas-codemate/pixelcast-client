@@ -10,7 +10,7 @@ final class WeatherControllerTest extends SimulatorWebTestCase
 {
     public function testGetWeatherInitiallyReturnsValidFalse(): void
     {
-        $this->client->request('GET', '/weather');
+        $this->client->request('GET', '/api/weather');
 
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
@@ -20,7 +20,7 @@ final class WeatherControllerTest extends SimulatorWebTestCase
 
     public function testPostValidWeatherIsReflectedInGet(): void
     {
-        $this->postJson('/weather', [
+        $this->postJson('/api/weather', [
             'current' => [
                 'icon' => 'w_clear_day',
                 'temp' => 22,
@@ -35,7 +35,7 @@ final class WeatherControllerTest extends SimulatorWebTestCase
             (string) $this->client->getResponse()->getContent(),
         );
 
-        $this->client->request('GET', '/weather');
+        $this->client->request('GET', '/api/weather');
         $payload = $this->jsonResponse();
 
         self::assertTrue($payload['valid'] ?? null);

@@ -13,7 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class OutboundPayloadValidatorTest extends KernelTestCase
 {
-    private const string TEST_DEVICE_BASE_URL = 'http://simulator:8080';
+    private const string TEST_DEVICE_BASE_URL = 'http://simulator:8080/api';
 
     private OutboundPayloadValidator $validator;
     private ScenarioCatalog $catalog;

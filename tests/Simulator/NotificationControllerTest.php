@@ -10,7 +10,7 @@ final class NotificationControllerTest extends SimulatorWebTestCase
 {
     public function testEnqueueAndList(): void
     {
-        $this->postJson('/notify', [
+        $this->postJson('/api/notify', [
             'text' => 'New message!',
             'icon' => 'mail',
             'color' => '#0096FF',
@@ -28,7 +28,7 @@ final class NotificationControllerTest extends SimulatorWebTestCase
         self::assertArrayHasKey('id', $payload);
         self::assertIsString($payload['id']);
 
-        $this->client->request('GET', '/notify/list');
+        $this->client->request('GET', '/api/notify/list');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
         $listPayload = $this->jsonResponse();
@@ -37,7 +37,7 @@ final class NotificationControllerTest extends SimulatorWebTestCase
 
     public function testDismissEmptyReturns404(): void
     {
-        $this->client->request('POST', '/notify/dismiss');
+        $this->client->request('POST', '/api/notify/dismiss');
 
         self::assertSame(Response::HTTP_NOT_FOUND, $this->client->getResponse()->getStatusCode());
 
@@ -47,10 +47,10 @@ final class NotificationControllerTest extends SimulatorWebTestCase
 
     public function testDismissNonEmpty(): void
     {
-        $this->postJson('/notify', ['text' => 'hello']);
+        $this->postJson('/api/notify', ['text' => 'hello']);
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
-        $this->client->request('POST', '/notify/dismiss');
+        $this->client->request('POST', '/api/notify/dismiss');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
         $payload = $this->jsonResponse();

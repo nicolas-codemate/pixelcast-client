@@ -23,6 +23,20 @@ final readonly class ValidationResult
     }
 
     /**
+     * @param array<string, mixed> $data
+     */
+    public static function fromArray(array $data): self
+    {
+        if (true === ($data['valid'] ?? null)) {
+            return self::success();
+        }
+
+        $errorMessage = $data['error'] ?? null;
+
+        return self::failure(\is_string($errorMessage) ? $errorMessage : 'unknown error');
+    }
+
+    /**
      * @return array{valid: bool, error?: string}
      */
     public function toArray(): array

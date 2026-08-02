@@ -12,7 +12,7 @@ services:
     environment:
       - PHP_IDE_CONFIG=serverName=pixelcast
       - XDEBUG_MODE=${XDEBUG_MODE:-off}
-      - PIXELCAST_DEVICE_BASE_URL=http://simulator:8080
+      - PIXELCAST_DEVICE_BASE_URL=http://simulator:8080/api
       - PIXELCAST_SIMULATOR_HOST_PORT=${PIXELCAST_SIMULATOR_HOST_PORT:-8088}
 
   simulator:
@@ -22,7 +22,9 @@ services:
         condition: service_started
     working_dir: /app
     entrypoint: []
-    command: php -S 0.0.0.0:8080 -t public/
+    # php -S hides inherited environment variables from $_SERVER and $_ENV,
+    # where Dotenv looks for APP_ENV before falling back to .env.
+    command: php -d variables_order=EGPCS -S 0.0.0.0:8080 -t public/
     volumes:
       - .:/app
     environment:

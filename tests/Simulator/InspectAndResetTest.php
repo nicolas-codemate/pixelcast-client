@@ -10,7 +10,7 @@ final class InspectAndResetTest extends SimulatorWebTestCase
 {
     public function testInspectStructure(): void
     {
-        $this->client->request('GET', '/__inspect');
+        $this->client->request('GET', '/api/__inspect');
 
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
@@ -22,7 +22,7 @@ final class InspectAndResetTest extends SimulatorWebTestCase
 
     public function testResetClearsStateAndRequests(): void
     {
-        $this->postJson('/weather', [
+        $this->postJson('/api/weather', [
             'current' => [
                 'icon' => 'w_clear_day',
                 'temp' => 22,
@@ -35,15 +35,15 @@ final class InspectAndResetTest extends SimulatorWebTestCase
             (string) $this->client->getResponse()->getContent(),
         );
 
-        $this->postJson('/brightness', ['brightness' => 180]);
+        $this->postJson('/api/brightness', ['brightness' => 180]);
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
-        $this->client->request('POST', '/__reset');
+        $this->client->request('POST', '/api/__reset');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
         $resetPayload = $this->jsonResponse();
         self::assertTrue($resetPayload['success'] ?? null);
 
-        $this->client->request('GET', '/__inspect');
+        $this->client->request('GET', '/api/__inspect');
         $inspectPayload = $this->jsonResponse();
 
         $state = $inspectPayload['state'] ?? null;
@@ -56,5 +56,18 @@ final class InspectAndResetTest extends SimulatorWebTestCase
         $requests = $inspectPayload['requests'] ?? null;
         self::assertIsArray($requests);
         self::assertEmpty($requests);
+    }
+
+    public function testBarePathsAreNotServed(): void
+    {
+        $this->postJson('/weather', [
+            'current' => [
+                'icon' => 'w_clear_day',
+                'temp' => 22,
+            ],
+            'forecast' => [],
+        ]);
+
+        self::assertSame(Response::HTTP_NOT_FOUND, $this->client->getResponse()->getStatusCode());
     }
 }

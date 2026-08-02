@@ -35,6 +35,26 @@ final class BrightnessState implements ResettableState
         return ['brightness' => $this->brightness];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function exportForPersistence(): array
+    {
+        return ['brightness' => $this->brightness];
+    }
+
+    /**
+     * @param array<string, mixed> $persistedState
+     */
+    public function restoreFromPersistence(array $persistedState): void
+    {
+        $persistedBrightness = $persistedState['brightness'] ?? null;
+
+        if (\is_int($persistedBrightness)) {
+            $this->set($persistedBrightness);
+        }
+    }
+
     public function domainKey(): string
     {
         return 'brightness';

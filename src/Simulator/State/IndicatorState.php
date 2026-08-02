@@ -53,6 +53,30 @@ final class IndicatorState implements ResettableState
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function exportForPersistence(): array
+    {
+        return ['slots' => $this->slots];
+    }
+
+    /**
+     * @param array<string, mixed> $persistedState
+     */
+    public function restoreFromPersistence(array $persistedState): void
+    {
+        $this->reset();
+
+        foreach (PersistedStateReader::payloadMap($persistedState['slots'] ?? null) as $persistedSlot => $payload) {
+            $slot = (int) $persistedSlot;
+
+            if (\in_array($slot, self::VALID_SLOTS, true)) {
+                $this->slots[$slot] = $payload;
+            }
+        }
+    }
+
     public function domainKey(): string
     {
         return 'indicators';

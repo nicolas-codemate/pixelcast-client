@@ -13,5 +13,15 @@ interface ResettableState
      */
     public function snapshot(): array;
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function exportForPersistence(): array;
+
+    /**
+     * @param array<string, mixed> $persistedState
+     */
+    public function restoreFromPersistence(array $persistedState): void;
+
     public function domainKey(): string;
 }
