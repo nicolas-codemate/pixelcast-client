@@ -25,7 +25,16 @@ final readonly class OutboundPayloadValidator
 
     public function validate(ScenarioDefinition $scenario): ValidationResult
     {
-        $psrRequest = $this->buildPsrRequest($scenario);
+        return $this->validateRequest($scenario->httpMethod, $scenario->path, $scenario->queryParams, $scenario->body);
+    }
+
+    /**
+     * @param array<string, string> $queryParams
+     * @param array<string, mixed>|null $body
+     */
+    public function validateRequest(string $httpMethod, string $path, array $queryParams = [], ?array $body = null): ValidationResult
+    {
+        $psrRequest = $this->buildPsrRequest($httpMethod, $path, $queryParams, $body);
 
         try {
             $this->validator->validate($psrRequest);
@@ -36,26 +45,30 @@ final readonly class OutboundPayloadValidator
         return ValidationResult::success();
     }
 
-    private function buildPsrRequest(ScenarioDefinition $scenario): Request
+    /**
+     * @param array<string, string> $queryParams
+     * @param array<string, mixed>|null $body
+     */
+    private function buildPsrRequest(string $httpMethod, string $path, array $queryParams, ?array $body): Request
     {
         $baseUrl = DeviceBaseUrl::resolve($this->deviceBaseUrl);
-        $uri = rtrim($baseUrl, '/').$scenario->path;
+        $uri = rtrim($baseUrl, '/').$path;
 
-        if ([] !== $scenario->queryParams) {
-            $uri .= '?'.http_build_query($scenario->queryParams);
+        if ([] !== $queryParams) {
+            $uri .= '?'.http_build_query($queryParams);
         }
 
         $headers = [];
-        $body = null;
+        $requestBodyStream = null;
 
-        if (null !== $scenario->body) {
+        if (null !== $body) {
             $headers['Content-Type'] = 'application/json';
-            $body = $this->streamFactory->createStream(
-                json_encode($scenario->body, \JSON_THROW_ON_ERROR),
+            $requestBodyStream = $this->streamFactory->createStream(
+                json_encode($body, \JSON_THROW_ON_ERROR),
             );
         }
 
-        return new Request($scenario->httpMethod, $uri, $headers, $body);
+        return new Request($httpMethod, $uri, $headers, $requestBodyStream);
     }
 
     private function formatErrorMessage(ValidationFailed $validationFailed): string
