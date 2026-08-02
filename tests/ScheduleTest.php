@@ -25,9 +25,10 @@ final class ScheduleTest extends TestCase
         $schedule = self::createSchedule();
         $expectedRecurringMessage = RecurringMessage::every('30 minutes', $schedule->syncMessages()['weather']);
 
-        $scheduledIds = self::scheduledIds($schedule);
+        $recurringMessages = $schedule->getSchedule()->getRecurringMessages();
 
-        self::assertContains($expectedRecurringMessage->getId(), $scheduledIds);
+        self::assertSame('every 30 minutes', (string) $recurringMessages[0]->getTrigger());
+        self::assertContains($expectedRecurringMessage->getId(), self::scheduledIds($schedule));
     }
 
     public function testEveryRegisteredSyncTypeIsAlsoScheduled(): void
