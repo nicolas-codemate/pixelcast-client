@@ -1,5 +1,5 @@
-# Polling interval for the weather syncer (seconds).
-weather_interval: 300
+# Weather refresh interval hint (seconds); the scheduler frequency lives in App\Schedule.
+weather_interval: 1800
 
 # Polling interval for the tracker syncer (seconds).
 tracker_interval: 60

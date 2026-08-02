@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Message\SyncOutcome;
 use App\Scheduler\SyncMessageRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -13,6 +14,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\HandledStamp;
 
 #[AsCommand(
     name: 'app:sync',
@@ -83,12 +85,52 @@ final class SyncCommand extends Command
             $typesToDispatch = [$chosenType];
         }
 
+        $typesThatReachedNothing = [];
+
         foreach ($typesToDispatch as $typeToDispatch) {
             $message = $syncMessages[$typeToDispatch];
             $io->writeln(\sprintf('Dispatching %s (%s)', $typeToDispatch, $message::class));
-            $this->messageBus->dispatch($message);
+
+            $outcome = $this->dispatchAndReadOutcome($message);
+            $io->writeln(\sprintf('  %s: %s', $typeToDispatch, self::describeOutcome($outcome)));
+
+            if (SyncOutcome::Skipped === $outcome || SyncOutcome::Failed === $outcome) {
+                $typesThatReachedNothing[] = $typeToDispatch;
+            }
         }
 
+        if ([] !== $typesThatReachedNothing) {
+            $io->error(\sprintf('Nothing reached the device for: %s.', implode(', ', $typesThatReachedNothing)));
+
+            return Command::FAILURE;
+        }
+
+        $io->success('Sync dispatch completed.');
+
         return Command::SUCCESS;
+    }
+
+    private function dispatchAndReadOutcome(object $message): ?SyncOutcome
+    {
+        $envelope = $this->messageBus->dispatch($message);
+        $handledStamp = $envelope->last(HandledStamp::class);
+
+        if (!$handledStamp instanceof HandledStamp) {
+            return null;
+        }
+
+        $handlerResult = $handledStamp->getResult();
+
+        return $handlerResult instanceof SyncOutcome ? $handlerResult : null;
+    }
+
+    private static function describeOutcome(?SyncOutcome $outcome): string
+    {
+        return match ($outcome) {
+            SyncOutcome::Pushed => 'pushed to the device',
+            SyncOutcome::Skipped => 'skipped, nothing to push',
+            SyncOutcome::Failed => 'failed, see the logs',
+            null => 'dispatched, the result is not observable from this process',
+        };
     }
 }

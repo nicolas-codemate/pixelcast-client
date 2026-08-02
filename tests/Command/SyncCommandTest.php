@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Command;
 
 use App\Command\SyncCommand;
+use App\Message\SyncOutcome;
 use App\Tests\Stub\CapturingMessageBusStub;
 use App\Tests\Stub\StaticSyncMessageRegistryStub;
 use PHPUnit\Framework\TestCase;
@@ -14,13 +15,6 @@ use Symfony\Component\Console\Tester\CommandTester;
 final class SyncCommandTest extends TestCase
 {
     private CapturingMessageBusStub $messageBus;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->messageBus = new CapturingMessageBusStub();
-    }
 
     public function testEmptyRegistryWarnsAndDispatchesNothing(): void
     {
@@ -136,11 +130,70 @@ final class SyncCommandTest extends TestCase
         self::assertSame([], $this->messageBus->dispatchedMessages);
     }
 
+    public function testDispatchWithoutHandledStampReportsAnUnobservableResult(): void
+    {
+        $tester = $this->createTester(['weather' => new \stdClass()]);
+
+        $exitCode = $tester->execute(['type' => 'weather']);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('weather: dispatched, the result is not observable from this process', $tester->getDisplay());
+    }
+
+    public function testPushedOutcomeIsReportedAndSucceeds(): void
+    {
+        $tester = $this->createTester(['weather' => new \stdClass()], [SyncOutcome::Pushed]);
+
+        $exitCode = $tester->execute(['type' => 'weather']);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('weather: pushed to the device', $tester->getDisplay());
+    }
+
+    public function testSkippedOutcomeIsReportedAndFails(): void
+    {
+        $tester = $this->createTester(['weather' => new \stdClass()], [SyncOutcome::Skipped]);
+
+        $exitCode = $tester->execute(['type' => 'weather']);
+
+        self::assertSame(Command::FAILURE, $exitCode);
+        self::assertStringContainsString('weather: skipped, nothing to push', $tester->getDisplay());
+        self::assertStringContainsString('Nothing reached the device for: weather', $tester->getDisplay());
+    }
+
+    public function testFailedOutcomeIsReportedAndFails(): void
+    {
+        $tester = $this->createTester(['weather' => new \stdClass()], [SyncOutcome::Failed]);
+
+        $exitCode = $tester->execute(['type' => 'weather']);
+
+        self::assertSame(Command::FAILURE, $exitCode);
+        self::assertStringContainsString('weather: failed, see the logs', $tester->getDisplay());
+    }
+
+    public function testAllReportsEveryOutcomeAndFailsOnTheFailingTypeOnly(): void
+    {
+        $tester = $this->createTester(
+            ['weather' => new \stdClass(), 'trackers' => new \stdClass()],
+            [SyncOutcome::Pushed, SyncOutcome::Failed],
+        );
+
+        $exitCode = $tester->execute(['--all' => true]);
+
+        self::assertSame(Command::FAILURE, $exitCode);
+        self::assertStringContainsString('weather: pushed to the device', $tester->getDisplay());
+        self::assertStringContainsString('trackers: failed, see the logs', $tester->getDisplay());
+        self::assertStringContainsString('Nothing reached the device for: trackers', $tester->getDisplay());
+    }
+
     /**
      * @param array<string, object> $syncMessages
+     * @param list<SyncOutcome> $outcomesInDispatchOrder
      */
-    private function createTester(array $syncMessages): CommandTester
+    private function createTester(array $syncMessages, array $outcomesInDispatchOrder = []): CommandTester
     {
+        $this->messageBus = new CapturingMessageBusStub($outcomesInDispatchOrder);
+
         return new CommandTester(
             new SyncCommand($this->messageBus, new StaticSyncMessageRegistryStub($syncMessages)),
         );
