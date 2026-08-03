@@ -23,6 +23,20 @@ final class DevDeviceStateSourceTest extends TestCase
         self::assertSame(1, $stubClient->fetchCount);
     }
 
+    public function testAnInjectedSnapshotAvoidsAnyTransportCall(): void
+    {
+        $stubClient = new CountingInspectorHttpClientStub();
+        $injectedSnapshot = InspectorSnapshot::fromInspectPayload([
+            'state' => ['weather' => ['current' => ['temp' => 18]]],
+        ]);
+        $source = new DevDeviceStateSource($stubClient, 'http://example.invalid', $injectedSnapshot);
+
+        $snapshot = $source->snapshot();
+
+        self::assertSame(0, $stubClient->fetchCount);
+        self::assertTrue($snapshot['weather']->hasData);
+    }
+
     public function testReachabilityErrorExposesTheTransportFailure(): void
     {
         $stubClient = new CountingInspectorHttpClientStub();

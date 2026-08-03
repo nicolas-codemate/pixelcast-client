@@ -10,11 +10,10 @@ use App\Domain\AppDomain;
 
 final class DevDeviceStateSource implements DeviceStateSource
 {
-    private ?InspectorSnapshot $fetchedSnapshot = null;
-
     public function __construct(
         private readonly InspectorTransport $transport,
         private readonly ?string $baseUrl,
+        private ?InspectorSnapshot $fetchedSnapshot = null,
     ) {
     }
 
