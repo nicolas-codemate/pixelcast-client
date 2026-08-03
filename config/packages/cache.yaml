@@ -12,6 +12,9 @@ framework:
         #default_redis_provider: redis://localhost
 
         # APCu (not recommended with heavy random-write workloads as memory fragmentation can cause perf issues)
+        # Keep a shared backend here: the container healthcheck runs `app:health` in a second PHP
+        # process, which reads the last successful sync from this pool. APCu is per-process and
+        # would make that read always come back empty.
         #app: cache.adapter.apcu
 
         # Namespaced pools use the above "app" backend by default

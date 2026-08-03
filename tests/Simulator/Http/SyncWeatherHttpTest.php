@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Simulator\Http;
 
+use App\Health\LastSuccessfulSyncStore;
 use App\Message\SyncOutcome;
 use App\Message\SyncWeatherMessage;
 use App\MessageHandler\SyncWeatherHandler;
@@ -11,6 +12,7 @@ use App\Provider\Weather\OpenMeteoWeatherProvider;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -27,7 +29,12 @@ final class SyncWeatherHttpTest extends SimulatorHttpTestCase
         self::assertNotNull($expectedPayload);
         self::assertCount(self::EXPECTED_FORECAST_DAYS, $expectedPayload->forecastDays);
 
-        $syncWeatherHandler = new SyncWeatherHandler($weatherProvider, $this->buildPixelcastClient(), new NullLogger());
+        $syncWeatherHandler = new SyncWeatherHandler(
+            $weatherProvider,
+            $this->buildPixelcastClient(),
+            new NullLogger(),
+            new LastSuccessfulSyncStore(new ArrayAdapter(), new MockClock()),
+        );
 
         self::assertSame(SyncOutcome::Pushed, $syncWeatherHandler(new SyncWeatherMessage()), $this->server->serverOutput());
 
