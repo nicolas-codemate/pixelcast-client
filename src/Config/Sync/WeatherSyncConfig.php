@@ -25,13 +25,13 @@ final readonly class WeatherSyncConfig implements SyncGroupConfig
         return 'weather';
     }
 
-    public static function fromOptions(array $options, string $optionsPath): self
+    public static function fromOptions(array $options): self
     {
-        $rawInterval = SyncOptionReader::requireString($options, 'interval', $optionsPath);
+        $optionsPath = 'syncs.'.self::syncType();
 
         return new self(
             enabled: SyncOptionReader::requireBool($options, 'enabled', $optionsPath),
-            interval: SyncInterval::fromOption($rawInterval, $optionsPath.'.interval'),
+            interval: SyncInterval::fromOptions($options, $optionsPath),
             latitude: SyncOptionReader::requireFloat($options, 'latitude', $optionsPath),
             longitude: SyncOptionReader::requireFloat($options, 'longitude', $optionsPath),
             units: SyncOptionReader::requireEnum($options, 'units', $optionsPath, WeatherUnits::class),

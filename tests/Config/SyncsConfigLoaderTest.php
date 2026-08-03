@@ -11,13 +11,13 @@ use App\Config\Sync\WeatherSyncConfig;
 use App\Config\SyncsConfigLoader;
 use App\Config\WeatherLocale;
 use App\Config\WeatherUnits;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class SyncsConfigLoaderTest extends TestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/Fixtures';
-    private const string SCHEMA_PATH = __DIR__.'/../../pixelcast.schema.json';
 
     public function testAValidFileIsHydratedIntoOneGroupPerSyncType(): void
     {
@@ -76,11 +76,7 @@ final class SyncsConfigLoaderTest extends TestCase
 
     public function testAMissingFileIsReported(): void
     {
-        $missingPath = self::FIXTURES_DIR.'/does-not-exist.yaml';
-        $loader = new SyncsConfigLoader($missingPath, self::SCHEMA_PATH);
-
-        self::assertFalse($loader->exists());
-        self::assertSame($missingPath, $loader->filePath());
+        $loader = self::loaderFor('does-not-exist.yaml');
 
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('not found');
@@ -105,7 +101,7 @@ final class SyncsConfigLoaderTest extends TestCase
     {
         yield 'broken YAML' => ['syncs-invalid-syntax.yaml', 'Failed to parse PixelCast config'];
         yield 'group the schema does not declare' => ['syncs-unknown-group.yaml', 'nope'];
-        yield 'tracker item without a symbol' => ['syncs-incomplete-item.yaml', 'syncs.coingecko.items[0]'];
+        yield 'tracker item without a symbol' => ['syncs-incomplete-item.yaml', 'syncs.coingecko.items[0].symbol'];
         yield 'interval the scheduler cannot parse' => ['syncs-bad-interval.yaml', 'syncs.weather.interval'];
         yield 'API key written in the file' => ['syncs-secret-in-file.yaml', 'api_key'];
     }
@@ -121,18 +117,8 @@ final class SyncsConfigLoaderTest extends TestCase
         $loader->load();
     }
 
-    public function testAnIncompleteTrackerItemNamesTheMissingOption(): void
-    {
-        $loader = self::loaderFor('syncs-incomplete-item.yaml');
-
-        $this->expectException(PixelCastConfigException::class);
-        $this->expectExceptionMessage('symbol');
-
-        $loader->load();
-    }
-
     private static function loaderFor(string $fixtureName): SyncsConfigLoader
     {
-        return new SyncsConfigLoader(self::FIXTURES_DIR.'/'.$fixtureName, self::SCHEMA_PATH);
+        return SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName);
     }
 }

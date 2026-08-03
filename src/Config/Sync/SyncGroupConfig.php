@@ -18,7 +18,7 @@ interface SyncGroupConfig
     /**
      * @param array<string, mixed> $options options already validated against pixelcast.schema.json
      */
-    public static function fromOptions(array $options, string $optionsPath): self;
+    public static function fromOptions(array $options): self;
 
     public function syncMessage(): object;
 }

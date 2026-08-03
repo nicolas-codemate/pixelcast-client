@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Simulator\Http;
 
-use App\Config\SyncsConfigLoader;
 use App\Message\SyncOutcome;
 use App\Message\SyncWeatherMessage;
 use App\MessageHandler\SyncWeatherHandler;
 use App\Provider\Weather\OpenMeteoWeatherProvider;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -61,7 +61,7 @@ final class SyncWeatherHttpTest extends SimulatorHttpTestCase
                 MockResponse::fromFile($weatherFixturesDirectory.'/open-meteo-forecast.json'),
                 self::OPEN_METEO_BASE_URI,
             ),
-            new SyncsConfigLoader($weatherFixturesDirectory.'/pixelcast.yaml', \dirname(__DIR__, 3).'/pixelcast.schema.json'),
+            SyncsConfigLoaderFactory::forConfigFile($weatherFixturesDirectory.'/pixelcast.yaml'),
             new ArrayAdapter(),
             new NullLogger(),
         );

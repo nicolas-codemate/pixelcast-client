@@ -24,8 +24,11 @@ final class SyncGroupRegistryTest extends TestCase
         self::assertSame(TwelveDataSyncConfig::class, SyncGroupRegistry::syncGroupClassFor('twelvedata'));
     }
 
-    public function testAnUnknownSyncTypeResolvesToNothing(): void
+    public function testAnUnknownSyncTypeIsACodeInconsistency(): void
     {
-        self::assertNull(SyncGroupRegistry::syncGroupClassFor('nope'));
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('nope');
+
+        SyncGroupRegistry::syncGroupClassFor('nope');
     }
 }

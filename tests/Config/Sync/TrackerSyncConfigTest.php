@@ -52,7 +52,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAValidOptionMapIsHydrated(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::validOptions(), 'syncs.'.$expectedSyncType);
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
 
         self::assertFalse($trackerSync->enabled);
         self::assertSame('15 minutes', $trackerSync->interval->expression);
@@ -65,7 +65,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAnItemKeepsItsIconWhenItHasOneAndIsNullOtherwise(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::validOptions(), 'syncs.'.$expectedSyncType);
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
 
         self::assertSame('BTC', $trackerSync->items[0]->symbol);
         self::assertSame('eur', $trackerSync->items[0]->currency);
@@ -81,7 +81,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testTheGroupIsTriggeredByATrackerSyncMessageCarryingItsType(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::validOptions(), 'syncs.'.$expectedSyncType);
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
 
         self::assertEquals(new SyncTrackerMessage($expectedSyncType), $trackerSync->syncMessage());
     }
@@ -94,11 +94,7 @@ final class TrackerSyncConfigTest extends TestCase
     {
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage(\sprintf('syncs.%s.interval', $expectedSyncType));
-
-        $syncGroupClass::fromOptions(
-            array_merge(self::validOptions(), ['interval' => 'every fortnight']),
-            'syncs.'.$expectedSyncType,
-        );
+        $syncGroupClass::fromOptions(array_merge(self::validOptions(), ['interval' => 'every fortnight']));
     }
 
     /**
@@ -117,6 +113,6 @@ final class TrackerSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage(\sprintf('syncs.%s.items[1].symbol', $expectedSyncType));
 
-        $syncGroupClass::fromOptions($options, 'syncs.'.$expectedSyncType);
+        $syncGroupClass::fromOptions($options);
     }
 }

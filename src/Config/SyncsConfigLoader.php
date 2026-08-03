@@ -32,19 +32,9 @@ final class SyncsConfigLoader
         return $this->loadedConfig ??= $this->readConfigFile();
     }
 
-    public function exists(): bool
-    {
-        return is_file($this->configFilePath);
-    }
-
-    public function filePath(): string
-    {
-        return $this->configFilePath;
-    }
-
     private function readConfigFile(): SyncsConfig
     {
-        if (!$this->exists()) {
+        if (!is_file($this->configFilePath)) {
             throw PixelCastConfigException::fileNotFound($this->configFilePath);
         }
 
@@ -59,12 +49,7 @@ final class SyncsConfigLoader
 
         $syncGroups = [];
         foreach ($this->syncGroupOptions($parsedTree) as $syncType => $options) {
-            $syncGroupClass = SyncGroupRegistry::syncGroupClassFor($syncType);
-            if (null === $syncGroupClass) {
-                throw new \LogicException(\sprintf('The schema accepted the sync group "%s" but no configuration class declares it.', $syncType));
-            }
-
-            $syncGroups[$syncType] = $syncGroupClass::fromOptions($options, 'syncs.'.$syncType);
+            $syncGroups[$syncType] = SyncGroupRegistry::syncGroupClassFor($syncType)::fromOptions($options);
         }
 
         return new SyncsConfig($syncGroups);
@@ -113,19 +98,19 @@ final class SyncsConfigLoader
 
     private static function describeViolation(mixed $error): string
     {
-        $property = '<root>';
-        $message = 'invalid value';
-
-        if (\is_array($error)) {
-            if (isset($error['property']) && \is_string($error['property']) && '' !== $error['property']) {
-                $property = $error['property'];
-            }
-            if (isset($error['message']) && \is_string($error['message'])) {
-                $message = $error['message'];
-            }
+        // getErrors() is untyped in the vendor library, hence the guard.
+        if (!\is_array($error)) {
+            return '<root>: invalid value';
         }
 
-        return \sprintf('%s: %s', $property, $message);
+        $property = $error['property'] ?? null;
+        $message = $error['message'] ?? null;
+
+        return \sprintf(
+            '%s: %s',
+            \is_string($property) && '' !== $property ? $property : '<root>',
+            \is_string($message) ? $message : 'invalid value',
+        );
     }
 
     /**

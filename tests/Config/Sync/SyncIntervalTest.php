@@ -11,7 +11,8 @@ use PHPUnit\Framework\TestCase;
 
 final class SyncIntervalTest extends TestCase
 {
-    private const string OPTION_PATH = 'syncs.weather.interval';
+    private const string PARENT_PATH = 'syncs.weather';
+    private const string OPTION_PATH = self::PARENT_PATH.'.interval';
 
     /**
      * @return iterable<string, array{string}>
@@ -28,7 +29,7 @@ final class SyncIntervalTest extends TestCase
     #[DataProvider('provideAcceptedIntervals')]
     public function testAnIntervalTheSchedulerUnderstandsIsKeptAsWritten(string $rawInterval): void
     {
-        $interval = SyncInterval::fromOption($rawInterval, self::OPTION_PATH);
+        $interval = SyncInterval::fromOptions(['interval' => $rawInterval], self::PARENT_PATH);
 
         self::assertSame($rawInterval, $interval->expression);
     }
@@ -39,7 +40,7 @@ final class SyncIntervalTest extends TestCase
     public static function provideRejectedIntervals(): iterable
     {
         yield 'unknown expression' => ['every fortnight', 'expected an interval the scheduler understands'];
-        yield 'empty string' => ['', 'expected an interval the scheduler understands'];
+        yield 'empty string' => ['', 'must not be empty'];
         yield 'bare zero' => ['0', 'expected an interval the scheduler understands'];
         yield 'zero seconds' => ['0 seconds', 'expected an interval the scheduler understands'];
         yield 'zero minutes' => ['0 minutes', 'expected an interval the scheduler understands'];
@@ -51,7 +52,7 @@ final class SyncIntervalTest extends TestCase
     public function testARejectedIntervalNamesTheOptionAndTheReason(string $rawInterval, string $expectedReason): void
     {
         try {
-            SyncInterval::fromOption($rawInterval, self::OPTION_PATH);
+            SyncInterval::fromOptions(['interval' => $rawInterval], self::PARENT_PATH);
         } catch (PixelCastConfigException $rejection) {
             self::assertStringContainsString(self::OPTION_PATH, $rejection->getMessage());
             self::assertStringContainsString($expectedReason, $rejection->getMessage());
@@ -66,7 +67,7 @@ final class SyncIntervalTest extends TestCase
     public function testAnIntervalTheSchedulerFailsOnLateKeepsItsOriginalError(): void
     {
         try {
-            SyncInterval::fromOption('0 seconds', self::OPTION_PATH);
+            SyncInterval::fromOptions(['interval' => '0 seconds'], self::PARENT_PATH);
         } catch (PixelCastConfigException $rejection) {
             self::assertInstanceOf(\Error::class, $rejection->getPrevious());
 

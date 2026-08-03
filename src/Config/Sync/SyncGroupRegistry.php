@@ -19,29 +19,41 @@ final class SyncGroupRegistry
     ];
 
     /**
+     * @var array<string, class-string<SyncGroupConfig>>|null
+     */
+    private static ?array $syncGroupClassesByType = null;
+
+    /**
      * @return list<string>
      */
     public static function syncTypes(): array
     {
-        $syncTypes = [];
-        foreach (self::SYNC_GROUP_CLASSES as $syncGroupClass) {
-            $syncTypes[] = $syncGroupClass::syncType();
-        }
-
-        return $syncTypes;
+        return array_keys(self::syncGroupClassesByType());
     }
 
     /**
-     * @return class-string<SyncGroupConfig>|null
+     * @return class-string<SyncGroupConfig>
      */
-    public static function syncGroupClassFor(string $syncType): ?string
+    public static function syncGroupClassFor(string $syncType): string
     {
-        foreach (self::SYNC_GROUP_CLASSES as $syncGroupClass) {
-            if ($syncGroupClass::syncType() === $syncType) {
-                return $syncGroupClass;
-            }
+        return self::syncGroupClassesByType()[$syncType]
+            ?? throw new \LogicException(\sprintf('No configuration class declares the sync group "%s".', $syncType));
+    }
+
+    /**
+     * @return array<string, class-string<SyncGroupConfig>>
+     */
+    private static function syncGroupClassesByType(): array
+    {
+        if (null !== self::$syncGroupClassesByType) {
+            return self::$syncGroupClassesByType;
         }
 
-        return null;
+        $syncGroupClassesByType = [];
+        foreach (self::SYNC_GROUP_CLASSES as $syncGroupClass) {
+            $syncGroupClassesByType[$syncGroupClass::syncType()] = $syncGroupClass;
+        }
+
+        return self::$syncGroupClassesByType = $syncGroupClassesByType;
     }
 }

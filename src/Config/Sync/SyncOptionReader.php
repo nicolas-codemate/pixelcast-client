@@ -31,7 +31,7 @@ final class SyncOptionReader
     /**
      * @param array<string, mixed> $options
      */
-    public static function requireStringOrNull(array $options, string $key, string $parentPath): ?string
+    public static function optionalString(array $options, string $key, string $parentPath): ?string
     {
         if (!\array_key_exists($key, $options) || null === $options[$key]) {
             return null;

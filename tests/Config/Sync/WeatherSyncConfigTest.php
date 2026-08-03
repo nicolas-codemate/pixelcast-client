@@ -13,8 +13,6 @@ use PHPUnit\Framework\TestCase;
 
 final class WeatherSyncConfigTest extends TestCase
 {
-    private const string OPTIONS_PATH = 'syncs.weather';
-
     /**
      * @return array<string, mixed>
      */
@@ -37,7 +35,7 @@ final class WeatherSyncConfigTest extends TestCase
 
     public function testAValidOptionMapIsHydrated(): void
     {
-        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions(), self::OPTIONS_PATH);
+        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions());
 
         self::assertTrue($weatherSync->enabled);
         self::assertSame('30 minutes', $weatherSync->interval->expression);
@@ -49,7 +47,7 @@ final class WeatherSyncConfigTest extends TestCase
 
     public function testTheGroupIsTriggeredByAWeatherSyncMessage(): void
     {
-        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions(), self::OPTIONS_PATH);
+        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions());
 
         self::assertInstanceOf(SyncWeatherMessage::class, $weatherSync->syncMessage());
     }
@@ -59,7 +57,7 @@ final class WeatherSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.weather.interval');
 
-        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['interval' => 'every fortnight']), self::OPTIONS_PATH);
+        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['interval' => 'every fortnight']));
     }
 
     public function testAMissingOptionNamesItsFullPath(): void
@@ -70,7 +68,7 @@ final class WeatherSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.weather.latitude');
 
-        WeatherSyncConfig::fromOptions($options, self::OPTIONS_PATH);
+        WeatherSyncConfig::fromOptions($options);
     }
 
     public function testAnUnknownUnitsValueNamesItsFullPath(): void
@@ -78,6 +76,6 @@ final class WeatherSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.weather.units');
 
-        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['units' => 'kelvin']), self::OPTIONS_PATH);
+        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['units' => 'kelvin']));
     }
 }

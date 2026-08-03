@@ -5,37 +5,44 @@ declare(strict_types=1);
 namespace App\Tests\Config;
 
 use App\Config\Sync\SyncGroupRegistry;
-use App\Config\SyncsConfigLoader;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * pixelcast.yaml.dist is what a host copies, so the loader must accept it as it ships.
  */
 final class DistConfigTest extends TestCase
 {
-    private const string PROJECT_DIR = __DIR__.'/../..';
+    private const string DIST_FILE = 'pixelcast.yaml.dist';
 
     public function testTheDistFileOnlyEnablesTheWeatherGroup(): void
     {
-        $config = self::distLoader()->load();
+        $config = SyncsConfigLoaderFactory::forConfigFile(SyncsConfigLoaderFactory::projectFilePath(self::DIST_FILE))->load();
 
         self::assertSame(['weather'], array_keys($config->enabledSyncGroups()));
     }
 
     public function testTheDistFileDocumentsEverySyncGroupOfTheRegistry(): void
     {
-        $config = self::distLoader()->load();
+        $syncTypesFromDistFile = self::syncTypesDocumentedByDistFile();
+        $syncTypesFromRegistry = SyncGroupRegistry::syncTypes();
 
-        foreach (SyncGroupRegistry::syncTypes() as $syncType) {
-            $syncGroupClass = SyncGroupRegistry::syncGroupClassFor($syncType);
-            self::assertNotNull($syncGroupClass);
+        sort($syncTypesFromDistFile);
+        sort($syncTypesFromRegistry);
 
-            self::assertSame($syncType, $config->syncGroupOfType($syncGroupClass)::syncType());
-        }
+        self::assertSame($syncTypesFromRegistry, $syncTypesFromDistFile);
     }
 
-    private static function distLoader(): SyncsConfigLoader
+    /**
+     * @return list<string>
+     */
+    private static function syncTypesDocumentedByDistFile(): array
     {
-        return new SyncsConfigLoader(self::PROJECT_DIR.'/pixelcast.yaml.dist', self::PROJECT_DIR.'/pixelcast.schema.json');
+        $distTree = Yaml::parseFile(SyncsConfigLoaderFactory::projectFilePath(self::DIST_FILE));
+        self::assertIsArray($distTree);
+        self::assertIsArray($distTree['syncs']);
+
+        return array_map(strval(...), array_keys($distTree['syncs']));
     }
 }

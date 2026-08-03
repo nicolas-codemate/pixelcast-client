@@ -9,6 +9,7 @@ use Symfony\Component\Scheduler\Trigger\PeriodicalTrigger;
 
 final readonly class SyncInterval
 {
+    private const string OPTION_KEY = 'interval';
     private const int MINIMUM_INTERVAL_IN_SECONDS = 60;
     private const string MEASUREMENT_REFERENCE_DATE = '2000-01-01 00:00:00 UTC';
     private const string UNUSABLE_INTERVAL_REASON = 'expected an interval the scheduler understands, got "%s"';
@@ -18,8 +19,13 @@ final readonly class SyncInterval
     ) {
     }
 
-    public static function fromOption(string $rawInterval, string $optionPath): self
+    /**
+     * @param array<string, mixed> $options the options of the sync group carrying the interval
+     */
+    public static function fromOptions(array $options, string $parentPath): self
     {
+        $optionPath = $parentPath.'.'.self::OPTION_KEY;
+        $rawInterval = SyncOptionReader::requireString($options, self::OPTION_KEY, $parentPath);
         $reference = new \DateTimeImmutable(self::MEASUREMENT_REFERENCE_DATE);
 
         try {

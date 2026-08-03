@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests;
 
-use App\Config\SyncsConfigLoader;
 use App\Message\SyncTrackerMessage;
 use App\Message\SyncWeatherMessage;
 use App\Schedule;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Scheduler\RecurringMessage;
@@ -15,7 +15,6 @@ use Symfony\Component\Scheduler\RecurringMessage;
 final class ScheduleTest extends TestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/Config/Fixtures';
-    private const string SCHEMA_PATH = __DIR__.'/../pixelcast.schema.json';
 
     public function testOnlyTheEnabledSyncGroupsAreRegistered(): void
     {
@@ -80,7 +79,7 @@ final class ScheduleTest extends TestCase
     {
         return new Schedule(
             new ArrayAdapter(),
-            new SyncsConfigLoader(self::FIXTURES_DIR.'/'.$fixtureName, self::SCHEMA_PATH),
+            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName),
         );
     }
 }

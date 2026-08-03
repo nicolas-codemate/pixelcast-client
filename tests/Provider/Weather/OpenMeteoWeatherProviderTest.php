@@ -6,8 +6,8 @@ namespace App\Tests\Provider\Weather;
 
 use App\Client\Weather\ForecastDay;
 use App\Client\Weather\WeatherIcon;
-use App\Config\SyncsConfigLoader;
 use App\Provider\Weather\OpenMeteoWeatherProvider;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -20,7 +20,6 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 final class OpenMeteoWeatherProviderTest extends TestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/Fixtures';
-    private const string SCHEMA_PATH = __DIR__.'/../../../pixelcast.schema.json';
     private const string OPEN_METEO_BASE_URI = 'https://api.open-meteo.com/v1/';
     private const string METRIC_CONFIG_FILE = 'pixelcast.yaml';
     private const string IMPERIAL_CONFIG_FILE = 'pixelcast-imperial.yaml';
@@ -164,7 +163,7 @@ final class OpenMeteoWeatherProviderTest extends TestCase
     ): OpenMeteoWeatherProvider {
         return new OpenMeteoWeatherProvider(
             $httpClient,
-            new SyncsConfigLoader(self::FIXTURES_DIR.'/'.$configFileName, self::SCHEMA_PATH),
+            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
             new ArrayAdapter(),
             $logger ?? new NullLogger(),
         );

@@ -34,9 +34,9 @@ final class SyncOptionReaderTest extends TestCase
 
     public function testAnOptionalStringIsNullWhenAbsentOrNull(): void
     {
-        self::assertNull(SyncOptionReader::requireStringOrNull([], 'icon', self::PARENT_PATH));
-        self::assertNull(SyncOptionReader::requireStringOrNull(['icon' => null], 'icon', self::PARENT_PATH));
-        self::assertSame('54326', SyncOptionReader::requireStringOrNull(['icon' => '54326'], 'icon', self::PARENT_PATH));
+        self::assertNull(SyncOptionReader::optionalString([], 'icon', self::PARENT_PATH));
+        self::assertNull(SyncOptionReader::optionalString(['icon' => null], 'icon', self::PARENT_PATH));
+        self::assertSame('54326', SyncOptionReader::optionalString(['icon' => '54326'], 'icon', self::PARENT_PATH));
     }
 
     public function testAnEnumCaseIsRead(): void

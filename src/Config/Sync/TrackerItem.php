@@ -22,7 +22,7 @@ final readonly class TrackerItem
         return new self(
             symbol: SyncOptionReader::requireString($options, 'symbol', $itemPath),
             currency: SyncOptionReader::requireString($options, 'currency', $itemPath),
-            icon: SyncOptionReader::requireStringOrNull($options, 'icon', $itemPath),
+            icon: SyncOptionReader::optionalString($options, 'icon', $itemPath),
         );
     }
 }

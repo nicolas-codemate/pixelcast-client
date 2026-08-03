@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Config;
 
 use App\Config\Sync\SyncGroupRegistry;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -28,8 +29,7 @@ final class SchemaMatchesRegistryTest extends TestCase
      */
     private static function syncTypesDeclaredBySchema(): array
     {
-        $schemaPath = \dirname(__DIR__, 2).'/pixelcast.schema.json';
-        $rawSchema = file_get_contents($schemaPath);
+        $rawSchema = file_get_contents(SyncsConfigLoaderFactory::projectFilePath('pixelcast.schema.json'));
         self::assertIsString($rawSchema);
 
         $schema = json_decode($rawSchema, true, 512, \JSON_THROW_ON_ERROR);
