@@ -24,8 +24,6 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 final class DeviceDumpCommand extends Command
 {
     public function __construct(
-        #[Autowire('%kernel.environment%')]
-        private readonly string $appEnvironment,
         #[Autowire('%env(default::PIXELCAST_DEVICE_BASE_URL)%')]
         private readonly ?string $deviceBaseUrl,
         private readonly DeviceReachabilityProbe $deviceReachabilityProbe,
@@ -68,15 +66,36 @@ final class DeviceDumpCommand extends Command
             return Command::INVALID;
         }
 
-        $stateSource = 'dev' === $this->appEnvironment
-            ? $this->deviceStateSourceFactory->createForSimulator($baseUrl)
-            : $this->deviceStateSourceFactory->createForFirmware($baseUrl);
+        $targetSelection = $this->deviceStateSourceFactory->createForTarget($baseUrl);
+        $stateSource = $targetSelection->stateSource;
+
+        if ($output->isVerbose()) {
+            // The detection note goes to the error stream so the standard output stays pipeable JSON.
+            $io->getErrorStyle()->comment(\sprintf(
+                'Reading %s as a %s target.',
+                $baseUrl,
+                $targetSelection->targetKind->value,
+            ));
+        }
 
         $payloads = [];
         foreach ($stateSource->snapshot() as $domainKey => $domainState) {
             if (null === $requestedDomain || $requestedDomain === $domainKey) {
                 $payloads[$domainKey] = $domainState->payload;
             }
+        }
+
+        $readError = $stateSource->reachabilityError();
+        if (null !== $readError) {
+            $explanation = [\sprintf('Target %s answered on the network but not as a PixelCast device.', $baseUrl)];
+            if (null !== $targetSelection->inspectorProbeError) {
+                $explanation[] = \sprintf('/__inspect: %s', $targetSelection->inspectorProbeError);
+            }
+            $explanation[] = \sprintf('REST API: %s', $readError);
+
+            $io->error($explanation);
+
+            return Command::FAILURE;
         }
 
         $output->writeln((string) json_encode(
