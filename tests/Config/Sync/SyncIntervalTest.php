@@ -15,29 +15,9 @@ final class SyncIntervalTest extends TestCase
     private const string OPTION_PATH = self::PARENT_PATH.'.interval';
 
     /**
-     * @return iterable<string, array{string}>
-     */
-    public static function provideAcceptedIntervals(): iterable
-    {
-        yield 'minutes' => ['30 minutes'];
-        yield 'hours' => ['1 hour'];
-        yield 'ISO 8601 duration' => ['PT30M'];
-        yield 'bare number of seconds' => ['900'];
-        yield 'exactly the minimum' => ['60 seconds'];
-    }
-
-    #[DataProvider('provideAcceptedIntervals')]
-    public function testAnIntervalTheSchedulerUnderstandsIsKeptAsWritten(string $rawInterval): void
-    {
-        $interval = SyncInterval::fromOptions(['interval' => $rawInterval], self::PARENT_PATH);
-
-        self::assertSame($rawInterval, $interval->expression);
-    }
-
-    /**
      * @return iterable<string, array{string, int}>
      */
-    public static function provideIntervalLengths(): iterable
+    public static function provideAcceptedIntervals(): iterable
     {
         yield 'minutes' => ['30 minutes', 1800];
         yield 'hours' => ['1 hour', 3600];
@@ -46,7 +26,15 @@ final class SyncIntervalTest extends TestCase
         yield 'exactly the minimum' => ['60 seconds', 60];
     }
 
-    #[DataProvider('provideIntervalLengths')]
+    #[DataProvider('provideAcceptedIntervals')]
+    public function testAnIntervalTheSchedulerUnderstandsIsKeptAsWritten(string $rawInterval, int $expectedLengthInSeconds): void
+    {
+        $interval = SyncInterval::fromOptions(['interval' => $rawInterval], self::PARENT_PATH);
+
+        self::assertSame($rawInterval, $interval->expression);
+    }
+
+    #[DataProvider('provideAcceptedIntervals')]
     public function testTheIntervalLengthIsExposedInSeconds(string $rawInterval, int $expectedLengthInSeconds): void
     {
         $interval = SyncInterval::fromOptions(['interval' => $rawInterval], self::PARENT_PATH);

@@ -17,15 +17,23 @@ use Symfony\Component\Console\Tester\CommandTester;
 final class HealthCommandTest extends TestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
+    private const string PUSH_INSTANT = '2026-08-03 10:00:00';
+
+    private MockClock $clock;
+    private LastSuccessfulSyncStore $store;
+
+    protected function setUp(): void
+    {
+        $this->clock = new MockClock(self::PUSH_INSTANT);
+        $this->store = new LastSuccessfulSyncStore(new ArrayAdapter(), $this->clock);
+    }
 
     public function testAFreshSyncGroupExitsSuccessfully(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-        $store->recordSuccess('weather');
-        $clock->modify('+12 minutes');
+        $this->store->recordSuccess('weather');
+        $this->clock->modify('+12 minutes');
 
-        $tester = self::createTester(self::FIXTURES_DIR.'/syncs-valid.yaml', $store, $clock);
+        $tester = $this->createTester('syncs-valid.yaml');
         $exitCode = $tester->execute([]);
 
         self::assertSame(Command::SUCCESS, $exitCode);
@@ -34,12 +42,10 @@ final class HealthCommandTest extends TestCase
 
     public function testAStaleSyncGroupExitsWithAFailure(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-        $store->recordSuccess('weather');
-        $clock->modify('+91 minutes');
+        $this->store->recordSuccess('weather');
+        $this->clock->modify('+91 minutes');
 
-        $tester = self::createTester(self::FIXTURES_DIR.'/syncs-valid.yaml', $store, $clock);
+        $tester = $this->createTester('syncs-valid.yaml');
         $exitCode = $tester->execute([]);
 
         self::assertSame(Command::FAILURE, $exitCode);
@@ -48,10 +54,7 @@ final class HealthCommandTest extends TestCase
 
     public function testASyncGroupThatNeverPushedExitsWithAFailure(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-
-        $tester = self::createTester(self::FIXTURES_DIR.'/syncs-valid.yaml', $store, $clock);
+        $tester = $this->createTester('syncs-valid.yaml');
         $exitCode = $tester->execute([]);
 
         self::assertSame(Command::FAILURE, $exitCode);
@@ -61,10 +64,7 @@ final class HealthCommandTest extends TestCase
 
     public function testAnUnreadableConfigurationIsReportedApartFromAStalePush(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-
-        $tester = self::createTester(self::FIXTURES_DIR.'/does-not-exist.yaml', $store, $clock);
+        $tester = $this->createTester('does-not-exist.yaml');
         $exitCode = $tester->execute([]);
 
         self::assertSame(Command::FAILURE, $exitCode);
@@ -74,25 +74,18 @@ final class HealthCommandTest extends TestCase
 
     public function testNoEnabledSyncGroupExitsSuccessfully(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-
-        $tester = self::createTester(self::FIXTURES_DIR.'/syncs-all-disabled.yaml', $store, $clock);
+        $tester = $this->createTester('syncs-all-disabled.yaml');
         $exitCode = $tester->execute([]);
 
         self::assertSame(Command::SUCCESS, $exitCode);
         self::assertStringContainsString('No sync group is enabled', $tester->getDisplay());
     }
 
-    private static function createTester(
-        string $configFilePath,
-        LastSuccessfulSyncStore $store,
-        MockClock $clock,
-    ): CommandTester {
+    private function createTester(string $fixtureName): CommandTester
+    {
         $syncHealthChecker = new SyncHealthChecker(
-            SyncsConfigLoaderFactory::forConfigFile($configFilePath),
-            $store,
-            $clock,
+            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName),
+            $this->store,
         );
 
         return new CommandTester(new HealthCommand($syncHealthChecker));

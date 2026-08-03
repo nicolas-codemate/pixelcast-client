@@ -25,10 +25,10 @@ final readonly class LastSuccessfulSyncStore
         $this->cache->save($recordedSuccess);
     }
 
-    public function lastSuccessAt(string $syncType): ?\DateTimeImmutable
+    public function ageInSecondsOf(string $syncType): ?int
     {
         $recordedTimestamp = $this->cache->getItem(self::CACHE_KEY_PREFIX.$syncType)->get();
 
-        return \is_int($recordedTimestamp) ? new \DateTimeImmutable('@'.$recordedTimestamp) : null;
+        return \is_int($recordedTimestamp) ? $this->clock->now()->getTimestamp() - $recordedTimestamp : null;
     }
 }

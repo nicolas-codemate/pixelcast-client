@@ -92,11 +92,10 @@ screen stays frozen on the last data pushed. `docker compose ps` then reads
 
 A network failure leaves the container running, so it surfaces through the
 health state instead. The image declares a healthcheck that runs `app:health`
-every five minutes. That command compares the age of the last successful push of
-every enabled group to three times the interval of that group — 90 minutes for a
-30-minute cycle — and exits non-zero past it. Two failed probes in a row flip the
-container, so it turns `unhealthy` between 95 and 100 minutes after the last
-successful push.
+every five minutes, and that command exits non-zero past three times the
+interval of a group — 90 minutes for a 30-minute cycle. Two failed probes in a
+row flip the container, so it turns `unhealthy` between 95 and 100 minutes after
+the last successful push.
 
 | `docker compose ps` | Meaning |
 |---|---|

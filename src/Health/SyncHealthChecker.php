@@ -6,7 +6,6 @@ namespace App\Health;
 
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\SyncsConfigLoader;
-use Psr\Clock\ClockInterface;
 
 final readonly class SyncHealthChecker
 {
@@ -18,7 +17,6 @@ final readonly class SyncHealthChecker
     public function __construct(
         private SyncsConfigLoader $configLoader,
         private LastSuccessfulSyncStore $lastSuccessfulSyncStore,
-        private ClockInterface $clock,
     ) {
     }
 
@@ -29,15 +27,12 @@ final readonly class SyncHealthChecker
      */
     public function checkEnabledSyncGroups(): array
     {
-        $now = $this->clock->now()->getTimestamp();
         $freshnessPerSyncGroup = [];
 
         foreach ($this->configLoader->load()->enabledSyncGroups() as $syncType => $syncGroup) {
-            $lastSuccessAt = $this->lastSuccessfulSyncStore->lastSuccessAt($syncType);
-
             $freshnessPerSyncGroup[] = new SyncGroupFreshness(
                 $syncType,
-                null === $lastSuccessAt ? null : $now - $lastSuccessAt->getTimestamp(),
+                $this->lastSuccessfulSyncStore->ageInSecondsOf($syncType),
                 $syncGroup->interval->lengthInSeconds * (self::ALLOWED_MISSED_CYCLES + 1),
             );
         }

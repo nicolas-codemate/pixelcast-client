@@ -1,4 +1,4 @@
-# Sample configuration used by ScheduleTest: two enabled groups of different sync types.
+# Sample configuration used by ScheduleTest and SyncHealthCheckerTest: two enabled groups of different sync types.
 syncs:
     weather:
         enabled: true

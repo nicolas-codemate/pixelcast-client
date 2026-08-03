@@ -11,49 +11,46 @@ use Symfony\Component\Clock\MockClock;
 
 final class LastSuccessfulSyncStoreTest extends TestCase
 {
-    public function testASyncTypeWithoutAnyRecordedSuccessReadsBackAsNull(): void
-    {
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), new MockClock('2026-08-03 10:00:00'));
+    private const string PUSH_INSTANT = '2026-08-03 10:00:00';
 
-        self::assertNull($store->lastSuccessAt('weather'));
+    private MockClock $clock;
+    private LastSuccessfulSyncStore $store;
+
+    protected function setUp(): void
+    {
+        $this->clock = new MockClock(self::PUSH_INSTANT);
+        $this->store = new LastSuccessfulSyncStore(new ArrayAdapter(), $this->clock);
     }
 
-    public function testARecordedSuccessReadsBackAtTheInstantOfTheClock(): void
+    public function testASyncTypeWithoutAnyRecordedSuccessHasNoAge(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
+        self::assertNull($this->store->ageInSecondsOf('weather'));
+    }
 
-        $store->recordSuccess('weather');
+    public function testARecordedSuccessAgesWithTheClock(): void
+    {
+        $this->store->recordSuccess('weather');
+        $this->clock->modify('+30 minutes');
 
-        self::assertSame($clock->now()->getTimestamp(), $store->lastSuccessAt('weather')?->getTimestamp());
+        self::assertSame(1800, $this->store->ageInSecondsOf('weather'));
     }
 
     public function testANewSuccessReplacesThePreviousOne(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
+        $this->store->recordSuccess('weather');
+        $this->clock->modify('+30 minutes');
+        $this->store->recordSuccess('weather');
 
-        $store->recordSuccess('weather');
-        $clock->modify('+30 minutes');
-        $store->recordSuccess('weather');
-
-        self::assertSame($clock->now()->getTimestamp(), $store->lastSuccessAt('weather')?->getTimestamp());
+        self::assertSame(0, $this->store->ageInSecondsOf('weather'));
     }
 
     public function testTwoSyncTypesAreRecordedIndependently(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
+        $this->store->recordSuccess('weather');
+        $this->clock->modify('+15 minutes');
+        $this->store->recordSuccess('coingecko');
 
-        $store->recordSuccess('weather');
-        $clock->modify('+15 minutes');
-        $store->recordSuccess('coingecko');
-
-        $weatherSuccessAt = $store->lastSuccessAt('weather');
-        $coingeckoSuccessAt = $store->lastSuccessAt('coingecko');
-
-        self::assertNotNull($weatherSuccessAt);
-        self::assertNotNull($coingeckoSuccessAt);
-        self::assertSame(900, $coingeckoSuccessAt->getTimestamp() - $weatherSuccessAt->getTimestamp());
+        self::assertSame(900, $this->store->ageInSecondsOf('weather'));
+        self::assertSame(0, $this->store->ageInSecondsOf('coingecko'));
     }
 }

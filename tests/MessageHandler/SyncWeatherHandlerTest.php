@@ -31,7 +31,7 @@ final class SyncWeatherHandlerTest extends TestCase
         $payload = self::buildPayload();
         $client = new RecordingPixelcastClientStub();
         $logger = new RecordingLoggerStub();
-        $handler = new SyncWeatherHandler(new StaticWeatherProviderStub($payload), $client, $logger, self::buildStore());
+        $handler = self::buildHandler(new StaticWeatherProviderStub($payload), self::buildStore(), $client, $logger);
 
         $outcome = $handler(new SyncWeatherMessage());
 
@@ -45,7 +45,7 @@ final class SyncWeatherHandlerTest extends TestCase
     {
         $client = new RecordingPixelcastClientStub();
         $logger = new RecordingLoggerStub();
-        $handler = new SyncWeatherHandler(new StaticWeatherProviderStub(), $client, $logger, self::buildStore());
+        $handler = self::buildHandler(new StaticWeatherProviderStub(), self::buildStore(), $client, $logger);
 
         $outcome = $handler(new SyncWeatherMessage());
 
@@ -59,7 +59,7 @@ final class SyncWeatherHandlerTest extends TestCase
         $deviceFailure = DeviceBusyException::slotExhausted('/weather');
         $client = new RecordingPixelcastClientStub($deviceFailure);
         $logger = new RecordingLoggerStub();
-        $handler = new SyncWeatherHandler(new StaticWeatherProviderStub(self::buildPayload()), $client, $logger, self::buildStore());
+        $handler = self::buildHandler(new StaticWeatherProviderStub(self::buildPayload()), self::buildStore(), $client, $logger);
 
         $outcome = $handler(new SyncWeatherMessage());
 
@@ -74,7 +74,7 @@ final class SyncWeatherHandlerTest extends TestCase
         $configFailure = PixelCastConfigException::fileNotFound('/app/pixelcast.yaml');
         $client = new RecordingPixelcastClientStub();
         $logger = new RecordingLoggerStub();
-        $handler = new SyncWeatherHandler(new StaticWeatherProviderStub(failure: $configFailure), $client, $logger, self::buildStore());
+        $handler = self::buildHandler(new StaticWeatherProviderStub(failure: $configFailure), self::buildStore(), $client, $logger);
 
         $outcome = $handler(new SyncWeatherMessage());
 
@@ -86,48 +86,45 @@ final class SyncWeatherHandlerTest extends TestCase
 
     public function testASuccessfulPushRecordsItsInstant(): void
     {
-        $clock = new MockClock(self::PUSH_INSTANT);
-        $lastSuccessfulSyncStore = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-        $handler = new SyncWeatherHandler(
-            new StaticWeatherProviderStub(self::buildPayload()),
-            new RecordingPixelcastClientStub(),
-            new RecordingLoggerStub(),
-            $lastSuccessfulSyncStore,
-        );
+        $lastSuccessfulSyncStore = self::buildStore();
+        $handler = self::buildHandler(new StaticWeatherProviderStub(self::buildPayload()), $lastSuccessfulSyncStore);
 
         $handler(new SyncWeatherMessage());
 
-        self::assertSame($clock->now()->getTimestamp(), $lastSuccessfulSyncStore->lastSuccessAt('weather')?->getTimestamp());
+        self::assertSame(0, $lastSuccessfulSyncStore->ageInSecondsOf('weather'));
     }
 
     public function testASkippedCycleRecordsNoSuccess(): void
     {
         $lastSuccessfulSyncStore = self::buildStore();
-        $handler = new SyncWeatherHandler(
-            new StaticWeatherProviderStub(),
-            new RecordingPixelcastClientStub(),
-            new RecordingLoggerStub(),
-            $lastSuccessfulSyncStore,
-        );
+        $handler = self::buildHandler(new StaticWeatherProviderStub(), $lastSuccessfulSyncStore);
 
         $handler(new SyncWeatherMessage());
 
-        self::assertNull($lastSuccessfulSyncStore->lastSuccessAt('weather'));
+        self::assertNull($lastSuccessfulSyncStore->ageInSecondsOf('weather'));
     }
 
     public function testAFailedCycleRecordsNoSuccess(): void
     {
         $lastSuccessfulSyncStore = self::buildStore();
-        $handler = new SyncWeatherHandler(
+        $handler = self::buildHandler(
             new StaticWeatherProviderStub(self::buildPayload()),
-            new RecordingPixelcastClientStub(DeviceBusyException::slotExhausted('/weather')),
-            new RecordingLoggerStub(),
             $lastSuccessfulSyncStore,
+            new RecordingPixelcastClientStub(DeviceBusyException::slotExhausted('/weather')),
         );
 
         $handler(new SyncWeatherMessage());
 
-        self::assertNull($lastSuccessfulSyncStore->lastSuccessAt('weather'));
+        self::assertNull($lastSuccessfulSyncStore->ageInSecondsOf('weather'));
+    }
+
+    private static function buildHandler(
+        StaticWeatherProviderStub $weatherProvider,
+        LastSuccessfulSyncStore $lastSuccessfulSyncStore,
+        RecordingPixelcastClientStub $client = new RecordingPixelcastClientStub(),
+        RecordingLoggerStub $logger = new RecordingLoggerStub(),
+    ): SyncWeatherHandler {
+        return new SyncWeatherHandler($weatherProvider, $client, $logger, $lastSuccessfulSyncStore);
     }
 
     private static function buildStore(): LastSuccessfulSyncStore

@@ -7,6 +7,7 @@ namespace App\Tests\Health;
 use App\Health\LastSuccessfulSyncStore;
 use App\Health\SyncHealthChecker;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
@@ -14,13 +15,20 @@ use Symfony\Component\Clock\MockClock;
 final class SyncHealthCheckerTest extends TestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
+    private const string PUSH_INSTANT = '2026-08-03 10:00:00';
+
+    private MockClock $clock;
+    private LastSuccessfulSyncStore $store;
+
+    protected function setUp(): void
+    {
+        $this->clock = new MockClock(self::PUSH_INSTANT);
+        $this->store = new LastSuccessfulSyncStore(new ArrayAdapter(), $this->clock);
+    }
 
     public function testAGroupThatNeverPushedIsStale(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-
-        $freshnessPerSyncGroup = self::createChecker('syncs-valid.yaml', $store, $clock)->checkEnabledSyncGroups();
+        $freshnessPerSyncGroup = $this->createChecker('syncs-valid.yaml')->checkEnabledSyncGroups();
 
         self::assertCount(1, $freshnessPerSyncGroup);
         self::assertSame('weather', $freshnessPerSyncGroup[0]->syncType);
@@ -28,61 +36,32 @@ final class SyncHealthCheckerTest extends TestCase
         self::assertTrue($freshnessPerSyncGroup[0]->isStale());
     }
 
-    public function testAFreshPushIsNotStale(): void
+    /**
+     * @return iterable<string, array{int, bool}>
+     */
+    public static function provideElapsedMinutesSinceTheLastPush(): iterable
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-        $store->recordSuccess('weather');
-        $clock->modify('+30 minutes');
-
-        $freshnessPerSyncGroup = self::createChecker('syncs-valid.yaml', $store, $clock)->checkEnabledSyncGroups();
-
-        self::assertSame(1800, $freshnessPerSyncGroup[0]->ageInSeconds);
-        self::assertFalse($freshnessPerSyncGroup[0]->isStale());
+        yield 'within the interval' => [30, false];
+        yield 'one missed cycle' => [59, false];
+        yield 'two intervals exactly' => [60, false];
+        yield 'two missed cycles' => [91, true];
     }
 
-    public function testOneMissedCycleIsNotStale(): void
+    #[DataProvider('provideElapsedMinutesSinceTheLastPush')]
+    public function testStalenessFollowsTheAgeOfTheLastPush(int $elapsedMinutes, bool $expectedToBeStale): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-        $store->recordSuccess('weather');
-        $clock->modify('+59 minutes');
+        $this->store->recordSuccess('weather');
+        $this->clock->modify(\sprintf('+%d minutes', $elapsedMinutes));
 
-        $freshnessPerSyncGroup = self::createChecker('syncs-valid.yaml', $store, $clock)->checkEnabledSyncGroups();
+        $freshnessPerSyncGroup = $this->createChecker('syncs-valid.yaml')->checkEnabledSyncGroups();
 
-        self::assertFalse($freshnessPerSyncGroup[0]->isStale());
-    }
-
-    public function testTwoIntervalsExactlyAreNotStale(): void
-    {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-        $store->recordSuccess('weather');
-        $clock->modify('+60 minutes');
-
-        $freshnessPerSyncGroup = self::createChecker('syncs-valid.yaml', $store, $clock)->checkEnabledSyncGroups();
-
-        self::assertFalse($freshnessPerSyncGroup[0]->isStale());
-    }
-
-    public function testTwoMissedCyclesAreStale(): void
-    {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-        $store->recordSuccess('weather');
-        $clock->modify('+91 minutes');
-
-        $freshnessPerSyncGroup = self::createChecker('syncs-valid.yaml', $store, $clock)->checkEnabledSyncGroups();
-
-        self::assertTrue($freshnessPerSyncGroup[0]->isStale());
+        self::assertSame($elapsedMinutes * 60, $freshnessPerSyncGroup[0]->ageInSeconds);
+        self::assertSame($expectedToBeStale, $freshnessPerSyncGroup[0]->isStale());
     }
 
     public function testEachGroupCarriesItsOwnThreshold(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-
-        $freshnessPerSyncGroup = self::createChecker('syncs-trackers-enabled.yaml', $store, $clock)->checkEnabledSyncGroups();
+        $freshnessPerSyncGroup = $this->createChecker('syncs-trackers-enabled.yaml')->checkEnabledSyncGroups();
 
         self::assertSame('weather', $freshnessPerSyncGroup[0]->syncType);
         self::assertSame(5400, $freshnessPerSyncGroup[0]->staleAfterInSeconds);
@@ -92,24 +71,18 @@ final class SyncHealthCheckerTest extends TestCase
 
     public function testADisabledGroupIsNotWatched(): void
     {
-        $clock = new MockClock('2026-08-03 10:00:00');
-        $store = new LastSuccessfulSyncStore(new ArrayAdapter(), $clock);
-        $store->recordSuccess('weather');
+        $this->store->recordSuccess('weather');
 
-        $freshnessPerSyncGroup = self::createChecker('syncs-all-disabled.yaml', $store, $clock)->checkEnabledSyncGroups();
+        $freshnessPerSyncGroup = $this->createChecker('syncs-all-disabled.yaml')->checkEnabledSyncGroups();
 
         self::assertSame([], $freshnessPerSyncGroup);
     }
 
-    private static function createChecker(
-        string $fixtureName,
-        LastSuccessfulSyncStore $store,
-        MockClock $clock,
-    ): SyncHealthChecker {
+    private function createChecker(string $fixtureName): SyncHealthChecker
+    {
         return new SyncHealthChecker(
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName),
-            $store,
-            $clock,
+            $this->store,
         );
     }
 }
