@@ -61,20 +61,39 @@ publishes nothing.
 gh release create v1.4.0 --generate-notes
 ```
 
-The image carries the code only: the device address and the weather settings
-are supplied by the host at runtime.
+The image carries the code only: the device address, the provider API keys and
+the sync settings are supplied by the host at runtime.
 
 The prod image runs a single process, the scheduler consumer, so the host needs
 neither the repository nor a web server. Copy `deploy/compose.yaml` next to two
 files you own:
 
-- `pixelcast.env`, from `deploy/pixelcast.env.dist` — the device base URL
-- `pixelcast.yaml`, from `pixelcast.yaml.dist` — coordinates, units, intervals
+- `pixelcast.env`, from `deploy/pixelcast.env.dist` — the device base URL and the
+  API keys of the data providers
+- `pixelcast.yaml`, from `pixelcast.yaml.dist` — the sync groups, their interval
+  and their options
 
 ```
 docker login ghcr.io
 docker compose pull && docker compose up -d
 ```
+
+`pixelcast.yaml` is read once at startup and validated against
+`pixelcast.schema.json`. The `yaml-language-server` directive on its first line
+points at the schema published on `main` and only serves editor completion; the
+one that decides is the copy embedded in the image. API keys never belong in this
+file: it rejects any key it does not declare, naming it.
+
+An invalid configuration stops the consumer before it starts, with a message
+naming the faulty key, such as `syncs.weather.interval`. Since `compose.yaml`
+runs with `restart: unless-stopped`, the container then loops on restart and the
+screen stays frozen on the last data pushed — the only visible symptom is in
+`docker compose logs`.
+
+A group with `enabled: false`, or a group left out of the file, is never
+scheduled and cannot be dispatched by hand either. Editing the file on the host
+takes effect at the next start of the consumer, which the image recycles every
+hour.
 
 `PIXELCAST_DEVICE_BASE_URL` must hold an IP address. Container name resolution
 goes through musl, which implements no NSS, so an mDNS name such as

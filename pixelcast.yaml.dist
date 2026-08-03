@@ -1,26 +1,68 @@
-# Weather refresh interval hint (seconds); the scheduler frequency lives in App\Schedule.
-weather_interval: 1800
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nicolas-codemate/pixelcast-client/main/pixelcast.schema.json
 
-# Polling interval for the tracker syncer (seconds).
-tracker_interval: 60
+# The directive above is an editing aid only: it makes the editor complete keys and
+# flag mistakes, reading the schema published on the main branch. The schema that
+# actually accepts or rejects this file is the copy embedded in the image, applied
+# every time the configuration is loaded.
 
-# Comma-separated list of tracked asset symbols.
-tracked_assets: BTC, AAPL, SPY, ETH
+# Sync groups, keyed by sync type. The key is also what `app:sync <type>` accepts.
+# Omitting a group is the same as disabling it.
+syncs:
+    weather:
+        # A disabled group is never scheduled and cannot be dispatched by hand.
+        enabled: true
 
-# Identifier of the weather data provider.
-weather_source: openmeteo
+        # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
+        interval: '30 minutes'
 
-# Identifier of the tracker data provider.
-tracker_source: yahoo-finance
+        # Latitude of the location the forecast is fetched for.
+        latitude: 48.8566
 
-# Latitude of the location used for weather data.
-weather_latitude: 48.8566
+        # Longitude of the location the forecast is fetched for.
+        longitude: 2.3522
 
-# Longitude of the location used for weather data.
-weather_longitude: 2.3522
+        # Unit system used for temperatures (metric or imperial).
+        units: metric
 
-# Unit system for weather temperatures (metric or imperial).
-weather_units: metric
+        # Locale used for the 3-letter forecast day labels (fr or en).
+        locale: fr
 
-# Locale used for the 3-letter forecast day labels (fr or en).
-weather_locale: fr
+    # Crypto assets read from CoinGecko in a single call. The provider lands with #7:
+    # until then an enabled group is scheduled but pushes nothing. Its API key is read
+    # from PIXELCAST_COINGECKO_API_KEY, never from this file, which rejects any key it
+    # does not declare.
+    coingecko:
+        # A disabled group is never scheduled and cannot be dispatched by hand.
+        enabled: false
+
+        # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
+        interval: '15 minutes'
+
+        # Assets tracked in this group.
+        # symbol: identifier of the asset for this provider, a coin id for CoinGecko.
+        # currency: currency the asset price is quoted in.
+        # icon: name of the icon shown next to the asset on the device, optional.
+        items:
+            - symbol: bitcoin
+              currency: eur
+              icon: bitcoin
+
+    # Stocks and ETFs read from Twelve Data in a single call. The provider lands with
+    # #9: until then an enabled group is scheduled but pushes nothing. Its API key is
+    # read from PIXELCAST_TWELVEDATA_API_KEY, never from this file, which rejects any
+    # key it does not declare.
+    twelvedata:
+        # A disabled group is never scheduled and cannot be dispatched by hand.
+        enabled: false
+
+        # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
+        interval: '15 minutes'
+
+        # Assets tracked in this group.
+        # symbol: identifier of the asset for this provider, a ticker for Twelve Data.
+        # currency: currency the asset price is quoted in.
+        # icon: name of the icon shown next to the asset on the device, optional.
+        items:
+            - symbol: AAPL
+              currency: usd
+              icon: stock
