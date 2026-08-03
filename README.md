@@ -87,8 +87,39 @@ file: it rejects any key it does not declare, naming it.
 An invalid configuration stops the consumer before it starts, with a message
 naming the faulty key, such as `syncs.weather.interval`. Since `compose.yaml`
 runs with `restart: unless-stopped`, the container then loops on restart and the
-screen stays frozen on the last data pushed — the only visible symptom is in
-`docker compose logs`.
+screen stays frozen on the last data pushed. `docker compose ps` then reads
+`Restarting`, a state a running container never takes.
+
+A network failure leaves the container running, so it surfaces through the
+health state instead. The image declares a healthcheck that runs `app:health`
+every five minutes. That command compares the age of the last successful push of
+every enabled group to three times the interval of that group — 90 minutes for a
+30-minute cycle — and exits non-zero past it. Two failed probes in a row flip the
+container, so it turns `unhealthy` between 95 and 100 minutes after the last
+successful push.
+
+| `docker compose ps` | Meaning |
+|---|---|
+| `Up (healthy)` | every enabled group pushed within its freshness window |
+| `Up (unhealthy)` | an enabled group missed two cycles in a row |
+| `Restarting (1)` | the configuration is invalid, the consumer never starts |
+
+A fresh deployment reads `unhealthy` until the first push, at most one interval
+after the start since the first scheduled run fires at `start + interval`. The
+`app:sync weather` documented below records that first push right away and turns
+the healthcheck green.
+
+The words of the last probe are readable without opening the logs, and
+`app:health` can be run by hand at any time:
+
+```
+docker inspect --format '{{json .State.Health}}' <container>
+docker compose exec php bin/console app:health
+```
+
+A tracker group pushes nothing yet, so enabling `coingecko` or `twelvedata`
+turns the container `unhealthy` after three of its intervals. Both ship with
+`enabled: false` in `pixelcast.yaml.dist`.
 
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host
