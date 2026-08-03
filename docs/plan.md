@@ -61,8 +61,9 @@ pixelcast-client/
 |       |-- settings.yaml
 |-- .env                              # Defaults (PIXELCAST_DEVICE_BASE_URL, API keys placeholders)
 |-- .env.local                        # Secrets (gitignored)
-|-- pixelcast.yaml.dist               # Modèle commité : assets trackés + localisation météo
-|-- pixelcast.yaml                    # Config réelle (gitignored), lue par PixelCastConfigLoader
+|-- pixelcast.schema.json             # JSON Schema draft-07 des groupes de synchronisation
+|-- pixelcast.yaml.dist               # Modèle commité : un groupe de synchronisation par fournisseur
+|-- pixelcast.yaml                    # Config réelle (gitignored), lue par SyncsConfigLoader
 |-- config/
 |   |-- packages/
 |       |-- http_client.yaml          # scoped clients : device.client, weather.client (coingecko / twelvedata à venir)
@@ -88,14 +89,21 @@ pixelcast-client/
 |   |       |-- DeviceUnreachableException.php
 |   |
 |   |-- Config/
-|   |   |-- PixelCastConfig.php         # VO des clés de pixelcast.yaml (dont les 4 clés weather_*)
-|   |   |-- PixelCastConfigLoader.php   # Lecture et validation de pixelcast.yaml
-|   |   |-- PixelCastConfigWriter.php   # Réécriture non destructive (commentaires conservés)
+|   |   |-- SyncsConfig.php             # Les groupes de synchronisation du fichier, indexés par type
+|   |   |-- SyncsConfigLoader.php       # Lecture, validation contre le schéma, hydratation
 |   |   |-- WeatherUnits.php            # metric / imperial
 |   |   |-- WeatherLocale.php           # Libellés de jour sur 3 lettres (fr / en)
+|   |   |-- Sync/
+|   |   |   |-- SyncGroupConfig.php     # Contrat commun : enabled, interval, syncType(), syncMessage()
+|   |   |   |-- SyncGroupRegistry.php   # Seul endroit où un groupe est déclaré
+|   |   |   |-- SyncInterval.php        # Cadence validée par le Scheduler, plancher de 60 s
+|   |   |   |-- SyncOptionReader.php    # Lecture typée des options d'un groupe
+|   |   |   |-- WeatherSyncConfig.php   # latitude, longitude, units, locale
+|   |   |   |-- CoinGeckoSyncConfig.php # items : les actifs suivis chez CoinGecko
+|   |   |   |-- TwelveDataSyncConfig.php
+|   |   |   |-- TrackerItem.php         # VO: symbol, currency, icon
 |   |   |-- Exception/
 |   |   |   |-- PixelCastConfigException.php
-|   |   |-- TrackerAsset.php            # VO: symbol, icon, color, currency, type (à venir)
 |   |
 |   |-- Provider/
 |   |   |-- Weather/
@@ -163,7 +171,7 @@ pixelcast-client/
 - 1 seul appel retourne current + `forecast_days=7`, ce qui colle exactement au `maxItems: 7` du firmware
 - Les codes WMO forment une table fermée et documentée : le mapping vers les 10 icônes built-in est une fonction pure et testable code par code
 - 10 000 calls/jour gratuit, on en fait 48 (toutes les 30min)
-- Limite assumée : gratuit pour usage non commercial, sans SLA. `WeatherProviderInterface` et la clé `weather_source` permettent de basculer plus tard sur un autre service (OpenWeatherMap par exemple) sans toucher au handler, au client ni au scheduler
+- Limite assumée : gratuit pour usage non commercial, sans SLA. `WeatherProviderInterface` permet de basculer plus tard sur un autre service (OpenWeatherMap par exemple) sans toucher au handler, au client ni au scheduler. Le fichier de configuration ne porte pas de clé de fournisseur météo : le jour où un second provider existe, c'est lui qui l'introduira avec son consommateur
 
 ### Pourquoi pas de base de données
 
@@ -172,11 +180,14 @@ pixelcast-client/
 - Pas d'historique nécessaire pour le premier batch
 - SQLite envisageable plus tard (Netatmo OAuth refresh tokens)
 
-### Config légère : fichier YAML plat, pas de Configuration tree
+### Config légère : groupes de synchronisation en YAML, validés par un JSON Schema
 
 - `pixelcast.yaml` vit à la racine du projet (modèle commité `pixelcast.yaml.dist`, fichier réel gitignored)
-- Il est lu et validé par `PixelCastConfigLoader`, pas par le conteneur : ni `parameters:`, ni import dans `services.yaml`
-- `PixelCastConfig` expose des propriétés typées, `PixelCastConfigWriter` réécrit le fichier en conservant commentaires et lignes vides
+- Il est lu et validé par `SyncsConfigLoader`, pas par le conteneur : ni `parameters:`, ni import dans `services.yaml`
+- Une seule clé racine, `syncs` : un groupe par fournisseur, portant sa propre cadence et ses propres options
+- Le contrat opposable est `pixelcast.schema.json` (draft-07), appliqué au chargement ; la directive `yaml-language-server` en tête du fichier donne en plus la complétion dans l'éditeur
+- Chaque groupe est décrit par une classe `App\Config\Sync\*SyncConfig` déclarée dans `SyncGroupRegistry` : ajouter un fournisseur, c'est une classe, une entrée dans le registre et une entrée dans le schéma
+- Le fichier est édité à la main : rien ne le réécrit, ce qui est justement ce qui permet de rester en YAML commenté
 - Pas de boilerplate Configuration/Extension pour un projet perso
 
 ---
@@ -195,40 +206,45 @@ Open-Meteo ne demande pas de clé API : aucune variable d'environnement pour la 
 
 ### pixelcast.yaml (racine, gitignored — modèle commité : `pixelcast.yaml.dist`)
 
-Fichier plat lu et validé par `PixelCastConfigLoader`. Il n'est pas importé dans `services.yaml`
-et ne définit aucun `parameters:` Symfony.
+Fichier lu et validé par `SyncsConfigLoader` contre `pixelcast.schema.json`. Il n'est pas importé
+dans `services.yaml` et ne définit aucun `parameters:` Symfony.
 
 ```yaml
-# Polling interval for the weather syncer (seconds).
-weather_interval: 300
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nicolas-codemate/pixelcast-client/main/pixelcast.schema.json
 
-# Polling interval for the tracker syncer (seconds).
-tracker_interval: 60
+# Sync groups, keyed by sync type. The key is also what `app:sync <type>` accepts.
+# Omitting a group is the same as disabling it.
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
 
-# Comma-separated list of tracked asset symbols.
-tracked_assets: BTC, AAPL, SPY, ETH
+    coingecko:
+        enabled: false
+        interval: '15 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+              icon: bitcoin
 
-# Identifier of the weather data provider.
-weather_source: openmeteo
-
-# Identifier of the tracker data provider.
-tracker_source: yahoo-finance
-
-# Latitude of the location used for weather data.
-weather_latitude: 48.8566
-
-# Longitude of the location used for weather data.
-weather_longitude: 2.3522
-
-# Unit system for weather temperatures (metric or imperial).
-weather_units: metric
-
-# Locale used for the 3-letter forecast day labels (fr or en).
-weather_locale: fr
+    twelvedata:
+        enabled: false
+        interval: '15 minutes'
+        items:
+            - symbol: AAPL
+              currency: usd
+              icon: stock
 ```
 
-Le détail par asset tracké (identifiant CoinGecko, icône, couleur, devise) reste à définir :
-`tracked_assets` ne porte aujourd'hui que la liste des symboles.
+La clé d'un groupe est le fournisseur, et c'est aussi le type accepté par `app:sync <type>`.
+`App\Schedule` projette les groupes activés : un groupe désactivé ou omis n'est ni programmé ni
+déclenchable à la main. Les clés d'API des fournisseurs financiers se lisent dans l'environnement
+(`PIXELCAST_COINGECKO_API_KEY`, `PIXELCAST_TWELVEDATA_API_KEY`), jamais dans ce fichier, que le
+schéma fait échouer sur toute clé non déclarée.
 
 ### config/packages/http_client.yaml (scoped clients)
 

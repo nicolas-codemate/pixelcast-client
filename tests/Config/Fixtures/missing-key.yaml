@@ -1,8 +1,0 @@
-weather_interval: 120
-tracker_interval: 30
-weather_source: openmeteo
-tracker_source: yahoo-finance
-weather_latitude: 48.8566
-weather_longitude: 2.3522
-weather_units: metric
-weather_locale: fr
