@@ -6,7 +6,10 @@ services:
       - ./pixelcast.env
     volumes:
       - ./pixelcast.yaml:/app/pixelcast.yaml:ro
-      - pixelcast_var:/app/var
+      # Only the app cache pool, which carries the scheduler state, is kept.
+      # Persisting all of var/ would also freeze the compiled container, which
+      # prod reuses unchecked, so a pulled image would run new code against it.
+      - pixelcast_var:/app/var/share
 
 volumes:
   pixelcast_var:

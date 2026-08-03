@@ -51,10 +51,18 @@ to reset every domain and delete the file.
 
 ### Running the scheduler on a host
 
-Every push to `main` builds the `php_prod` stage and pushes it to
-`ghcr.io/nicolas-codemate/pixelcast-client`, tagged `latest` and
-`sha-<commit>`. The image carries the code only: the device address and the
-weather settings are supplied by the host at runtime.
+Publishing a release builds the `php_prod` stage and pushes it to
+`ghcr.io/nicolas-codemate/pixelcast-client`. A release tagged `v1.4.0` yields
+the image tags `1.4.0`, `1.4` and `latest`, so a host can follow `latest` and
+still roll back to an exact version. Merging to `main` runs the checks but
+publishes nothing.
+
+```
+gh release create v1.4.0 --generate-notes
+```
+
+The image carries the code only: the device address and the weather settings
+are supplied by the host at runtime.
 
 The prod image runs a single process, the scheduler consumer, so the host needs
 neither the repository nor a web server. Copy `deploy/compose.yaml` next to two
