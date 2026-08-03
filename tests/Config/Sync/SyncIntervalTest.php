@@ -35,6 +35,26 @@ final class SyncIntervalTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string, int}>
+     */
+    public static function provideIntervalLengths(): iterable
+    {
+        yield 'minutes' => ['30 minutes', 1800];
+        yield 'hours' => ['1 hour', 3600];
+        yield 'ISO 8601 duration' => ['PT30M', 1800];
+        yield 'bare number of seconds' => ['900', 900];
+        yield 'exactly the minimum' => ['60 seconds', 60];
+    }
+
+    #[DataProvider('provideIntervalLengths')]
+    public function testTheIntervalLengthIsExposedInSeconds(string $rawInterval, int $expectedLengthInSeconds): void
+    {
+        $interval = SyncInterval::fromOptions(['interval' => $rawInterval], self::PARENT_PATH);
+
+        self::assertSame($expectedLengthInSeconds, $interval->lengthInSeconds);
+    }
+
+    /**
      * @return iterable<string, array{string, string}>
      */
     public static function provideRejectedIntervals(): iterable

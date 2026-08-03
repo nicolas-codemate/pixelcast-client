@@ -16,6 +16,7 @@ final readonly class SyncInterval
 
     private function __construct(
         public string $expression,
+        public int $lengthInSeconds,
     ) {
     }
 
@@ -47,6 +48,6 @@ final readonly class SyncInterval
             throw PixelCastConfigException::invalidValue($optionPath, \sprintf('expected an interval of at least %d seconds, got "%s"', self::MINIMUM_INTERVAL_IN_SECONDS, $rawInterval));
         }
 
-        return new self($rawInterval);
+        return new self($rawInterval, (int) $intervalInSeconds);
     }
 }
