@@ -94,13 +94,16 @@ A network failure leaves the container running, so it surfaces through the
 health state instead. The image declares a healthcheck that runs `app:health`
 every five minutes, and that command exits non-zero past three times the
 interval of a group — 90 minutes for a 30-minute cycle. Two failed probes in a
-row flip the container, so it turns `unhealthy` between 95 and 100 minutes after
-the last successful push.
+row flip the container, but the hourly recycle of the consumer puts the health
+state back to `starting` and drops the count of failed probes, so a container
+that stays broken across a recycle turns `unhealthy` between 95 and 105 minutes
+after the last successful push.
 
 | `docker compose ps` | Meaning |
 |---|---|
 | `Up (healthy)` | every enabled group pushed within its freshness window |
 | `Up (unhealthy)` | an enabled group missed two cycles in a row |
+| `Up (health: starting)` | the container has just restarted, the watch has not concluded yet |
 | `Restarting (1)` | the configuration is invalid, the consumer never starts |
 
 A fresh deployment reads `unhealthy` until the first push, at most one interval
@@ -115,6 +118,9 @@ The words of the last probe are readable without opening the logs, and
 docker inspect --format '{{json .State.Health}}' <container>
 docker compose exec php bin/console app:health
 ```
+
+On a `Restarting` container that field reads `unhealthy` with an empty log,
+because no probe ever ran; `docker compose ps` is what settles the two apart.
 
 A tracker group pushes nothing yet, so enabling `coingecko` or `twelvedata`
 turns the container `unhealthy` after three of its intervals. Both ship with
