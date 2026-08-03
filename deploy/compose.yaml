@@ -1,0 +1,12 @@
+services:
+  php:
+    image: ghcr.io/nicolas-codemate/pixelcast-client:latest
+    restart: unless-stopped
+    env_file:
+      - ./pixelcast.env
+    volumes:
+      - ./pixelcast.yaml:/app/pixelcast.yaml:ro
+      - pixelcast_var:/app/var
+
+volumes:
+  pixelcast_var:
