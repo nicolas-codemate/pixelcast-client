@@ -8,7 +8,8 @@ use App\Client\Weather\CurrentWeather;
 use App\Client\Weather\ForecastDay;
 use App\Client\Weather\WeatherIcon;
 use App\Client\Weather\WeatherPayload;
-use App\Config\PixelCastConfigLoader;
+use App\Config\Sync\WeatherSyncConfig;
+use App\Config\SyncsConfigLoader;
 use App\Config\WeatherLocale;
 use App\Config\WeatherUnits;
 use Psr\Log\LoggerInterface;
@@ -31,7 +32,7 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
     public function __construct(
         #[Target('weather.client')]
         private HttpClientInterface $weatherClient,
-        private PixelCastConfigLoader $configLoader,
+        private SyncsConfigLoader $configLoader,
         private CacheInterface $cache,
         private LoggerInterface $logger,
     ) {
@@ -39,14 +40,14 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
 
     public function fetchWeather(): ?WeatherPayload
     {
-        $config = $this->configLoader->load();
+        $weatherSyncGroup = $this->configLoader->load()->syncGroupOfType(WeatherSyncConfig::class);
 
-        $rawForecast = $this->fetchRawForecast($config->weatherLatitude, $config->weatherLongitude, $config->weatherUnits);
+        $rawForecast = $this->fetchRawForecast($weatherSyncGroup->latitude, $weatherSyncGroup->longitude, $weatherSyncGroup->units);
         if (null === $rawForecast) {
             return null;
         }
 
-        return $this->buildPayload($rawForecast, $config->weatherLocale);
+        return $this->buildPayload($rawForecast, $weatherSyncGroup->locale);
     }
 
     /**

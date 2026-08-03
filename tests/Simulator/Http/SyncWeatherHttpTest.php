@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Simulator\Http;
 
-use App\Config\PixelCastConfigLoader;
+use App\Config\SyncsConfigLoader;
 use App\Message\SyncOutcome;
 use App\Message\SyncWeatherMessage;
 use App\MessageHandler\SyncWeatherHandler;
@@ -61,7 +61,7 @@ final class SyncWeatherHttpTest extends SimulatorHttpTestCase
                 MockResponse::fromFile($weatherFixturesDirectory.'/open-meteo-forecast.json'),
                 self::OPEN_METEO_BASE_URI,
             ),
-            new PixelCastConfigLoader($weatherFixturesDirectory.'/pixelcast.yaml'),
+            new SyncsConfigLoader($weatherFixturesDirectory.'/pixelcast.yaml', \dirname(__DIR__, 3).'/pixelcast.schema.json'),
             new ArrayAdapter(),
             new NullLogger(),
         );
