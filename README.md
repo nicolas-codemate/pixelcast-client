@@ -48,3 +48,34 @@ request, so it persists its domain state and its request log in
 `var/simulator/state-<env>.json` between calls. Set
 `PIXELCAST_SIMULATOR_STATE_FILE` to store it elsewhere, and `POST /api/__reset`
 to reset every domain and delete the file.
+
+### Running the scheduler on a host
+
+Every push to `main` builds the `php_prod` stage and pushes it to
+`ghcr.io/nicolas-codemate/pixelcast-client`, tagged `latest` and
+`sha-<commit>`. The image carries the code only: the device address and the
+weather settings are supplied by the host at runtime.
+
+The prod image runs a single process, the scheduler consumer, so the host needs
+neither the repository nor a web server. Copy `deploy/compose.yaml` next to two
+files you own:
+
+- `pixelcast.env`, from `deploy/pixelcast.env.dist` — the device base URL
+- `pixelcast.yaml`, from `pixelcast.yaml.dist` — coordinates, units, intervals
+
+```
+docker login ghcr.io
+docker compose pull && docker compose up -d
+```
+
+`PIXELCAST_DEVICE_BASE_URL` must hold an IP address. Container name resolution
+goes through musl, which implements no NSS, so an mDNS name such as
+`pixelcast.local` never resolves inside the image; reserve a fixed lease for the
+screen on the router instead.
+
+To confirm a deployment without waiting for the next scheduled run:
+
+```
+docker compose run --rm php bin/console app:sync weather
+```
+

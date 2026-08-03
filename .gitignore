@@ -24,4 +24,6 @@
 
 ###> pixelcast config ###
 /pixelcast.yaml
+/deploy/pixelcast.yaml
+/deploy/pixelcast.env
 ###< pixelcast config ###
