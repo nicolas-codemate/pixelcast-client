@@ -184,6 +184,35 @@ final class ProdDeviceStateSourceTest extends TestCase
         self::assertNull($state->payload);
     }
 
+    public function testReachabilityErrorIsNullWhenAtLeastOneEndpointAnswers(): void
+    {
+        $fetcher = new StubHttpJsonFetcher();
+        $fetcher->responses[self::WEATHER_URL] = ['current' => ['temp' => 20]];
+        $source = $this->buildSource($fetcher);
+
+        self::assertNull($source->reachabilityError());
+    }
+
+    public function testReachabilityErrorIsNullWhenOnlySettingsAnswers(): void
+    {
+        $fetcher = new StubHttpJsonFetcher();
+        $fetcher->responses[self::SETTINGS_URL] = ['BRI' => 100];
+        $source = $this->buildSource($fetcher);
+
+        self::assertNull($source->reachabilityError());
+    }
+
+    public function testReachabilityErrorExplainsThatNoEndpointAnswered(): void
+    {
+        $fetcher = new StubHttpJsonFetcher();
+        $source = $this->buildSource($fetcher);
+
+        $error = $source->reachabilityError();
+
+        self::assertNotNull($error);
+        self::assertStringContainsString('REST', $error);
+    }
+
     private function buildSource(StubHttpJsonFetcher $fetcher): ProdDeviceStateSource
     {
         return new ProdDeviceStateSource(

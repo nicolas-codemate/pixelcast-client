@@ -14,4 +14,6 @@ interface DeviceStateSource
      * @return array<string, DeviceDomainState> keyed by AppDomain::value
      */
     public function snapshot(): array;
+
+    public function reachabilityError(): ?string;
 }
