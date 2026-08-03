@@ -1,10 +1,9 @@
 # Same configuration as pixelcast.yaml, with imperial units and English day labels.
-weather_interval: 300
-tracker_interval: 60
-tracked_assets: BTC, AAPL, SPY, ETH
-weather_source: openmeteo
-tracker_source: yahoo-finance
-weather_latitude: 40.7128
-weather_longitude: -74.006
-weather_units: imperial
-weather_locale: en
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 40.7128
+        longitude: -74.006
+        units: imperial
+        locale: en

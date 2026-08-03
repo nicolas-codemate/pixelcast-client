@@ -1,0 +1,118 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Config\Sync;
+
+use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sync\CoinGeckoSyncConfig;
+use App\Config\Sync\TwelveDataSyncConfig;
+use App\Message\SyncTrackerMessage;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
+
+final class TrackerSyncConfigTest extends TestCase
+{
+    /**
+     * @return iterable<string, array{class-string<CoinGeckoSyncConfig|TwelveDataSyncConfig>, string}>
+     */
+    public static function provideTrackerSyncGroups(): iterable
+    {
+        yield 'coingecko' => [CoinGeckoSyncConfig::class, 'coingecko'];
+        yield 'twelvedata' => [TwelveDataSyncConfig::class, 'twelvedata'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function validOptions(): array
+    {
+        return [
+            'enabled' => false,
+            'interval' => '15 minutes',
+            'items' => [
+                ['symbol' => 'BTC', 'currency' => 'eur', 'icon' => '54326'],
+                ['symbol' => 'ETH', 'currency' => 'eur'],
+            ],
+        ];
+    }
+
+    /**
+     * @param class-string<CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testTheSyncTypeIsTheProviderName(string $syncGroupClass, string $expectedSyncType): void
+    {
+        self::assertSame($expectedSyncType, $syncGroupClass::syncType());
+    }
+
+    /**
+     * @param class-string<CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAValidOptionMapIsHydrated(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+
+        self::assertFalse($trackerSync->enabled);
+        self::assertSame('15 minutes', $trackerSync->interval->expression);
+        self::assertCount(2, $trackerSync->items);
+    }
+
+    /**
+     * @param class-string<CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemKeepsItsIconWhenItHasOneAndIsNullOtherwise(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+
+        self::assertSame('BTC', $trackerSync->items[0]->symbol);
+        self::assertSame('eur', $trackerSync->items[0]->currency);
+        self::assertSame('54326', $trackerSync->items[0]->icon);
+
+        self::assertSame('ETH', $trackerSync->items[1]->symbol);
+        self::assertNull($trackerSync->items[1]->icon);
+    }
+
+    /**
+     * @param class-string<CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testTheGroupIsTriggeredByATrackerSyncMessageCarryingItsType(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+
+        self::assertEquals(new SyncTrackerMessage($expectedSyncType), $trackerSync->syncMessage());
+    }
+
+    /**
+     * @param class-string<CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnIntervalTheSchedulerCannotParseNamesTheOption(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage(\sprintf('syncs.%s.interval', $expectedSyncType));
+        $syncGroupClass::fromOptions(array_merge(self::validOptions(), ['interval' => 'every fortnight']));
+    }
+
+    /**
+     * @param class-string<CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemMissingAnOptionNamesItsIndex(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $options = array_merge(self::validOptions(), [
+            'items' => [
+                ['symbol' => 'BTC', 'currency' => 'eur'],
+                ['currency' => 'eur'],
+            ],
+        ]);
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage(\sprintf('syncs.%s.items[1].symbol', $expectedSyncType));
+
+        $syncGroupClass::fromOptions($options);
+    }
+}

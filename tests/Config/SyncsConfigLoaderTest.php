@@ -1,0 +1,124 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Config;
+
+use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sync\CoinGeckoSyncConfig;
+use App\Config\Sync\TwelveDataSyncConfig;
+use App\Config\Sync\WeatherSyncConfig;
+use App\Config\SyncsConfigLoader;
+use App\Config\WeatherLocale;
+use App\Config\WeatherUnits;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
+
+final class SyncsConfigLoaderTest extends TestCase
+{
+    private const string FIXTURES_DIR = __DIR__.'/Fixtures';
+
+    public function testAValidFileIsHydratedIntoOneGroupPerSyncType(): void
+    {
+        $config = self::loaderFor('syncs-valid.yaml')->load();
+
+        $weatherSync = $config->syncGroupOfType(WeatherSyncConfig::class);
+        self::assertTrue($weatherSync->enabled);
+        self::assertSame('30 minutes', $weatherSync->interval->expression);
+        self::assertSame(48.8566, $weatherSync->latitude);
+        self::assertSame(2.3522, $weatherSync->longitude);
+        self::assertSame(WeatherUnits::Metric, $weatherSync->units);
+        self::assertSame(WeatherLocale::French, $weatherSync->locale);
+
+        $coinGeckoSync = $config->syncGroupOfType(CoinGeckoSyncConfig::class);
+        self::assertFalse($coinGeckoSync->enabled);
+        self::assertCount(1, $coinGeckoSync->items);
+        self::assertSame('bitcoin', $coinGeckoSync->items[0]->symbol);
+        self::assertSame('eur', $coinGeckoSync->items[0]->currency);
+        self::assertSame('1234', $coinGeckoSync->items[0]->icon);
+
+        $twelveDataSync = $config->syncGroupOfType(TwelveDataSyncConfig::class);
+        self::assertFalse($twelveDataSync->enabled);
+        self::assertNull($twelveDataSync->items[0]->icon);
+    }
+
+    public function testOnlyTheEnabledGroupsAreKept(): void
+    {
+        $config = self::loaderFor('syncs-valid.yaml')->load();
+
+        self::assertSame(['weather'], array_keys($config->enabledSyncGroups()));
+    }
+
+    public function testAFileWhereEveryGroupIsDisabledEnablesNothing(): void
+    {
+        $config = self::loaderFor('syncs-all-disabled.yaml')->load();
+
+        self::assertSame([], $config->enabledSyncGroups());
+    }
+
+    public function testAskingForAGroupAbsentFromTheFileNamesItsPath(): void
+    {
+        $config = self::loaderFor('syncs-all-disabled.yaml')->load();
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('syncs.twelvedata');
+
+        $config->syncGroupOfType(TwelveDataSyncConfig::class);
+    }
+
+    public function testTheFileIsReadOnlyOnce(): void
+    {
+        $loader = self::loaderFor('syncs-valid.yaml');
+
+        self::assertSame($loader->load(), $loader->load());
+    }
+
+    public function testAMissingFileIsReported(): void
+    {
+        $loader = self::loaderFor('does-not-exist.yaml');
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('not found');
+
+        $loader->load();
+    }
+
+    public function testAMissingSchemaIsReported(): void
+    {
+        $loader = new SyncsConfigLoader(self::FIXTURES_DIR.'/syncs-valid.yaml', self::FIXTURES_DIR.'/does-not-exist.json');
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('Failed to read the PixelCast config schema');
+
+        $loader->load();
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideRejectedFileCases(): iterable
+    {
+        yield 'broken YAML' => ['syncs-invalid-syntax.yaml', 'Failed to parse PixelCast config'];
+        yield 'group the schema does not declare' => ['syncs-unknown-group.yaml', 'nope'];
+        yield 'tracker item without a symbol' => ['syncs-incomplete-item.yaml', 'syncs.coingecko.items[0].symbol'];
+        yield 'interval the scheduler cannot parse' => ['syncs-bad-interval.yaml', 'syncs.weather.interval'];
+        yield 'API key written in the file' => ['syncs-secret-in-file.yaml', 'api_key'];
+    }
+
+    #[DataProvider('provideRejectedFileCases')]
+    public function testARejectedFileNamesWhatIsWrong(string $fixtureName, string $expectedMessageFragment): void
+    {
+        $loader = self::loaderFor($fixtureName);
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage($expectedMessageFragment);
+
+        $loader->load();
+    }
+
+    private static function loaderFor(string $fixtureName): SyncsConfigLoader
+    {
+        return SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName);
+    }
+}

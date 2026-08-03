@@ -4,25 +4,29 @@ declare(strict_types=1);
 
 namespace App\Tests;
 
+use App\Message\SyncTrackerMessage;
 use App\Message\SyncWeatherMessage;
 use App\Schedule;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Scheduler\RecurringMessage;
 
 final class ScheduleTest extends TestCase
 {
-    public function testWeatherIsTheOnlyRegisteredSyncType(): void
+    private const string FIXTURES_DIR = __DIR__.'/Config/Fixtures';
+
+    public function testOnlyTheEnabledSyncGroupsAreRegistered(): void
     {
-        $syncMessages = self::createSchedule()->syncMessages();
+        $syncMessages = self::createSchedule('syncs-valid.yaml')->syncMessages();
 
         self::assertSame(['weather'], array_keys($syncMessages));
         self::assertInstanceOf(SyncWeatherMessage::class, $syncMessages['weather']);
     }
 
-    public function testWeatherIsScheduledEveryThirtyMinutes(): void
+    public function testTheWeatherGroupIsScheduledAtTheIntervalOfTheFile(): void
     {
-        $schedule = self::createSchedule();
+        $schedule = self::createSchedule('syncs-valid.yaml');
         $expectedRecurringMessage = RecurringMessage::every('30 minutes', $schedule->syncMessages()['weather']);
 
         $recurringMessages = $schedule->getSchedule()->getRecurringMessages();
@@ -33,9 +37,31 @@ final class ScheduleTest extends TestCase
 
     public function testEveryRegisteredSyncTypeIsAlsoScheduled(): void
     {
-        $schedule = self::createSchedule();
+        $schedule = self::createSchedule('syncs-valid.yaml');
 
         self::assertCount(\count($schedule->syncMessages()), self::scheduledIds($schedule));
+    }
+
+    public function testAnEnabledTrackerGroupIsScheduledNextToTheWeatherGroup(): void
+    {
+        $schedule = self::createSchedule('syncs-trackers-enabled.yaml');
+
+        $syncMessages = $schedule->syncMessages();
+
+        self::assertSame(['weather', 'coingecko'], array_keys($syncMessages));
+        self::assertEquals(new SyncTrackerMessage('coingecko'), $syncMessages['coingecko']);
+
+        $scheduledIds = self::scheduledIds($schedule);
+        self::assertCount(2, $scheduledIds);
+        self::assertSame($scheduledIds, array_unique($scheduledIds));
+    }
+
+    public function testADisabledSyncGroupIsNeitherRegisteredNorScheduled(): void
+    {
+        $schedule = self::createSchedule('syncs-all-disabled.yaml');
+
+        self::assertSame([], $schedule->syncMessages());
+        self::assertSame([], $schedule->getSchedule()->getRecurringMessages());
     }
 
     /**
@@ -49,8 +75,11 @@ final class ScheduleTest extends TestCase
         ));
     }
 
-    private static function createSchedule(): Schedule
+    private static function createSchedule(string $fixtureName): Schedule
     {
-        return new Schedule(new ArrayAdapter());
+        return new Schedule(
+            new ArrayAdapter(),
+            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName),
+        );
     }
 }

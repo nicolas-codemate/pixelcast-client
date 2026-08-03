@@ -1,0 +1,15 @@
+syncs:
+    weather:
+        enabled: false
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
+
+    coingecko:
+        enabled: false
+        interval: '5 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur

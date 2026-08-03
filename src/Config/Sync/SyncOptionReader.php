@@ -1,0 +1,148 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Config\Sync;
+
+use App\Config\Exception\PixelCastConfigException;
+
+final class SyncOptionReader
+{
+    /**
+     * @param array<string, mixed> $options
+     */
+    public static function requireString(array $options, string $key, string $parentPath): string
+    {
+        $optionPath = self::optionPath($parentPath, $key);
+        $value = self::requireOption($options, $key, $parentPath);
+
+        if (!\is_string($value)) {
+            throw PixelCastConfigException::invalidValue($optionPath, 'expected a string');
+        }
+
+        $trimmed = trim($value);
+        if ('' === $trimmed) {
+            throw PixelCastConfigException::invalidValue($optionPath, 'must not be empty');
+        }
+
+        return $trimmed;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    public static function optionalString(array $options, string $key, string $parentPath): ?string
+    {
+        if (!\array_key_exists($key, $options) || null === $options[$key]) {
+            return null;
+        }
+
+        return self::requireString($options, $key, $parentPath);
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    public static function requireFloat(array $options, string $key, string $parentPath): float
+    {
+        $value = self::requireOption($options, $key, $parentPath);
+
+        if (!\is_float($value) && !\is_int($value)) {
+            throw PixelCastConfigException::invalidValue(self::optionPath($parentPath, $key), 'expected a number');
+        }
+
+        return (float) $value;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    public static function requireBool(array $options, string $key, string $parentPath): bool
+    {
+        $value = self::requireOption($options, $key, $parentPath);
+
+        if (!\is_bool($value)) {
+            throw PixelCastConfigException::invalidValue(self::optionPath($parentPath, $key), 'expected a boolean');
+        }
+
+        return $value;
+    }
+
+    /**
+     * @template TBackedEnum of \BackedEnum
+     *
+     * @param array<string, mixed> $options
+     * @param class-string<TBackedEnum> $enumClass
+     *
+     * @return TBackedEnum
+     */
+    public static function requireEnum(array $options, string $key, string $parentPath, string $enumClass): \BackedEnum
+    {
+        $matchedCase = $enumClass::tryFrom(self::requireString($options, $key, $parentPath));
+
+        if (null === $matchedCase) {
+            throw PixelCastConfigException::invalidValue(self::optionPath($parentPath, $key), \sprintf('expected one of: %s', implode(', ', array_column($enumClass::cases(), 'value'))));
+        }
+
+        return $matchedCase;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function requireListOfMaps(array $options, string $key, string $parentPath): array
+    {
+        $optionPath = self::optionPath($parentPath, $key);
+        $value = self::requireOption($options, $key, $parentPath);
+
+        if (!\is_array($value) || !array_is_list($value)) {
+            throw PixelCastConfigException::invalidValue($optionPath, 'expected a list');
+        }
+
+        $maps = [];
+        foreach ($value as $index => $entry) {
+            $maps[] = self::asStringKeyedMap($entry, \sprintf('%s[%d]', $optionPath, $index));
+        }
+
+        return $maps;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function asStringKeyedMap(mixed $entry, string $entryPath): array
+    {
+        if (!\is_array($entry)) {
+            throw PixelCastConfigException::invalidValue($entryPath, 'expected a key-value map');
+        }
+
+        $stringKeyed = [];
+        foreach ($entry as $entryKey => $entryValue) {
+            if (!\is_string($entryKey)) {
+                throw PixelCastConfigException::invalidValue($entryPath, 'expected a key-value map');
+            }
+            $stringKeyed[$entryKey] = $entryValue;
+        }
+
+        return $stringKeyed;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    private static function requireOption(array $options, string $key, string $parentPath): mixed
+    {
+        if (!\array_key_exists($key, $options)) {
+            throw PixelCastConfigException::missingKey(self::optionPath($parentPath, $key));
+        }
+
+        return $options[$key];
+    }
+
+    private static function optionPath(string $parentPath, string $key): string
+    {
+        return $parentPath.'.'.$key;
+    }
+}

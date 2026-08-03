@@ -6,8 +6,8 @@ namespace App\Tests\Provider\Weather;
 
 use App\Client\Weather\ForecastDay;
 use App\Client\Weather\WeatherIcon;
-use App\Config\PixelCastConfigLoader;
 use App\Provider\Weather\OpenMeteoWeatherProvider;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -163,7 +163,7 @@ final class OpenMeteoWeatherProviderTest extends TestCase
     ): OpenMeteoWeatherProvider {
         return new OpenMeteoWeatherProvider(
             $httpClient,
-            new PixelCastConfigLoader(self::FIXTURES_DIR.'/'.$configFileName),
+            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
             new ArrayAdapter(),
             $logger ?? new NullLogger(),
         );

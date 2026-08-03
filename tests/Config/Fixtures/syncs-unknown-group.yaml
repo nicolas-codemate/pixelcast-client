@@ -1,0 +1,4 @@
+syncs:
+    nope:
+        enabled: true
+        interval: '30 minutes'

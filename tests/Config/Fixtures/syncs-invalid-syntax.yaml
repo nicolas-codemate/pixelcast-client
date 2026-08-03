@@ -1,0 +1,4 @@
+syncs:
+    weather:
+        enabled: true
+        interval: [unterminated

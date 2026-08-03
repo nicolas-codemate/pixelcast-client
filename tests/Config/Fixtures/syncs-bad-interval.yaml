@@ -1,8 +1,7 @@
-# Sample configuration used by OpenMeteoWeatherProviderTest.
 syncs:
     weather:
         enabled: true
-        interval: '30 minutes'
+        interval: 'every fortnight'
         latitude: 48.8566
         longitude: 2.3522
         units: metric
