@@ -62,4 +62,8 @@ RUN set -eux; \
 	composer run-script --no-dev post-install-cmd; \
 	chmod +x bin/console; sync;
 
+# Keep the start period well under the hourly process recycle, which puts the health state back to starting.
+HEALTHCHECK --interval=5m --timeout=10s --start-period=30s --retries=2 \
+	CMD ["php", "bin/console", "app:health"]
+
 CMD ["php", "bin/console", "messenger:consume", "scheduler_default", "--time-limit=3600"]

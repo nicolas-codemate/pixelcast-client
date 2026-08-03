@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Client\PixelcastClientInterface;
+use App\Config\Sync\WeatherSyncConfig;
+use App\Health\LastSuccessfulSyncStore;
 use App\Message\SyncOutcome;
 use App\Message\SyncWeatherMessage;
 use App\Provider\Weather\WeatherProviderInterface;
@@ -18,6 +20,7 @@ final readonly class SyncWeatherHandler
         private WeatherProviderInterface $weatherProvider,
         private PixelcastClientInterface $pixelcastClient,
         private LoggerInterface $logger,
+        private LastSuccessfulSyncStore $lastSuccessfulSyncStore,
     ) {
     }
 
@@ -32,6 +35,7 @@ final readonly class SyncWeatherHandler
             }
 
             $this->pixelcastClient->pushWeather($weather);
+            $this->lastSuccessfulSyncStore->recordSuccess(WeatherSyncConfig::syncType());
 
             $this->logger->info('Weather pushed to the device', ['forecast_days' => \count($weather->forecastDays)]);
 

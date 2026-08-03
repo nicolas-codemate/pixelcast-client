@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8844353d3b0a7f5a9eae9a49e85e000e",
+    "content-hash": "49d0abaf8609029d8b9fbeac8b54eaf1",
     "packages": [
         {
             "name": "devizzent/cebe-php-openapi",
@@ -1490,16 +1490,16 @@
         },
         {
             "name": "symfony/clock",
-            "version": "v8.1.0-BETA1",
+            "version": "v8.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/clock.git",
-                "reference": "6682f8cd56bece5f8e1062c5c2ac46b9e0c38bab"
+                "reference": "701ef4de9705d6c32292ebee5e8044094a09fbf6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/clock/zipball/6682f8cd56bece5f8e1062c5c2ac46b9e0c38bab",
-                "reference": "6682f8cd56bece5f8e1062c5c2ac46b9e0c38bab",
+                "url": "https://api.github.com/repos/symfony/clock/zipball/701ef4de9705d6c32292ebee5e8044094a09fbf6",
+                "reference": "701ef4de9705d6c32292ebee5e8044094a09fbf6",
                 "shasum": ""
             },
             "require": {
@@ -1543,7 +1543,7 @@
                 "time"
             ],
             "support": {
-                "source": "https://github.com/symfony/clock/tree/v8.1.0-BETA1"
+                "source": "https://github.com/symfony/clock/tree/v8.1.0"
             },
             "funding": [
                 {
@@ -1563,7 +1563,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-18T13:52:23+00:00"
+            "time": "2026-05-29T05:06:50+00:00"
         },
         {
             "name": "symfony/config",

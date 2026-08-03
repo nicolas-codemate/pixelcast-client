@@ -1,4 +1,4 @@
-# Sample configuration used by SyncsConfigLoaderTest and ScheduleTest.
+# Sample configuration used by SyncsConfigLoaderTest, ScheduleTest, SyncHealthCheckerTest and HealthCommandTest.
 syncs:
     weather:
         enabled: true
