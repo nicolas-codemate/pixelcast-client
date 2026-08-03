@@ -25,8 +25,12 @@ final class PixelCastConfigException extends \RuntimeException
         return new self(\sprintf('Missing required PixelCast config key "%s".', $key));
     }
 
-    public static function invalidValue(string $key, string $reason): self
+    public static function invalidValue(string $key, string $reason, ?\Throwable $previous = null): self
     {
-        return new self(\sprintf('Invalid value for PixelCast config key "%s": %s', $key, $reason));
+        return new self(
+            \sprintf('Invalid value for PixelCast config key "%s": %s', $key, $reason),
+            0,
+            $previous,
+        );
     }
 }
