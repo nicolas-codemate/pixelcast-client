@@ -44,17 +44,9 @@ final readonly class DeviceStateSourceFactory
     }
 
     /**
-     * The simulator returns every domain in one /__inspect response.
-     */
-    public function createForSimulator(?string $baseUrl): DeviceStateSource
-    {
-        return new DevDeviceStateSource($this->inspectorTransport, $baseUrl);
-    }
-
-    /**
      * The firmware has no /__inspect, so each domain needs its own GET.
      */
-    public function createForFirmware(?string $baseUrl): DeviceStateSource
+    private function createForFirmware(?string $baseUrl): DeviceStateSource
     {
         return new ProdDeviceStateSource(
             $this->weatherTransport,

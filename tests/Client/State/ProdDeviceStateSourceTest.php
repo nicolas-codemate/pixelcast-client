@@ -184,30 +184,30 @@ final class ProdDeviceStateSourceTest extends TestCase
         self::assertNull($state->payload);
     }
 
-    public function testReachabilityErrorIsNullWhenAtLeastOneEndpointAnswers(): void
+    public function testThereIsNoUnreadableReasonWhenAtLeastOneEndpointAnswers(): void
     {
         $fetcher = new StubHttpJsonFetcher();
         $fetcher->responses[self::WEATHER_URL] = ['current' => ['temp' => 20]];
         $source = $this->buildSource($fetcher);
 
-        self::assertNull($source->reachabilityError());
+        self::assertNull($source->unreadableReason());
     }
 
-    public function testReachabilityErrorIsNullWhenOnlySettingsAnswers(): void
+    public function testThereIsNoUnreadableReasonWhenOnlySettingsAnswers(): void
     {
         $fetcher = new StubHttpJsonFetcher();
         $fetcher->responses[self::SETTINGS_URL] = ['BRI' => 100];
         $source = $this->buildSource($fetcher);
 
-        self::assertNull($source->reachabilityError());
+        self::assertNull($source->unreadableReason());
     }
 
-    public function testReachabilityErrorExplainsThatNoEndpointAnswered(): void
+    public function testTheUnreadableReasonExplainsThatNoEndpointAnswered(): void
     {
         $fetcher = new StubHttpJsonFetcher();
         $source = $this->buildSource($fetcher);
 
-        $error = $source->reachabilityError();
+        $error = $source->unreadableReason();
 
         self::assertNotNull($error);
         self::assertStringContainsString('REST', $error);

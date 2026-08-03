@@ -37,13 +37,13 @@ final class DevDeviceStateSourceTest extends TestCase
         self::assertTrue($snapshot['weather']->hasData);
     }
 
-    public function testReachabilityErrorExposesTheTransportFailure(): void
+    public function testTheUnreadableReasonExposesTheTransportFailure(): void
     {
         $stubClient = new CountingInspectorHttpClientStub();
         $stubClient->cannedSnapshot = InspectorSnapshot::unreachable('boom');
         $source = new DevDeviceStateSource($stubClient, 'http://example.invalid');
 
-        self::assertSame('boom', $source->reachabilityError());
+        self::assertSame('boom', $source->unreadableReason());
     }
 
     public function testGetDomainStateReturnsHasDataFalseWhenUnreachable(): void

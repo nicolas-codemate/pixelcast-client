@@ -78,24 +78,22 @@ final class DeviceDumpCommand extends Command
             ));
         }
 
+        $unreadableReason = $stateSource->unreadableReason();
+        if (null !== $unreadableReason) {
+            $io->error([
+                \sprintf('Target %s answered on the network but not as a PixelCast device.', $baseUrl),
+                \sprintf('/__inspect: %s', $targetSelection->inspectorProbeError ?? 'answered'),
+                \sprintf('REST API: %s', $unreadableReason),
+            ]);
+
+            return Command::FAILURE;
+        }
+
         $payloads = [];
         foreach ($stateSource->snapshot() as $domainKey => $domainState) {
             if (null === $requestedDomain || $requestedDomain === $domainKey) {
                 $payloads[$domainKey] = $domainState->payload;
             }
-        }
-
-        $readError = $stateSource->reachabilityError();
-        if (null !== $readError) {
-            $explanation = [\sprintf('Target %s answered on the network but not as a PixelCast device.', $baseUrl)];
-            if (null !== $targetSelection->inspectorProbeError) {
-                $explanation[] = \sprintf('/__inspect: %s', $targetSelection->inspectorProbeError);
-            }
-            $explanation[] = \sprintf('REST API: %s', $readError);
-
-            $io->error($explanation);
-
-            return Command::FAILURE;
         }
 
         $output->writeln((string) json_encode(

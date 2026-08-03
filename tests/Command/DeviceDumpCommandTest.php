@@ -6,7 +6,6 @@ namespace App\Tests\Command;
 
 use App\Client\Http\HttpJsonFetcher;
 use App\Client\Inspector\InspectorSnapshot;
-use App\Client\Inspector\InspectorTransport;
 use App\Client\Reachability\DeviceReachabilityProbe;
 use App\Client\State\DeviceStateSourceFactory;
 use App\Client\Transport\IconsTransport;
@@ -15,6 +14,7 @@ use App\Client\Transport\SettingsTransport;
 use App\Client\Transport\TrackersTransport;
 use App\Client\Transport\WeatherTransport;
 use App\Command\DeviceDumpCommand;
+use App\Tests\Stub\RecordingInspectorTransportStub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Command\Command;
@@ -65,7 +65,7 @@ final class DeviceDumpCommandTest extends TestCase
     public function testASimulatorTargetIsReadFromTheInspectorEndpoint(): void
     {
         $tester = $this->createTester(
-            InspectorSnapshot::fromInspectPayload(['state' => ['weather' => ['current' => ['temp' => 18]]]]),
+            $this->aSimulatorProbe(),
             $this->localBaseUrl,
         );
 
@@ -81,7 +81,7 @@ final class DeviceDumpCommandTest extends TestCase
         $this->restResponsesByUrl[$this->localBaseUrl.'/weather'] = ['current' => ['temp' => 21]];
 
         $tester = $this->createTester(
-            InspectorSnapshot::unreachable('invalid response'),
+            $this->aProbeWithoutInspector(),
             self::UNREACHABLE_BASE_URL,
         );
 
@@ -95,7 +95,7 @@ final class DeviceDumpCommandTest extends TestCase
     public function testATargetThatMatchesNeitherShapeIsExplained(): void
     {
         $tester = $this->createTester(
-            InspectorSnapshot::unreachable('invalid response'),
+            $this->aProbeWithoutInspector(),
             $this->localBaseUrl,
         );
 
@@ -124,7 +124,7 @@ final class DeviceDumpCommandTest extends TestCase
     public function testAnUnknownDomainIsRejected(): void
     {
         $tester = $this->createTester(
-            InspectorSnapshot::fromInspectPayload(['state' => ['weather' => ['current' => ['temp' => 18]]]]),
+            $this->aSimulatorProbe(),
             $this->localBaseUrl,
         );
 
@@ -157,7 +157,7 @@ final class DeviceDumpCommandTest extends TestCase
         $this->restResponsesByUrl[$this->localBaseUrl.'/weather'] = ['current' => ['temp' => 21]];
 
         $tester = $this->createTester(
-            InspectorSnapshot::unreachable('invalid response'),
+            $this->aProbeWithoutInspector(),
             $this->localBaseUrl,
         );
 
@@ -169,12 +169,22 @@ final class DeviceDumpCommandTest extends TestCase
         );
     }
 
+    private function aSimulatorProbe(): InspectorSnapshot
+    {
+        return InspectorSnapshot::fromInspectPayload(['state' => ['weather' => ['current' => ['temp' => 18]]]]);
+    }
+
+    private function aProbeWithoutInspector(): InspectorSnapshot
+    {
+        return InspectorSnapshot::unreachable('invalid response');
+    }
+
     private function createTester(InspectorSnapshot $inspectorSnapshot, ?string $deviceBaseUrl): CommandTester
     {
         $restFetcher = new HttpJsonFetcher($this->createRestHttpClient(), new NullLogger());
 
         $deviceStateSourceFactory = new DeviceStateSourceFactory(
-            new CannedInspectorTransportStub($inspectorSnapshot),
+            new RecordingInspectorTransportStub($inspectorSnapshot),
             new WeatherTransport($restFetcher),
             new TrackersTransport($restFetcher),
             new NotificationsTransport($restFetcher),
@@ -209,17 +219,5 @@ final class DeviceDumpCommandTest extends TestCase
     private function singleLineDisplay(CommandTester $tester): string
     {
         return (string) preg_replace('/\s+/', ' ', $tester->getDisplay());
-    }
-}
-
-final class CannedInspectorTransportStub implements InspectorTransport
-{
-    public function __construct(private readonly InspectorSnapshot $cannedSnapshot)
-    {
-    }
-
-    public function fetch(?string $baseUrl): InspectorSnapshot
-    {
-        return $this->cannedSnapshot;
     }
 }

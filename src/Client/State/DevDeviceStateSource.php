@@ -51,7 +51,7 @@ final class DevDeviceStateSource implements DeviceStateSource
         return new DeviceDomainState($hasData, $payload);
     }
 
-    public function reachabilityError(): ?string
+    public function unreadableReason(): ?string
     {
         $snapshot = $this->inspectorSnapshot();
 

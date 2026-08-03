@@ -39,7 +39,7 @@ final class ProdDeviceStateSource implements DeviceStateSource
         return $this->domainStates();
     }
 
-    public function reachabilityError(): ?string
+    public function unreadableReason(): ?string
     {
         foreach ($this->domainStates() as $domainState) {
             if (null !== $domainState->payload) {
@@ -48,7 +48,7 @@ final class ProdDeviceStateSource implements DeviceStateSource
         }
 
         // Firmware exposes no GET for indicator slots or custom apps, so /settings answering alone still proves the target is a device.
-        if (null !== $this->fetchedSettings) {
+        if (null !== $this->latestSettings()) {
             return null;
         }
 
