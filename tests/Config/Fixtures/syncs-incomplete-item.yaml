@@ -1,0 +1,6 @@
+syncs:
+    coingecko:
+        enabled: true
+        interval: '5 minutes'
+        items:
+            - currency: eur

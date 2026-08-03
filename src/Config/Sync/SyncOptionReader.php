@@ -112,7 +112,7 @@ final class SyncOptionReader
     /**
      * @return array<string, mixed>
      */
-    private static function asStringKeyedMap(mixed $entry, string $entryPath): array
+    public static function asStringKeyedMap(mixed $entry, string $entryPath): array
     {
         if (!\is_array($entry)) {
             throw PixelCastConfigException::invalidValue($entryPath, 'expected a key-value map');

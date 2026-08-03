@@ -8,6 +8,7 @@
         "ext-ctype": "*",
         "ext-iconv": "*",
         "devizzent/cebe-php-openapi": "^1.1.5",
+        "justinrainbow/json-schema": "^6.8.2",
         "league/openapi-psr7-validator": "^0.24.0",
         "nyholm/psr7": "^1.8.2",
         "symfony/console": "8.1.*",

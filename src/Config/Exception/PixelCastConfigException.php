@@ -20,6 +20,23 @@ final class PixelCastConfigException extends \RuntimeException
         );
     }
 
+    /**
+     * @param list<string> $violations each violation names the faulty key with its full path, e.g. syncs.coingecko.items[0]
+     */
+    public static function schemaViolations(string $filePath, array $violations): self
+    {
+        return new self(\sprintf(
+            "Invalid PixelCast config at \"%s\":\n  - %s",
+            $filePath,
+            implode("\n  - ", $violations),
+        ));
+    }
+
+    public static function schemaNotReadable(string $schemaFilePath, string $reason): self
+    {
+        return new self(\sprintf('Failed to read the PixelCast config schema at "%s": %s', $schemaFilePath, $reason));
+    }
+
     public static function missingKey(string $key): self
     {
         return new self(\sprintf('Missing required PixelCast config key "%s".', $key));

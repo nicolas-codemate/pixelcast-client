@@ -1,0 +1,24 @@
+# Sample configuration used by SyncsConfigLoaderTest and ScheduleTest.
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
+
+    coingecko:
+        enabled: false
+        interval: '5 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+              icon: '1234'
+
+    twelvedata:
+        enabled: false
+        interval: '15 minutes'
+        items:
+            - symbol: AAPL
+              currency: usd
