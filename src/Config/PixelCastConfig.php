@@ -88,24 +88,6 @@ final readonly class PixelCastConfig
     }
 
     /**
-     * @return array<string, scalar>
-     */
-    public function toRawMap(): array
-    {
-        return [
-            self::KEY_WEATHER_INTERVAL => $this->weatherInterval,
-            self::KEY_TRACKER_INTERVAL => $this->trackerInterval,
-            self::KEY_TRACKED_ASSETS => implode(', ', $this->trackedAssets),
-            self::KEY_WEATHER_SOURCE => $this->weatherSource,
-            self::KEY_TRACKER_SOURCE => $this->trackerSource,
-            self::KEY_WEATHER_LATITUDE => $this->weatherLatitude,
-            self::KEY_WEATHER_LONGITUDE => $this->weatherLongitude,
-            self::KEY_WEATHER_UNITS => $this->weatherUnits->value,
-            self::KEY_WEATHER_LOCALE => $this->weatherLocale->value,
-        ];
-    }
-
-    /**
      * @param array<string, mixed> $raw
      */
     private static function requireString(array $raw, string $key): string

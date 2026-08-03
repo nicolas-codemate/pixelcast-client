@@ -9,7 +9,6 @@ use App\Config\PixelCastConfig;
 use App\Config\PixelCastConfigLoader;
 use App\Config\WeatherLocale;
 use App\Config\WeatherUnits;
-use App\Tests\Factory\PixelCastConfigFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Yaml\Yaml;
@@ -97,17 +96,6 @@ final class PixelCastConfigLoaderTest extends TestCase
         $config = $loader->load();
 
         self::assertSame(['BTC', 'AAPL', 'SPY', 'ETH'], $config->trackedAssets);
-    }
-
-    public function testToRawMapJoinsTrackedAssetsWithCommaSpace(): void
-    {
-        $rawMap = PixelCastConfigFactory::validConfig()->toRawMap();
-
-        self::assertSame('BTC, AAPL, SPY, ETH', $rawMap['tracked_assets']);
-        self::assertSame(120, $rawMap['weather_interval']);
-        self::assertSame('openmeteo', $rawMap['weather_source']);
-        self::assertSame(48.8566, $rawMap['weather_latitude']);
-        self::assertSame('fr', $rawMap['weather_locale']);
     }
 
     /**

@@ -29,13 +29,4 @@ final class PixelCastConfigException extends \RuntimeException
     {
         return new self(\sprintf('Invalid value for PixelCast config key "%s": %s', $key, $reason));
     }
-
-    public static function writeFailed(string $filePath, \Throwable $previous): self
-    {
-        return new self(
-            \sprintf('Failed to write PixelCast config to "%s": %s', $filePath, $previous->getMessage()),
-            0,
-            $previous,
-        );
-    }
 }
