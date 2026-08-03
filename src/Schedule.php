@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Message\SyncWeatherMessage;
+use App\Config\Sync\SyncGroupConfig;
+use App\Config\SyncsConfigLoader;
 use App\Scheduler\SyncMessageRegistry;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
@@ -17,14 +18,15 @@ final readonly class Schedule implements ScheduleProviderInterface, SyncMessageR
 {
     public function __construct(
         private CacheInterface $cache,
+        private SyncsConfigLoader $configLoader,
     ) {
     }
 
     public function syncMessages(): array
     {
         return array_map(
-            static fn (array $syncDefinition): object => $syncDefinition['message'],
-            self::syncDefinitions(),
+            static fn (SyncGroupConfig $syncGroup): object => $syncGroup->syncMessage(),
+            $this->configLoader->load()->enabledSyncGroups(),
         );
     }
 
@@ -34,25 +36,10 @@ final readonly class Schedule implements ScheduleProviderInterface, SyncMessageR
             ->stateful($this->cache)
             ->processOnlyLastMissedRun(true);
 
-        foreach (self::syncDefinitions() as $syncDefinition) {
-            $schedule->add(RecurringMessage::every($syncDefinition['frequency'], $syncDefinition['message']));
+        foreach ($this->configLoader->load()->enabledSyncGroups() as $syncGroup) {
+            $schedule->add(RecurringMessage::every($syncGroup->interval->expression, $syncGroup->syncMessage()));
         }
 
         return $schedule;
-    }
-
-    /**
-     * Single place where a sync type is declared: syncMessages() and getSchedule() both project this map.
-     *
-     * @return array<string, array{message: object, frequency: string}>
-     */
-    private static function syncDefinitions(): array
-    {
-        return [
-            'weather' => [
-                'message' => new SyncWeatherMessage(),
-                'frequency' => '30 minutes',
-            ],
-        ];
     }
 }
