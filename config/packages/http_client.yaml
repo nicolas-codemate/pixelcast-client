@@ -24,3 +24,9 @@ framework:
                 timeout: 5
                 retry_failed:
                     max_retries: 2
+
+            twelvedata.client:
+                base_uri: 'https://api.twelvedata.com/'
+                timeout: 5
+                retry_failed:
+                    max_retries: 2
