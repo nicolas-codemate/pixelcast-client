@@ -126,7 +126,7 @@ docker compose exec php bin/console app:health
 On a `Restarting` container that field reads `unhealthy` with an empty log,
 because no probe ever ran; `docker compose ps` is what settles the two apart.
 
-The `json-file` driver Docker writes with bounds nothing on its own, so
+Docker's `json-file` driver bounds nothing on its own, so
 `deploy/compose.yaml` declares `max-size` and `max-file` and caps the container
 at 30 MB — around five months of cycles even if every single one of them fails,
 and years of a host that pushes normally. `docker compose logs` reads the
@@ -142,7 +142,7 @@ container, so it goes away with it.
 
 At default verbosity a successful cycle writes nothing at all, so a journal that
 carries little more than the banner of each hourly consumer is the normal state
-rather than the sign of a stopped one; `docker compose ps` settles that one too.
+rather than the sign of a stopped one.
 
 An enabled tracker group pushes one screen per tracked asset at every interval,
 and turns the container `unhealthy` after three intervals without a successful

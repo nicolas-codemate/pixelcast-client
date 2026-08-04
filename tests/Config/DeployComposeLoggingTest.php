@@ -28,9 +28,8 @@ final class DeployComposeLoggingTest extends TestCase
             $failureMessage = \sprintf('Service "%s" of %s must bound its logs.', (string) $serviceName, self::DEPLOY_COMPOSE_FILE);
 
             self::assertIsArray($serviceDefinition, $failureMessage);
-            self::assertArrayHasKey('logging', $serviceDefinition, $failureMessage);
 
-            $loggingDeclaration = $serviceDefinition['logging'];
+            $loggingDeclaration = $serviceDefinition['logging'] ?? null;
             self::assertIsArray($loggingDeclaration, $failureMessage);
             self::assertSame('json-file', $loggingDeclaration['driver'] ?? null, $failureMessage);
 
