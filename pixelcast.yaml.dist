@@ -47,10 +47,10 @@ syncs:
               currency: eur
               icon: bitcoin
 
-    # Stocks and ETFs read from Twelve Data in a single call. The provider lands with
-    # #9: until then an enabled group is scheduled but pushes nothing. Its API key is
-    # read from PIXELCAST_TWELVEDATA_API_KEY, never from this file, which rejects any
-    # key it does not declare.
+    # Stocks, ETFs and indices read from Twelve Data in a single call. Publishing to the
+    # screen lands with #10: until then an enabled group is scheduled but pushes nothing.
+    # Its API key is read from PIXELCAST_TWELVEDATA_API_KEY, never from this file, which
+    # rejects any key it does not declare.
     twelvedata:
         # A disabled group is never scheduled and cannot be dispatched by hand.
         enabled: false
@@ -64,5 +64,11 @@ syncs:
         # icon: name of the icon shown next to the asset on the device, optional.
         items:
             - symbol: AAPL
+              currency: usd
+              icon: stock
+            - symbol: IWDA.AS
+              currency: eur
+              icon: etf
+            - symbol: IXIC
               currency: usd
               icon: stock
