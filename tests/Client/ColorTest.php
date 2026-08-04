@@ -34,6 +34,7 @@ final class ColorTest extends TestCase
         yield 'three digits' => ['#FFF'];
         yield 'non hexadecimal digits' => ['#GG8800'];
         yield 'empty string' => [''];
+        yield 'trailing newline' => ["#ff8800\n"];
     }
 
     #[DataProvider('provideRejectedHexCodeCases')]

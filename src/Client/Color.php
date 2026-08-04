@@ -10,7 +10,7 @@ final readonly class Color
     private const int MAXIMUM_COMPONENT_VALUE = 255;
     private const int MINIMUM_PACKED_VALUE = 0;
     private const int MAXIMUM_PACKED_VALUE = 0xFFFFFF;
-    private const string HEX_CODE_PATTERN = '/^#?[0-9a-fA-F]{6}$/';
+    private const string HEX_CODE_PATTERN = '/^#?[0-9a-fA-F]{6}\z/';
 
     private function __construct(
         public string $hexCode,
