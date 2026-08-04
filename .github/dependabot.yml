@@ -16,7 +16,6 @@ updates:
       include: scope
     groups:
       docker-minor-and-patch:
-        applies-to: version-updates
         patterns:
           - "*"
         update-types:
@@ -33,17 +32,14 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: chore
-      prefix-development: chore
       include: scope
     groups:
       composer-production-minor-and-patch:
-        applies-to: version-updates
         dependency-type: production
         update-types:
           - minor
           - patch
       composer-development-minor-and-patch:
-        applies-to: version-updates
         dependency-type: development
         update-types:
           - minor
@@ -62,7 +58,6 @@ updates:
       include: scope
     groups:
       github-actions-minor-and-patch:
-        applies-to: version-updates
         patterns:
           - "*"
         update-types:
