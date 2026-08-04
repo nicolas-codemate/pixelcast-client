@@ -18,11 +18,6 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
 {
     private const string TIME_SERIES_PATH = 'time_series';
     private const string API_KEY_HEADER = 'Authorization';
-    private const string API_KEY_HEADER_PREFIX = 'apikey ';
-    private const string API_KEY_ENVIRONMENT_VARIABLE = 'PIXELCAST_TWELVEDATA_API_KEY';
-    private const string BAR_INTERVAL = '1day';
-    private const string BAR_ORDER = 'asc';
-    private const int REQUESTED_BAR_COUNT = 30;
     private const string ERROR_STATUS = 'error';
     private const string POSITIVE_TREND_COLOR_HEX = '#00FF00';
     private const string NEGATIVE_TREND_COLOR_HEX = '#FF0000';
@@ -39,17 +34,15 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
 
     public function fetchTrackers(): array
     {
-        $twelveDataSyncGroup = $this->configLoader->load()->syncGroupOfType(TwelveDataSyncConfig::class);
-
         if (null === $this->apiKey || '' === $this->apiKey) {
             $this->logger->warning('Twelve Data needs an API key', [
-                'environment_variable' => self::API_KEY_ENVIRONMENT_VARIABLE,
+                'environment_variable' => 'PIXELCAST_TWELVEDATA_API_KEY',
             ]);
 
             return [];
         }
 
-        $items = $twelveDataSyncGroup->items;
+        $items = $this->configLoader->load()->syncGroupOfType(TwelveDataSyncConfig::class)->items;
 
         $decodedResponse = $this->requestTimeSeries($items);
         if (null === $decodedResponse) {
@@ -107,12 +100,12 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
 
         try {
             return $this->twelveDataClient->request('GET', self::TIME_SERIES_PATH, [
-                'headers' => [self::API_KEY_HEADER => self::API_KEY_HEADER_PREFIX.$this->apiKey],
+                'headers' => [self::API_KEY_HEADER => 'apikey '.$this->apiKey],
                 'query' => [
                     'symbol' => $requestedSymbols,
-                    'interval' => self::BAR_INTERVAL,
-                    'outputsize' => self::REQUESTED_BAR_COUNT,
-                    'order' => self::BAR_ORDER,
+                    'interval' => '1day',
+                    'outputsize' => 30,
+                    'order' => 'asc',
                 ],
             ])->toArray();
         } catch (HttpClientExceptionInterface $httpError) {
@@ -156,7 +149,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         $closingPrices = self::readClosingPrices($series);
         $closingPriceCount = \count($closingPrices);
 
-        if ($closingPriceCount < 2) {
+        if ($closingPriceCount < 2 || 0.0 === $closingPrices[$closingPriceCount - 2]) {
             $this->logger->warning('Unexpected Twelve Data series shape', ['symbol' => $item->symbol]);
 
             return null;
@@ -164,12 +157,6 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
 
         $latestClosingPrice = $closingPrices[$closingPriceCount - 1];
         $previousClosingPrice = $closingPrices[$closingPriceCount - 2];
-
-        if (0.0 === $previousClosingPrice) {
-            $this->logger->warning('Unexpected Twelve Data series shape', ['symbol' => $item->symbol]);
-
-            return null;
-        }
 
         $changePercentage = round(($latestClosingPrice - $previousClosingPrice) / $previousClosingPrice * 100, 2);
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);

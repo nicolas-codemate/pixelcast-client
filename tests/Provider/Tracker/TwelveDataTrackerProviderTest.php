@@ -66,7 +66,10 @@ final class TwelveDataTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
 
-        foreach ($provider->fetchTrackers() as $trackerPayload) {
+        $trackerPayloads = $provider->fetchTrackers();
+
+        self::assertCount(2, $trackerPayloads);
+        foreach ($trackerPayloads as $trackerPayload) {
             self::assertNotNull($trackerPayload->currency);
             self::assertLessThanOrEqual(self::MAXIMUM_CURRENCY_LENGTH, mb_strlen($trackerPayload->currency));
         }
