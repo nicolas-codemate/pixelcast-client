@@ -32,6 +32,11 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
     ) {
     }
 
+    public function syncType(): string
+    {
+        return TwelveDataSyncConfig::syncType();
+    }
+
     public function fetchTrackers(): array
     {
         if (null === $this->apiKey || '' === $this->apiKey) {

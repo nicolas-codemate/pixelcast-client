@@ -27,16 +27,15 @@ syncs:
         # Locale used for the 3-letter forecast day labels (fr or en).
         locale: fr
 
-    # Crypto assets read from CoinGecko in a single call per currency. Publishing to the
-    # screen lands with #8: until then an enabled group is scheduled but pushes nothing.
-    # Its API key is read from PIXELCAST_COINGECKO_API_KEY, never from this file, which
-    # rejects any key it does not declare.
+    # Crypto assets read from CoinGecko in a single call per currency. Its API key is
+    # read from PIXELCAST_COINGECKO_API_KEY, never from this file, which rejects any
+    # key it does not declare.
     coingecko:
         # A disabled group is never scheduled and cannot be dispatched by hand.
         enabled: false
 
         # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
-        interval: '15 minutes'
+        interval: '5 minutes'
 
         # Assets tracked in this group.
         # symbol: identifier of the asset for this provider, a coin id for CoinGecko.
@@ -47,10 +46,9 @@ syncs:
               currency: eur
               icon: bitcoin
 
-    # Stocks, ETFs and indices read from Twelve Data in a single call. Publishing to the
-    # screen lands with #10: until then an enabled group is scheduled but pushes nothing.
-    # Its API key is read from PIXELCAST_TWELVEDATA_API_KEY, never from this file, which
-    # rejects any key it does not declare.
+    # Stocks, ETFs and indices read from Twelve Data in a single call. Its API key is
+    # read from PIXELCAST_TWELVEDATA_API_KEY, never from this file, which rejects any
+    # key it does not declare.
     twelvedata:
         # A disabled group is never scheduled and cannot be dispatched by hand.
         enabled: false
