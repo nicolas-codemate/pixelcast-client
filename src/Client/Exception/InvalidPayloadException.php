@@ -13,6 +13,6 @@ final class InvalidPayloadException extends \RuntimeException implements Pixelca
 
     public static function fromDeviceResponse(string $path, string $deviceMessage): self
     {
-        return new self(\sprintf('Device rejected the payload posted to "%s" (HTTP 400): %s', $path, $deviceMessage));
+        return new self(\sprintf('Device rejected the request sent to "%s" (HTTP 400): %s', $path, $deviceMessage));
     }
 }

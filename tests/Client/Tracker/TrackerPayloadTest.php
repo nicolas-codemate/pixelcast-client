@@ -1,0 +1,114 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Client\Tracker;
+
+use App\Client\Color;
+use App\Client\Tracker\TrackerPayload;
+use PHPUnit\Framework\TestCase;
+
+final class TrackerPayloadTest extends TestCase
+{
+    public function testToArrayOfAMinimalPayloadIsEmptyBecauseTheNameIsNotPartOfTheBody(): void
+    {
+        $payload = new TrackerPayload(name: 'BTC');
+
+        self::assertSame([], $payload->toArray());
+    }
+
+    public function testToArrayEmitsEveryProvidedFieldUnderItsSpecKey(): void
+    {
+        $payload = new TrackerPayload(
+            name: 'BTC',
+            symbol: 'BTC',
+            iconName: 'bitcoin',
+            currency: 'USD',
+            currentValue: 98452.30,
+            changePercentage: 2.14,
+            sparklinePoints: [92100.0, 89300.0, 93200.0],
+            symbolColor: Color::fromHexCode('#FF8800'),
+            sparklineColor: Color::fromHexCode('#00D4FF'),
+            bottomText: 'Vol 24h: 42B',
+            displayDurationMilliseconds: 10000,
+        );
+
+        self::assertSame(
+            [
+                'symbol' => 'BTC',
+                'icon' => 'bitcoin',
+                'currency' => 'USD',
+                'value' => 98452.30,
+                'change' => 2.14,
+                'sparkline' => [92100.0, 89300.0, 93200.0],
+                'symbolColor' => '#FF8800',
+                'sparklineColor' => '#00D4FF',
+                'bottomText' => 'Vol 24h: 42B',
+                'duration' => 10000,
+            ],
+            $payload->toArray(),
+        );
+    }
+
+    public function testToArrayOmitsTheSparklineKeyWhenThereIsNoPoint(): void
+    {
+        $payload = new TrackerPayload(name: 'BTC', symbol: 'BTC', sparklinePoints: []);
+
+        self::assertSame(['symbol' => 'BTC'], $payload->toArray());
+    }
+
+    public function testConstructorAcceptsTwentyFourSparklinePoints(): void
+    {
+        $payload = new TrackerPayload(name: 'BTC', sparklinePoints: self::buildSparklinePoints(24));
+
+        self::assertCount(24, $payload->sparklinePoints);
+    }
+
+    public function testConstructorRejectsATwentyFifthSparklinePoint(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('at most 24 points, got 25');
+
+        new TrackerPayload(name: 'BTC', sparklinePoints: self::buildSparklinePoints(25));
+    }
+
+    public function testConstructorRejectsAnEmptyName(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('A tracker needs a non-empty name.');
+
+        new TrackerPayload(name: '');
+    }
+
+    public function testConstructorRejectsAnOverlongSymbol(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('A tracker symbol holds at most 7 characters, got 8.');
+
+        new TrackerPayload(name: 'BTC', symbol: 'BTCUSDTX');
+    }
+
+    public function testConstructorRejectsAnOverlongCurrency(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('A tracker currency holds at most 7 characters, got 8.');
+
+        new TrackerPayload(name: 'BTC', currency: 'USDOLLAR');
+    }
+
+    public function testConstructorRejectsAnOverlongBottomText(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('A tracker bottom text holds at most 31 characters, got 32.');
+
+        new TrackerPayload(name: 'BTC', bottomText: str_repeat('a', 32));
+    }
+
+    /**
+     * @return list<float>
+     */
+    private static function buildSparklinePoints(int $pointCount): array
+    {
+        return array_fill(0, $pointCount, 1.5);
+    }
+}
