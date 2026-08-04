@@ -1,0 +1,13 @@
+# Sample configuration used by CoinGeckoTrackerProviderTest: two items sharing the same
+# currency, to exercise the batch call.
+syncs:
+    coingecko:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+              icon: bitcoin
+            - symbol: ethereum
+              currency: eur
+              icon: ethereum

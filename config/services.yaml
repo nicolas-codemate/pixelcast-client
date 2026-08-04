@@ -63,6 +63,10 @@ services:
 
     App\Provider\Weather\WeatherProviderInterface: '@App\Provider\Weather\OpenMeteoWeatherProvider'
 
+    App\Provider\Tracker\CoinGeckoTrackerProvider:
+        arguments:
+            $apiKey: '%env(default::PIXELCAST_COINGECKO_API_KEY)%'
+
     App\Scheduler\SyncMessageRegistry: '@App\Schedule'
 
     # add more service definitions when explicit configuration is needed

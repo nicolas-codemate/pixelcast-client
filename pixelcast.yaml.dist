@@ -27,10 +27,10 @@ syncs:
         # Locale used for the 3-letter forecast day labels (fr or en).
         locale: fr
 
-    # Crypto assets read from CoinGecko in a single call. The provider lands with #7:
-    # until then an enabled group is scheduled but pushes nothing. Its API key is read
-    # from PIXELCAST_COINGECKO_API_KEY, never from this file, which rejects any key it
-    # does not declare.
+    # Crypto assets read from CoinGecko in a single call per currency. Publishing to the
+    # screen lands with #8: until then an enabled group is scheduled but pushes nothing.
+    # Its API key is read from PIXELCAST_COINGECKO_API_KEY, never from this file, which
+    # rejects any key it does not declare.
     coingecko:
         # A disabled group is never scheduled and cannot be dispatched by hand.
         enabled: false

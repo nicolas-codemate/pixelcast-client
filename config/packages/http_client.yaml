@@ -18,3 +18,9 @@ framework:
                 timeout: 5
                 retry_failed:
                     max_retries: 2
+
+            coingecko.client:
+                base_uri: 'https://api.coingecko.com/api/v3/'
+                timeout: 5
+                retry_failed:
+                    max_retries: 2
