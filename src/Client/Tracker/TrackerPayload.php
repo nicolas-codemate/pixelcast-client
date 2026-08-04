@@ -13,6 +13,7 @@ final readonly class TrackerPayload
     private const int MAXIMUM_SYMBOL_LENGTH = 7;
     private const int MAXIMUM_CURRENCY_LENGTH = 7;
     private const int MAXIMUM_BOTTOM_TEXT_LENGTH = 31;
+    private const int MAXIMUM_SPARKLINE_PERIOD_LENGTH = 4;
 
     /**
      * @param list<float> $sparklinePoints
@@ -27,6 +28,7 @@ final readonly class TrackerPayload
         public array $sparklinePoints = [],
         public ?Color $symbolColor = null,
         public ?Color $sparklineColor = null,
+        public ?string $sparklinePeriod = null,
         public ?string $bottomText = null,
         public ?int $displayDurationMilliseconds = null,
     ) {
@@ -36,6 +38,7 @@ final readonly class TrackerPayload
 
         self::assertLengthWithinLimit('symbol', $this->symbol, self::MAXIMUM_SYMBOL_LENGTH);
         self::assertLengthWithinLimit('currency', $this->currency, self::MAXIMUM_CURRENCY_LENGTH);
+        self::assertLengthWithinLimit('sparkline period', $this->sparklinePeriod, self::MAXIMUM_SPARKLINE_PERIOD_LENGTH);
         self::assertLengthWithinLimit('bottom text', $this->bottomText, self::MAXIMUM_BOTTOM_TEXT_LENGTH);
 
         if (\count($this->sparklinePoints) > self::MAXIMUM_SPARKLINE_POINTS) {
@@ -46,7 +49,7 @@ final readonly class TrackerPayload
     /**
      * The name is absent on purpose: it travels as a query parameter, the only form DELETE /tracker accepts.
      *
-     * @return array{symbol?: string, icon?: string, currency?: string, value?: float, change?: float, sparkline?: list<float>, symbolColor?: string, sparklineColor?: string, bottomText?: string, duration?: int}
+     * @return array{symbol?: string, icon?: string, currency?: string, value?: float, change?: float, sparkline?: list<float>, symbolColor?: string, sparklineColor?: string, sparklinePeriod?: string, bottomText?: string, duration?: int}
      */
     public function toArray(): array
     {
@@ -82,6 +85,10 @@ final readonly class TrackerPayload
 
         if (null !== $this->sparklineColor) {
             $payload['sparklineColor'] = $this->sparklineColor->hexCode;
+        }
+
+        if (null !== $this->sparklinePeriod) {
+            $payload['sparklinePeriod'] = $this->sparklinePeriod;
         }
 
         if (null !== $this->bottomText) {

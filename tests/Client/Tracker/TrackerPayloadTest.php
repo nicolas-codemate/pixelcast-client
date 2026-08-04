@@ -29,6 +29,7 @@ final class TrackerPayloadTest extends TestCase
             sparklinePoints: [92100.0, 89300.0, 93200.0],
             symbolColor: Color::fromHexCode('#FF8800'),
             sparklineColor: Color::fromHexCode('#00D4FF'),
+            sparklinePeriod: '7d',
             bottomText: 'Vol 24h: 42B',
             displayDurationMilliseconds: 10000,
         );
@@ -43,6 +44,7 @@ final class TrackerPayloadTest extends TestCase
                 'sparkline' => [92100.0, 89300.0, 93200.0],
                 'symbolColor' => '#FF8800',
                 'sparklineColor' => '#00D4FF',
+                'sparklinePeriod' => '7d',
                 'bottomText' => 'Vol 24h: 42B',
                 'duration' => 10000,
             ],
@@ -102,6 +104,14 @@ final class TrackerPayloadTest extends TestCase
         $this->expectExceptionMessage('A tracker bottom text holds at most 31 characters, got 32.');
 
         new TrackerPayload(name: 'BTC', bottomText: str_repeat('a', 32));
+    }
+
+    public function testConstructorRejectsASparklinePeriodLongerThanFourCharacters(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('sparkline period holds at most 4 characters, got 5');
+
+        new TrackerPayload(name: 'BTC', sparklinePeriod: '1week');
     }
 
     /**

@@ -18,6 +18,7 @@ SYNC_API_FILES := \
 	schemas/weather.yaml \
 	schemas/tracker.yaml \
 	schemas/notification.yaml \
+	schemas/sleep.yaml \
 	schemas/custom-app.yaml \
 	schemas/indicator.yaml \
 	schemas/icon.yaml \

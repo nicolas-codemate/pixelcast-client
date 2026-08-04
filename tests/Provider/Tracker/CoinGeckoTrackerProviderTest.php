@@ -40,6 +40,8 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         self::assertSame(2.47, $bitcoinPayload->changePercentage);
         self::assertSame('#00FF00', $bitcoinPayload->symbolColor?->hexCode);
         self::assertSame('#00FF00', $bitcoinPayload->sparklineColor?->hexCode);
+        self::assertSame('Volume : 18B', $bitcoinPayload->bottomText);
+        self::assertSame('7d', $bitcoinPayload->sparklinePeriod);
 
         self::assertSame('ETH', $ethereumPayload->name);
         self::assertSame('ETH', $ethereumPayload->symbol);
@@ -49,6 +51,16 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         self::assertSame(-3.85, $ethereumPayload->changePercentage);
         self::assertSame('#FF0000', $ethereumPayload->symbolColor?->hexCode);
         self::assertSame('#FF0000', $ethereumPayload->sparklineColor?->hexCode);
+        self::assertSame('Volume : 9.8B', $ethereumPayload->bottomText);
+    }
+
+    public function testAMarketWithoutVolumeCarriesNoBottomText(): void
+    {
+        $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets-bitcoin-only.json'), self::COINGECKO_BASE_URI));
+
+        [$bitcoinPayload] = $provider->fetchTrackers();
+
+        self::assertNull($bitcoinPayload->bottomText);
     }
 
     public function testSparklineIsDownsampledToAtMost24PointsKeepingFirstAndLastPoint(): void
