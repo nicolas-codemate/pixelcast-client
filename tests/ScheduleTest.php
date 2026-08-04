@@ -56,6 +56,24 @@ final class ScheduleTest extends TestCase
         self::assertSame($scheduledIds, array_unique($scheduledIds));
     }
 
+    public function testTheTwelveDataGroupIsScheduledAtTheIntervalOfTheFile(): void
+    {
+        $schedule = self::createSchedule('syncs-twelvedata-enabled.yaml');
+
+        $syncMessages = $schedule->syncMessages();
+
+        self::assertSame(['twelvedata'], array_keys($syncMessages));
+        self::assertEquals(new SyncTrackerMessage('twelvedata'), $syncMessages['twelvedata']);
+
+        $recurringMessages = $schedule->getSchedule()->getRecurringMessages();
+
+        self::assertSame('every 15 minutes', (string) $recurringMessages[0]->getTrigger());
+        self::assertContains(
+            RecurringMessage::every('15 minutes', $syncMessages['twelvedata'])->getId(),
+            self::scheduledIds($schedule),
+        );
+    }
+
     public function testADisabledSyncGroupIsNeitherRegisteredNorScheduled(): void
     {
         $schedule = self::createSchedule('syncs-all-disabled.yaml');

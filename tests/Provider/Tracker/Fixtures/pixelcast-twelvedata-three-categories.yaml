@@ -1,0 +1,16 @@
+# Sample configuration used by SyncTrackerHttpTest: a stock, an ETF and an index in one
+# group, to prove the three categories travel to the device in a single upstream call.
+syncs:
+    twelvedata:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: AAPL
+              currency: usd
+              icon: stock
+            - symbol: IWDA.AS
+              currency: eur
+              icon: etf
+            - symbol: IXIC
+              currency: usd
+              icon: stock
