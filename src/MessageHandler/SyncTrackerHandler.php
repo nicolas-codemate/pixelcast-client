@@ -61,13 +61,13 @@ final readonly class SyncTrackerHandler
             return SyncOutcome::Skipped;
         }
 
-        $failedTrackerNames = [];
+        $someTrackerWasRejected = false;
         foreach ($trackerPayloads as $trackerPayload) {
             try {
                 $this->pixelcastClient->pushTracker($trackerPayload);
             } catch (\Throwable $pushFailure) {
                 // One rejected tracker must not hold back the rest of the group.
-                $failedTrackerNames[] = $trackerPayload->name;
+                $someTrackerWasRejected = true;
                 $this->logger->error('Tracker push failed', [
                     'sync_type' => $message->syncType,
                     'tracker_name' => $trackerPayload->name,
@@ -76,7 +76,7 @@ final readonly class SyncTrackerHandler
             }
         }
 
-        if ([] !== $failedTrackerNames) {
+        if ($someTrackerWasRejected) {
             return SyncOutcome::Failed;
         }
 

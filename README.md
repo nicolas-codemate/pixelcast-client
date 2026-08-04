@@ -128,9 +128,8 @@ because no probe ever ran; `docker compose ps` is what settles the two apart.
 
 An enabled tracker group pushes one screen per tracked asset at every interval,
 and turns the container `unhealthy` after three intervals without a successful
-push — which happens when its API key is missing or its provider answers in
-error. Both `coingecko` and `twelvedata` ship with `enabled: false` in
-`pixelcast.yaml.dist`.
+push, whatever the cause — the logs name it. Both `coingecko` and `twelvedata`
+ship with `enabled: false` in `pixelcast.yaml.dist`.
 
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host
