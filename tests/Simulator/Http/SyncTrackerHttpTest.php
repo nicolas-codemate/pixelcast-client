@@ -25,16 +25,16 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
 {
     private const string COINGECKO_BASE_URI = 'https://api.coingecko.com/api/v3/';
     private const string TWELVEDATA_BASE_URI = 'https://api.twelvedata.com/';
+    private const string COINGECKO_FIXTURE_FILE = 'coingecko-markets.json';
+    private const string COINGECKO_NEXT_CYCLE_FIXTURE_FILE = 'coingecko-markets-next-cycle.json';
     private const string TWELVEDATA_FIXTURE_FILE = 'twelvedata-time-series-three-categories.json';
 
     public function testTrackersReachTheSimulatorInASingleUpstreamCall(): void
     {
-        $coinGeckoClient = new MockHttpClient(self::trackerFixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI);
+        $coinGeckoClient = self::coinGeckoClient(self::COINGECKO_FIXTURE_FILE);
         $lastSuccessfulSyncStore = new LastSuccessfulSyncStore(new ArrayAdapter(), new MockClock());
         $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildCoinGeckoProvider($coinGeckoClient), $lastSuccessfulSyncStore);
-        $expectedBodies = self::expectedWireBodies(self::buildCoinGeckoProvider(
-            new MockHttpClient(self::trackerFixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI),
-        ));
+        $expectedBodies = self::coinGeckoWireBodies(self::COINGECKO_FIXTURE_FILE);
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::coinGeckoMessage()), $this->server->serverOutput());
         self::assertSame(1, $coinGeckoClient->getRequestsCount());
@@ -56,14 +56,9 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
 
     public function testASecondCycleRefreshesTheStoredTrackersInPlace(): void
     {
-        $coinGeckoClient = new MockHttpClient(
-            [self::trackerFixtureResponse('coingecko-markets.json'), self::trackerFixtureResponse('coingecko-markets-next-cycle.json')],
-            self::COINGECKO_BASE_URI,
-        );
+        $coinGeckoClient = self::coinGeckoClient(self::COINGECKO_FIXTURE_FILE, self::COINGECKO_NEXT_CYCLE_FIXTURE_FILE);
         $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildCoinGeckoProvider($coinGeckoClient));
-        $expectedRefreshedBodies = self::expectedWireBodies(self::buildCoinGeckoProvider(
-            new MockHttpClient(self::trackerFixtureResponse('coingecko-markets-next-cycle.json'), self::COINGECKO_BASE_URI),
-        ));
+        $expectedRefreshedBodies = self::coinGeckoWireBodies(self::COINGECKO_NEXT_CYCLE_FIXTURE_FILE);
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::coinGeckoMessage()), $this->server->serverOutput());
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::coinGeckoMessage()), $this->server->serverOutput());
@@ -84,12 +79,10 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
 
     public function testAStockAnEtfAndAnIndexReachTheSimulatorInASingleUpstreamCall(): void
     {
-        $twelveDataClient = new MockHttpClient(self::trackerFixtureResponse(self::TWELVEDATA_FIXTURE_FILE), self::TWELVEDATA_BASE_URI);
+        $twelveDataClient = self::twelveDataClient(self::trackerFixtureResponse(self::TWELVEDATA_FIXTURE_FILE));
         $lastSuccessfulSyncStore = new LastSuccessfulSyncStore(new ArrayAdapter(), new MockClock());
         $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildTwelveDataProvider($twelveDataClient), $lastSuccessfulSyncStore);
-        $expectedBodies = self::expectedWireBodies(self::buildTwelveDataProvider(
-            new MockHttpClient(self::trackerFixtureResponse(self::TWELVEDATA_FIXTURE_FILE), self::TWELVEDATA_BASE_URI),
-        ));
+        $expectedBodies = self::twelveDataWireBodies();
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::twelveDataMessage()), $this->server->serverOutput());
         self::assertSame(1, $twelveDataClient->getRequestsCount());
@@ -117,7 +110,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
 
     public function testAFailingUpstreamCallLeavesTheSimulatorUntouched(): void
     {
-        $twelveDataClient = new MockHttpClient(new MockResponse('', ['error' => 'connection refused']), self::TWELVEDATA_BASE_URI);
+        $twelveDataClient = self::twelveDataClient(new MockResponse('', ['error' => 'connection refused']));
         $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildTwelveDataProvider($twelveDataClient));
 
         self::assertSame(SyncOutcome::Skipped, $syncTrackerHandler(self::twelveDataMessage()), $this->server->serverOutput());
@@ -140,6 +133,24 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
             new NullLogger(),
             $lastSuccessfulSyncStore,
         );
+    }
+
+    /**
+     * @return array<string, array<string, mixed>> keyed by tracker name
+     */
+    private static function coinGeckoWireBodies(string $fixtureFileName): array
+    {
+        return self::expectedWireBodies(self::buildCoinGeckoProvider(self::coinGeckoClient($fixtureFileName)));
+    }
+
+    /**
+     * @return array<string, array<string, mixed>> keyed by tracker name
+     */
+    private static function twelveDataWireBodies(): array
+    {
+        return self::expectedWireBodies(self::buildTwelveDataProvider(
+            self::twelveDataClient(self::trackerFixtureResponse(self::TWELVEDATA_FIXTURE_FILE)),
+        ));
     }
 
     /**
@@ -178,6 +189,18 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
             new NullLogger(),
             'demo-key',
         );
+    }
+
+    private static function coinGeckoClient(string ...$fixtureFileNames): MockHttpClient
+    {
+        $responses = array_map(self::trackerFixtureResponse(...), $fixtureFileNames);
+
+        return new MockHttpClient($responses, self::COINGECKO_BASE_URI);
+    }
+
+    private static function twelveDataClient(MockResponse $response): MockHttpClient
+    {
+        return new MockHttpClient($response, self::TWELVEDATA_BASE_URI);
     }
 
     private static function coinGeckoMessage(): SyncTrackerMessage
