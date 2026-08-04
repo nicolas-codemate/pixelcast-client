@@ -157,15 +157,17 @@ docker compose run --rm php bin/console app:sync weather
 ```
 
 A tracker cycle is checked the same way from the repository, against the local
-simulator:
+simulator. The group must be `enabled: true` in the local `pixelcast.yaml`, and
+`PIXELCAST_TWELVEDATA_API_KEY` must reach the `php` container — without a key
+the cycle is logged and skipped.
 
 ```
 make sync ARGS="twelvedata"
 make inspect
 ```
 
-`state.trackers.count` then holds the number of configured assets, and the
-request log carries one `POST /api/tracker` per asset. `make inspect` reads the
-local simulator, on `PIXELCAST_SIMULATOR_HOST_PORT` (8088 by default), never a
-real screen.
+`state.trackers.count` then holds one entry per asset the provider served, and
+the request log carries one `POST /api/tracker` per asset. `make inspect` reads
+the local simulator, on `PIXELCAST_SIMULATOR_HOST_PORT` (8088 by default), never
+a real screen.
 
