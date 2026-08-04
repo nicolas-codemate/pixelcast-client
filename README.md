@@ -128,8 +128,17 @@ because no probe ever ran; `docker compose ps` is what settles the two apart.
 
 An enabled tracker group pushes one screen per tracked asset at every interval,
 and turns the container `unhealthy` after three intervals without a successful
-push, whatever the cause — the logs name it. Both `coingecko` and `twelvedata`
-ship with `enabled: false` in `pixelcast.yaml.dist`.
+push, whatever the cause — the logs name it. An asset the provider does not
+serve is logged and skipped, and the other assets of the group still reach the
+screen. Both `coingecko` and `twelvedata` ship with `enabled: false` in
+`pixelcast.yaml.dist`.
+
+The `twelvedata` group covers stocks, ETFs and indices together, in a single
+call to the provider per cycle whatever the number of assets, because the free
+quota is 800 requests a day — hence no separate `etf` or `stocks` group. Twelve
+Data quotes every asset in the currency of its exchange and converts nothing, so
+the `currency` of the file is only a fallback for the responses that carry none,
+indices first of all.
 
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host
@@ -146,4 +155,19 @@ To confirm a deployment without waiting for the next scheduled run:
 ```
 docker compose run --rm php bin/console app:sync weather
 ```
+
+A tracker cycle is checked the same way from the repository, against the local
+simulator. The group must be `enabled: true` in the local `pixelcast.yaml`, and
+`PIXELCAST_TWELVEDATA_API_KEY` must reach the `php` container — without a key
+the cycle is logged and skipped.
+
+```
+make sync ARGS="twelvedata"
+make inspect
+```
+
+`state.trackers.count` then holds one entry per asset the provider served, and
+the request log carries one `POST /api/tracker` per asset. `make inspect` reads
+the local simulator, on `PIXELCAST_SIMULATOR_HOST_PORT` (8088 by default), never
+a real screen.
 

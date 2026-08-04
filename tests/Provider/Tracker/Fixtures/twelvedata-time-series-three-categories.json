@@ -1,0 +1,187 @@
+{
+    "AAPL": {
+        "meta": {
+            "symbol": "AAPL",
+            "interval": "1day",
+            "currency": "USD",
+            "exchange_timezone": "America/New_York",
+            "exchange": "NASDAQ",
+            "mic_code": "XNGS",
+            "type": "Common Stock"
+        },
+        "values": [
+            {
+                "datetime": "2026-07-27",
+                "open": "195.50000",
+                "high": "196.50000",
+                "low": "195.00000",
+                "close": "196.00000",
+                "volume": "1024000"
+            },
+            {
+                "datetime": "2026-07-28",
+                "open": "196.50000",
+                "high": "197.50000",
+                "low": "196.00000",
+                "close": "197.00000",
+                "volume": "1025000"
+            },
+            {
+                "datetime": "2026-07-29",
+                "open": "197.50000",
+                "high": "198.50000",
+                "low": "197.00000",
+                "close": "198.00000",
+                "volume": "1026000"
+            },
+            {
+                "datetime": "2026-07-30",
+                "open": "198.50000",
+                "high": "199.50000",
+                "low": "198.00000",
+                "close": "199.00000",
+                "volume": "1027000"
+            },
+            {
+                "datetime": "2026-07-31",
+                "open": "199.50000",
+                "high": "200.50000",
+                "low": "199.00000",
+                "close": "200.00000",
+                "volume": "1028000"
+            },
+            {
+                "datetime": "2026-08-03",
+                "open": "200.50000",
+                "high": "201.50000",
+                "low": "200.00000",
+                "close": "201.00000",
+                "volume": "1029000"
+            }
+        ],
+        "status": "ok"
+    },
+    "IWDA.AS": {
+        "meta": {
+            "symbol": "IWDA.AS",
+            "interval": "1day",
+            "currency": "EUR",
+            "exchange_timezone": "Europe/Amsterdam",
+            "exchange": "Euronext Amsterdam",
+            "mic_code": "XAMS",
+            "type": "ETF"
+        },
+        "values": [
+            {
+                "datetime": "2026-07-27",
+                "open": "104.50000",
+                "high": "105.00000",
+                "low": "103.50000",
+                "close": "104.00000",
+                "volume": "1024000"
+            },
+            {
+                "datetime": "2026-07-28",
+                "open": "103.50000",
+                "high": "104.00000",
+                "low": "102.50000",
+                "close": "103.00000",
+                "volume": "1025000"
+            },
+            {
+                "datetime": "2026-07-29",
+                "open": "102.50000",
+                "high": "103.00000",
+                "low": "101.50000",
+                "close": "102.00000",
+                "volume": "1026000"
+            },
+            {
+                "datetime": "2026-07-30",
+                "open": "101.50000",
+                "high": "102.00000",
+                "low": "100.50000",
+                "close": "101.00000",
+                "volume": "1027000"
+            },
+            {
+                "datetime": "2026-07-31",
+                "open": "100.50000",
+                "high": "101.00000",
+                "low": "99.50000",
+                "close": "100.00000",
+                "volume": "1028000"
+            },
+            {
+                "datetime": "2026-08-03",
+                "open": "99.50000",
+                "high": "100.00000",
+                "low": "98.50000",
+                "close": "99.00000",
+                "volume": "1029000"
+            }
+        ],
+        "status": "ok"
+    },
+    "IXIC": {
+        "meta": {
+            "symbol": "IXIC",
+            "interval": "1day",
+            "exchange_timezone": "America/New_York",
+            "exchange": "NASDAQ",
+            "mic_code": "XNAS",
+            "type": "Index"
+        },
+        "values": [
+            {
+                "datetime": "2026-07-27",
+                "open": "20035.00000",
+                "high": "20045.00000",
+                "low": "20030.00000",
+                "close": "20040.00000",
+                "volume": "0"
+            },
+            {
+                "datetime": "2026-07-28",
+                "open": "20025.00000",
+                "high": "20035.00000",
+                "low": "20020.00000",
+                "close": "20030.00000",
+                "volume": "0"
+            },
+            {
+                "datetime": "2026-07-29",
+                "open": "20015.00000",
+                "high": "20025.00000",
+                "low": "20010.00000",
+                "close": "20020.00000",
+                "volume": "0"
+            },
+            {
+                "datetime": "2026-07-30",
+                "open": "20005.00000",
+                "high": "20015.00000",
+                "low": "20000.00000",
+                "close": "20010.00000",
+                "volume": "0"
+            },
+            {
+                "datetime": "2026-07-31",
+                "open": "19995.00000",
+                "high": "20005.00000",
+                "low": "19990.00000",
+                "close": "20000.00000",
+                "volume": "0"
+            },
+            {
+                "datetime": "2026-08-03",
+                "open": "19895.00000",
+                "high": "19905.00000",
+                "low": "19890.00000",
+                "close": "19900.00000",
+                "volume": "0"
+            }
+        ],
+        "status": "ok"
+    }
+}
