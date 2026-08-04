@@ -12,45 +12,28 @@ use App\Client\Notification\NotificationPayload;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
 
+/**
+ * Every method below maps a device failure the same way:
+ * {@see InvalidPayloadException} when the request does not match the device spec (local check or HTTP 400),
+ * {@see ResourceNotFoundException} on HTTP 404,
+ * {@see DeviceBusyException} when the device cannot accept the request right now (HTTP 500 or 503),
+ * {@see DeviceUnreachableException} when the device did not answer, or answered an unmapped status.
+ */
 interface PixelcastClientInterface
 {
-    /**
-     * @throws InvalidPayloadException the payload does not match the device spec (local check or HTTP 400)
-     * @throws ResourceNotFoundException the endpoint is missing on the device (HTTP 404)
-     * @throws DeviceBusyException the device cannot accept the push right now (HTTP 500 or 503)
-     * @throws DeviceUnreachableException the device did not answer, or answered an unmapped status
-     */
     public function pushWeather(WeatherPayload $weather): void;
 
-    /**
-     * @throws InvalidPayloadException the payload does not match the device spec (local check or HTTP 400)
-     * @throws ResourceNotFoundException the endpoint is missing on the device (HTTP 404)
-     * @throws DeviceBusyException the device cannot accept the push right now (HTTP 500 or 503)
-     * @throws DeviceUnreachableException the device did not answer, or answered an unmapped status
-     */
     public function pushTracker(TrackerPayload $tracker): void;
 
     /**
-     * @throws InvalidPayloadException the payload does not match the device spec (local check or HTTP 400)
-     * @throws ResourceNotFoundException the endpoint is missing on the device (HTTP 404)
-     * @throws DeviceBusyException the device cannot accept the push right now (HTTP 500 or 503)
-     * @throws DeviceUnreachableException the device did not answer, or answered an unmapped status
+     * @throws ResourceNotFoundException no tracker carries this name
      */
     public function deleteTracker(string $trackerName): void;
 
-    /**
-     * @throws InvalidPayloadException the payload does not match the device spec (local check or HTTP 400)
-     * @throws ResourceNotFoundException the endpoint is missing on the device (HTTP 404)
-     * @throws DeviceBusyException the device cannot accept the push right now (HTTP 500 or 503)
-     * @throws DeviceUnreachableException the device did not answer, or answered an unmapped status
-     */
     public function pushNotification(NotificationPayload $notification): void;
 
     /**
-     * @throws InvalidPayloadException the payload does not match the device spec (local check or HTTP 400)
-     * @throws ResourceNotFoundException the endpoint is missing on the device (HTTP 404)
-     * @throws DeviceBusyException the device cannot accept the push right now (HTTP 500 or 503)
-     * @throws DeviceUnreachableException the device did not answer, or answered an unmapped status
+     * @throws ResourceNotFoundException there is no notification to dismiss
      */
     public function dismissNotification(): void;
 }

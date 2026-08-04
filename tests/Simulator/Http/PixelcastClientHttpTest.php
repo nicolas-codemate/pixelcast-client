@@ -28,14 +28,7 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
 
         $this->buildPixelcastClient()->pushWeather($payload);
 
-        $loggedRequests = self::loggedRequests($this->inspect());
-        self::assertCount(1, $loggedRequests, $this->server->serverOutput());
-
-        $weatherRequest = $loggedRequests[0] ?? [];
-        self::assertSame('POST', $weatherRequest['method'] ?? null);
-        self::assertSame('/api/weather', $weatherRequest['path'] ?? null);
-        self::assertSame(['valid' => true], $weatherRequest['validation'] ?? null);
-        self::assertSame($payload->toArray(), $weatherRequest['body'] ?? null);
+        $this->assertLoggedRequest($this->inspect(), 0, 1, 'POST', '/api/weather', $payload->toArray());
     }
 
     public function testPushedTrackerIsStoredUnderItsNameAndDeletedAfterwards(): void
@@ -57,27 +50,13 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         $client->pushTracker($tracker);
 
         $inspectionAfterPush = $this->inspect();
-        $loggedRequestsAfterPush = self::loggedRequests($inspectionAfterPush);
-        self::assertCount(1, $loggedRequestsAfterPush, $this->server->serverOutput());
-
-        $pushRequest = $loggedRequestsAfterPush[0] ?? [];
-        self::assertSame('POST', $pushRequest['method'] ?? null);
-        self::assertSame('/api/tracker', $pushRequest['path'] ?? null);
-        self::assertSame(['valid' => true], $pushRequest['validation'] ?? null);
-        self::assertSame($tracker->toArray(), $pushRequest['body'] ?? null);
+        $this->assertLoggedRequest($inspectionAfterPush, 0, 1, 'POST', '/api/tracker', $tracker->toArray());
         self::assertSame(['BTC'], self::storedTrackerNames($inspectionAfterPush), $this->server->serverOutput());
 
         $client->deleteTracker('BTC');
 
         $inspectionAfterDelete = $this->inspect();
-        $loggedRequestsAfterDelete = self::loggedRequests($inspectionAfterDelete);
-        self::assertCount(2, $loggedRequestsAfterDelete, $this->server->serverOutput());
-
-        $deleteRequest = $loggedRequestsAfterDelete[1] ?? [];
-        self::assertSame('DELETE', $deleteRequest['method'] ?? null);
-        self::assertSame('/api/tracker', $deleteRequest['path'] ?? null);
-        self::assertSame(['valid' => true], $deleteRequest['validation'] ?? null);
-        self::assertNull($deleteRequest['body'] ?? null);
+        $this->assertLoggedRequest($inspectionAfterDelete, 1, 2, 'DELETE', '/api/tracker', null);
         self::assertSame([], self::storedTrackerNames($inspectionAfterDelete), $this->server->serverOutput());
     }
 
@@ -86,12 +65,7 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         $this->buildPixelcastClient()->pushTracker(new TrackerPayload('BTC'));
 
         $inspection = $this->inspect();
-        $loggedRequests = self::loggedRequests($inspection);
-        self::assertCount(1, $loggedRequests, $this->server->serverOutput());
-
-        $pushRequest = $loggedRequests[0] ?? [];
-        self::assertSame(['valid' => true], $pushRequest['validation'] ?? null);
-        self::assertSame([], $pushRequest['body'] ?? null);
+        $this->assertLoggedRequest($inspection, 0, 1, 'POST', '/api/tracker', []);
         self::assertSame(['BTC'], self::storedTrackerNames($inspection), $this->server->serverOutput());
     }
 
@@ -109,27 +83,13 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         $client->pushNotification($notification);
 
         $inspectionAfterPush = $this->inspect();
-        $loggedRequestsAfterPush = self::loggedRequests($inspectionAfterPush);
-        self::assertCount(1, $loggedRequestsAfterPush, $this->server->serverOutput());
-
-        $pushRequest = $loggedRequestsAfterPush[0] ?? [];
-        self::assertSame('POST', $pushRequest['method'] ?? null);
-        self::assertSame('/api/notify', $pushRequest['path'] ?? null);
-        self::assertSame(['valid' => true], $pushRequest['validation'] ?? null);
-        self::assertSame($notification->toArray(), $pushRequest['body'] ?? null);
+        $this->assertLoggedRequest($inspectionAfterPush, 0, 1, 'POST', '/api/notify', $notification->toArray());
         self::assertSame(1, self::domainState($inspectionAfterPush, 'notifications')['count'] ?? null, $this->server->serverOutput());
 
         $client->dismissNotification();
 
         $inspectionAfterDismissal = $this->inspect();
-        $loggedRequestsAfterDismissal = self::loggedRequests($inspectionAfterDismissal);
-        self::assertCount(2, $loggedRequestsAfterDismissal, $this->server->serverOutput());
-
-        $dismissRequest = $loggedRequestsAfterDismissal[1] ?? [];
-        self::assertSame('POST', $dismissRequest['method'] ?? null);
-        self::assertSame('/api/notify/dismiss', $dismissRequest['path'] ?? null);
-        self::assertSame(['valid' => true], $dismissRequest['validation'] ?? null);
-        self::assertNull($dismissRequest['body'] ?? null);
+        $this->assertLoggedRequest($inspectionAfterDismissal, 1, 2, 'POST', '/api/notify/dismiss', null);
         self::assertSame(0, self::domainState($inspectionAfterDismissal, 'notifications')['count'] ?? null, $this->server->serverOutput());
     }
 

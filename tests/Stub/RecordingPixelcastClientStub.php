@@ -40,46 +40,43 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
 
     public function pushWeather(WeatherPayload $weather): void
     {
-        if (null !== $this->failure) {
-            throw $this->failure;
-        }
+        $this->failIfConfigured();
 
         $this->pushedPayloads[] = $weather;
     }
 
     public function pushTracker(TrackerPayload $tracker): void
     {
-        if (null !== $this->failure) {
-            throw $this->failure;
-        }
+        $this->failIfConfigured();
 
         $this->pushedTrackers[] = $tracker;
     }
 
     public function deleteTracker(string $trackerName): void
     {
-        if (null !== $this->failure) {
-            throw $this->failure;
-        }
+        $this->failIfConfigured();
 
         $this->deletedTrackerNames[] = $trackerName;
     }
 
     public function pushNotification(NotificationPayload $notification): void
     {
-        if (null !== $this->failure) {
-            throw $this->failure;
-        }
+        $this->failIfConfigured();
 
         $this->pushedNotifications[] = $notification;
     }
 
     public function dismissNotification(): void
     {
+        $this->failIfConfigured();
+
+        ++$this->dismissedNotificationCount;
+    }
+
+    private function failIfConfigured(): void
+    {
         if (null !== $this->failure) {
             throw $this->failure;
         }
-
-        ++$this->dismissedNotificationCount;
     }
 }

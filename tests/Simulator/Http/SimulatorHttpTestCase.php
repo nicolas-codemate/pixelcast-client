@@ -67,6 +67,22 @@ abstract class SimulatorHttpTestCase extends TestCase
 
     /**
      * @param array<string, mixed> $inspectPayload
+     * @param array<string, mixed>|null $expectedBody
+     */
+    protected function assertLoggedRequest(array $inspectPayload, int $position, int $expectedCount, string $expectedMethod, string $expectedPath, ?array $expectedBody): void
+    {
+        $loggedRequests = self::loggedRequests($inspectPayload);
+        self::assertCount($expectedCount, $loggedRequests, $this->server->serverOutput());
+
+        $loggedRequest = $loggedRequests[$position] ?? [];
+        self::assertSame($expectedMethod, $loggedRequest['method'] ?? null);
+        self::assertSame($expectedPath, $loggedRequest['path'] ?? null);
+        self::assertSame(['valid' => true], $loggedRequest['validation'] ?? null);
+        self::assertSame($expectedBody, $loggedRequest['body'] ?? null);
+    }
+
+    /**
+     * @param array<string, mixed> $inspectPayload
      *
      * @return array<string, mixed>
      */

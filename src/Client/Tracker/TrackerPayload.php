@@ -33,25 +33,18 @@ final readonly class TrackerPayload
             throw new \InvalidArgumentException('A tracker needs a non-empty name.');
         }
 
-        if (null !== $this->symbol && mb_strlen($this->symbol) > self::MAXIMUM_SYMBOL_LENGTH) {
-            throw new \InvalidArgumentException(\sprintf('A tracker symbol holds at most %d characters, got %d.', self::MAXIMUM_SYMBOL_LENGTH, mb_strlen($this->symbol)));
-        }
-
-        if (null !== $this->currency && mb_strlen($this->currency) > self::MAXIMUM_CURRENCY_LENGTH) {
-            throw new \InvalidArgumentException(\sprintf('A tracker currency holds at most %d characters, got %d.', self::MAXIMUM_CURRENCY_LENGTH, mb_strlen($this->currency)));
-        }
-
-        if (null !== $this->bottomText && mb_strlen($this->bottomText) > self::MAXIMUM_BOTTOM_TEXT_LENGTH) {
-            throw new \InvalidArgumentException(\sprintf('A tracker bottom text holds at most %d characters, got %d.', self::MAXIMUM_BOTTOM_TEXT_LENGTH, mb_strlen($this->bottomText)));
-        }
+        self::assertLengthWithinLimit('symbol', $this->symbol, self::MAXIMUM_SYMBOL_LENGTH);
+        self::assertLengthWithinLimit('currency', $this->currency, self::MAXIMUM_CURRENCY_LENGTH);
+        self::assertLengthWithinLimit('bottom text', $this->bottomText, self::MAXIMUM_BOTTOM_TEXT_LENGTH);
 
         if (\count($this->sparklinePoints) > self::MAXIMUM_SPARKLINE_POINTS) {
             throw new \InvalidArgumentException(\sprintf('A tracker sparkline holds at most %d points, got %d.', self::MAXIMUM_SPARKLINE_POINTS, \count($this->sparklinePoints)));
         }
     }
 
-    // The tracker name travels as a query parameter, the only form DELETE /tracker accepts.
     /**
+     * The name is absent on purpose: it travels as a query parameter, the only form DELETE /tracker accepts.
+     *
      * @return array{symbol?: string, icon?: string, currency?: string, value?: float, change?: float, sparkline?: list<float>, symbolColor?: string, sparklineColor?: string, bottomText?: string, duration?: int}
      */
     public function toArray(): array
@@ -99,5 +92,12 @@ final readonly class TrackerPayload
         }
 
         return $payload;
+    }
+
+    private static function assertLengthWithinLimit(string $fieldLabel, ?string $value, int $maximumLength): void
+    {
+        if (null !== $value && mb_strlen($value) > $maximumLength) {
+            throw new \InvalidArgumentException(\sprintf('A tracker %s holds at most %d characters, got %d.', $fieldLabel, $maximumLength, mb_strlen($value)));
+        }
     }
 }

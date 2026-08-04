@@ -37,12 +37,12 @@ final readonly class PixelcastClient implements PixelcastClientInterface
 
     public function pushTracker(TrackerPayload $tracker): void
     {
-        $this->sendValidated('POST', self::TRACKER_SPEC_PATH, ['name' => $tracker->name], $tracker->toArray());
+        $this->sendValidated('POST', self::TRACKER_SPEC_PATH, queryParameters: ['name' => $tracker->name], body: $tracker->toArray());
     }
 
     public function deleteTracker(string $trackerName): void
     {
-        $this->sendValidated('DELETE', self::TRACKER_SPEC_PATH, ['name' => $trackerName]);
+        $this->sendValidated('DELETE', self::TRACKER_SPEC_PATH, queryParameters: ['name' => $trackerName]);
     }
 
     public function pushNotification(NotificationPayload $notification): void
