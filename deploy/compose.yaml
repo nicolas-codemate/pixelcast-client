@@ -2,6 +2,12 @@ services:
   php:
     image: ghcr.io/nicolas-codemate/pixelcast-client:latest
     restart: unless-stopped
+    # 30 MB per container, about five months of cycles even when every one of them fails.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - ./pixelcast.env
     volumes:
