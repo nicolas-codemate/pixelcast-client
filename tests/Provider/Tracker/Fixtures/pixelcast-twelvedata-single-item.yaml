@@ -1,0 +1,10 @@
+# Sample configuration used by TwelveDataTrackerProviderTest: a single item, to exercise
+# the response shape Twelve Data returns when only one symbol is requested.
+syncs:
+    twelvedata:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: AAPL
+              currency: usd
+              icon: stock

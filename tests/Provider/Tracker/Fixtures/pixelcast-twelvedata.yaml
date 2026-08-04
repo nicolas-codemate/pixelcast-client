@@ -1,0 +1,13 @@
+# Sample configuration used by TwelveDataTrackerProviderTest: a US stock and a European
+# ETF, to exercise the batch call and the shortening of the displayed ticker.
+syncs:
+    twelvedata:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: AAPL
+              currency: usd
+              icon: stock
+            - symbol: IWDA.AS
+              currency: eur
+              icon: etf

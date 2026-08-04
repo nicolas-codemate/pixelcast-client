@@ -24,3 +24,12 @@ framework:
                 timeout: 5
                 retry_failed:
                     max_retries: 2
+
+            twelvedata.client:
+                base_uri: 'https://api.twelvedata.com/'
+                timeout: 5
+                retry_failed:
+                    max_retries: 2
+                    # 429 is left out on purpose: retrying a rate-limited call spends credits
+                    # the daily quota no longer has, and each retry bills one credit per symbol.
+                    http_codes: [0, 500, 502, 503, 504, 507, 510]
