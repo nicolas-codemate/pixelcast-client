@@ -35,10 +35,14 @@ bin/console app:device:dump --domain=weather   # one domain
 bin/console app:device:dump --target=http://192.168.1.42/api
 ```
 
-In dev the state is read from the simulator's `/api/__inspect` endpoint, which
-returns every domain at once. In prod it is read from the firmware REST API,
-one GET per domain; the firmware exposes no GET for indicator slots or custom
-apps, so those two always come back empty.
+The target decides how it is read, not the environment the command runs in.
+The target is probed on `/api/__inspect`: only the simulator answers there, and
+its answer carries every domain at once. Anything else is read from the firmware
+REST API, one GET per domain; the firmware exposes no GET for indicator slots or
+custom apps, so those two always come back empty. So `--target` is enough to
+dump a real screen from the dev container, and a target that answers neither
+shape produces an explanatory error instead of a dump full of `null`. Add `-v`
+to see which of the two shapes was detected.
 
 Like the firmware, the simulator serves every route under `/api`, `__inspect`
 and `__reset` included, so a target URL always ends with `/api`.

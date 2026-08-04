@@ -184,6 +184,35 @@ final class ProdDeviceStateSourceTest extends TestCase
         self::assertNull($state->payload);
     }
 
+    public function testThereIsNoUnreadableReasonWhenAtLeastOneEndpointAnswers(): void
+    {
+        $fetcher = new StubHttpJsonFetcher();
+        $fetcher->responses[self::WEATHER_URL] = ['current' => ['temp' => 20]];
+        $source = $this->buildSource($fetcher);
+
+        self::assertNull($source->unreadableReason());
+    }
+
+    public function testThereIsNoUnreadableReasonWhenOnlySettingsAnswers(): void
+    {
+        $fetcher = new StubHttpJsonFetcher();
+        $fetcher->responses[self::SETTINGS_URL] = ['BRI' => 100];
+        $source = $this->buildSource($fetcher);
+
+        self::assertNull($source->unreadableReason());
+    }
+
+    public function testTheUnreadableReasonExplainsThatNoEndpointAnswered(): void
+    {
+        $fetcher = new StubHttpJsonFetcher();
+        $source = $this->buildSource($fetcher);
+
+        $error = $source->unreadableReason();
+
+        self::assertNotNull($error);
+        self::assertStringContainsString('REST', $error);
+    }
+
     private function buildSource(StubHttpJsonFetcher $fetcher): ProdDeviceStateSource
     {
         return new ProdDeviceStateSource(
