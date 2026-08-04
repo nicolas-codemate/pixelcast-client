@@ -22,6 +22,8 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
     private const string POSITIVE_TREND_COLOR_HEX = '#00FF00';
     private const string NEGATIVE_TREND_COLOR_HEX = '#FF0000';
     private const string TICKER_EXCHANGE_SEPARATORS = ':.';
+    private const int DAILY_BAR_COUNT = 30;
+    private const string SPARKLINE_PERIOD = self::DAILY_BAR_COUNT.'d';
 
     public function __construct(
         #[Target('twelvedata.client')]
@@ -109,7 +111,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
                 'query' => [
                     'symbol' => $requestedSymbols,
                     'interval' => '1day',
-                    'outputsize' => 30,
+                    'outputsize' => self::DAILY_BAR_COUNT,
                     'order' => 'asc',
                 ],
             ])->toArray();
@@ -179,6 +181,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
                 sparklinePoints: $sparklinePoints,
                 symbolColor: $trendColor,
                 sparklineColor: $trendColor,
+                sparklinePeriod: self::SPARKLINE_PERIOD,
             );
         } catch (\InvalidArgumentException $validationError) {
             $this->logger->warning('Twelve Data series could not be turned into a tracker', [

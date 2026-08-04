@@ -18,6 +18,8 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
 {
     private const string MARKETS_PATH = 'coins/markets';
     private const string API_KEY_HEADER = 'x-cg-demo-api-key';
+    // CoinGecko serves a single series, sparkline_in_7d, whatever the requested currency.
+    private const string SPARKLINE_PERIOD = '7d';
     private const string POSITIVE_TREND_COLOR_HEX = '#00FF00';
     private const string NEGATIVE_TREND_COLOR_HEX = '#FF0000';
 
@@ -165,6 +167,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
         $tickerSymbolUppercase = mb_strtoupper($tickerSymbol);
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);
         $sparklinePoints = SparklineDownsampler::downsampleToAtMost(self::readSparklinePoints($market), TrackerPayload::MAXIMUM_SPARKLINE_POINTS);
+        $bottomText = TradedVolumeBottomText::composeFrom(self::readNumber($market, 'total_volume'), $item->currency);
 
         try {
             return new TrackerPayload(
@@ -177,6 +180,8 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
                 sparklinePoints: $sparklinePoints,
                 symbolColor: $trendColor,
                 sparklineColor: $trendColor,
+                sparklinePeriod: self::SPARKLINE_PERIOD,
+                bottomText: $bottomText,
             );
         } catch (\InvalidArgumentException $validationError) {
             $this->logger->warning('CoinGecko market could not be turned into a tracker', [

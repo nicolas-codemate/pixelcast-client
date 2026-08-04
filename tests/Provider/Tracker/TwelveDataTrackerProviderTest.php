@@ -41,6 +41,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         self::assertSame(0.5, $applePayload->changePercentage);
         self::assertSame('#00FF00', $applePayload->symbolColor?->hexCode);
         self::assertSame('#00FF00', $applePayload->sparklineColor?->hexCode);
+        self::assertSame('30d', $applePayload->sparklinePeriod);
 
         self::assertSame('IWDA.AS', $worldEtfPayload->name);
         self::assertSame('IWDA', $worldEtfPayload->symbol);
