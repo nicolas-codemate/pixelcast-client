@@ -33,8 +33,12 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
 
     public int $dismissedNotificationCount = 0;
 
+    /**
+     * @param array<string, \Throwable> $trackerFailures keyed by tracker name
+     */
     public function __construct(
         private readonly ?\Throwable $failure = null,
+        private readonly array $trackerFailures = [],
     ) {
     }
 
@@ -47,6 +51,10 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
 
     public function pushTracker(TrackerPayload $tracker): void
     {
+        if (isset($this->trackerFailures[$tracker->name])) {
+            throw $this->trackerFailures[$tracker->name];
+        }
+
         $this->failIfConfigured();
 
         $this->pushedTrackers[] = $tracker;

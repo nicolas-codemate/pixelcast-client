@@ -30,6 +30,11 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
     ) {
     }
 
+    public function syncType(): string
+    {
+        return CoinGeckoSyncConfig::syncType();
+    }
+
     public function fetchTrackers(): array
     {
         $coinGeckoSyncGroup = $this->configLoader->load()->syncGroupOfType(CoinGeckoSyncConfig::class);
