@@ -1,0 +1,19 @@
+[
+    {
+        "id": "bitcoin",
+        "symbol": "btc",
+        "name": "Bitcoin",
+        "last_updated": "2026-08-04T08:00:00.000Z"
+    },
+    {
+        "id": "ethereum",
+        "symbol": "eth",
+        "name": "Ethereum",
+        "current_price": 2455.12,
+        "price_change_percentage_24h": -3.85,
+        "last_updated": "2026-08-04T08:00:00.000Z",
+        "sparkline_in_7d": {
+            "price": [2600.0, 2595.0]
+        }
+    }
+]

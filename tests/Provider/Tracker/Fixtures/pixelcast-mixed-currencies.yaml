@@ -1,0 +1,13 @@
+# Sample configuration used by CoinGeckoTrackerProviderTest: two items in different
+# currencies, to exercise one CoinGecko call per currency.
+syncs:
+    coingecko:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+              icon: bitcoin
+            - symbol: ethereum
+              currency: usd
+              icon: ethereum
