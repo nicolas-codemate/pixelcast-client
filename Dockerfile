@@ -1,7 +1,7 @@
 # Dependabot only reads FROM instructions, so images copied from are declared as stages.
-FROM composer:2.9.8 AS composer_upstream
+FROM composer:2.10.2 AS composer_upstream
 
-FROM ghcr.io/mlocati/php-extension-installer:2.11.1 AS php_extension_installer_upstream
+FROM ghcr.io/mlocati/php-extension-installer:2.11.12 AS php_extension_installer_upstream
 
 FROM php:8.5-cli-alpine3.22 AS php_upstream
 LABEL authors="nicolas-codemate"
