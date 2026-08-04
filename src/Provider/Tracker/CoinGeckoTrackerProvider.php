@@ -18,7 +18,6 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
 {
     private const string MARKETS_PATH = 'coins/markets';
     private const string API_KEY_HEADER = 'x-cg-demo-api-key';
-    private const int MAXIMUM_SPARKLINE_POINTS = 24;
     private const string POSITIVE_TREND_COLOR_HEX = '#00FF00';
     private const string NEGATIVE_TREND_COLOR_HEX = '#FF0000';
 
@@ -160,7 +159,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
 
         $tickerSymbolUppercase = mb_strtoupper($tickerSymbol);
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);
-        $sparklinePoints = SparklineDownsampler::downsampleToAtMost(self::readSparklinePoints($market), self::MAXIMUM_SPARKLINE_POINTS);
+        $sparklinePoints = SparklineDownsampler::downsampleToAtMost(self::readSparklinePoints($market), TrackerPayload::MAXIMUM_SPARKLINE_POINTS);
 
         try {
             return new TrackerPayload(

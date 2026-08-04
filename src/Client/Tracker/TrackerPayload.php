@@ -8,10 +8,11 @@ use App\Client\Color;
 
 final readonly class TrackerPayload
 {
+    public const int MAXIMUM_SPARKLINE_POINTS = 24;
+
     private const int MAXIMUM_SYMBOL_LENGTH = 7;
     private const int MAXIMUM_CURRENCY_LENGTH = 7;
     private const int MAXIMUM_BOTTOM_TEXT_LENGTH = 31;
-    private const int MAXIMUM_SPARKLINE_POINTS = 24;
 
     /**
      * @param list<float> $sparklinePoints
