@@ -60,7 +60,8 @@ syncs:
 
         # Assets tracked in this group.
         # symbol: identifier of the asset for this provider, a ticker for Twelve Data.
-        # currency: currency the asset price is quoted in.
+        # currency: only a fallback here. Twelve Data quotes every asset in the currency of its
+        #   exchange and converts nothing, so the currency it reports wins over this value.
         # icon: name of the icon shown next to the asset on the device, optional.
         items:
             - symbol: AAPL
