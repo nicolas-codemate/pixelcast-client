@@ -17,6 +17,29 @@ SettingsUpdateRequest:
     defaultDuration:
       type: integer
       description: Default app display duration in milliseconds.
+    ntp:
+      type: object
+      description: >
+        Update NTP source. Either field can be omitted; both are
+        re-applied without reboot via `configTzTime()`.
+      properties:
+        server:
+          type: string
+          description: NTP server hostname.
+        tz_posix:
+          type: string
+          maxLength: 63
+          description: >
+            POSIX TZ string controlling local time display and DST behaviour.
+            Example: "CET-1CEST,M3.5.0,M10.5.0/3" for Europe/Paris with EU DST.
+            The device does not embed an IANA tz database — clients should
+            convert IANA names (e.g. "Europe/Paris") to POSIX TZ before
+            sending.
+          examples:
+            - "CET-1CEST,M3.5.0,M10.5.0/3"
+            - "UTC0"
+            - "EST5EDT,M3.2.0,M11.1.0"
+          default: "CET-1CEST,M3.5.0,M10.5.0/3"
 
 SettingsResponse:
   type: object
@@ -44,9 +67,20 @@ SettingsResponse:
         server:
           type: string
           description: NTP server hostname.
-        offset:
-          type: integer
-          description: UTC offset in seconds.
+        tz_posix:
+          type: string
+          maxLength: 63
+          description: >
+            POSIX TZ string controlling local time display and DST behaviour.
+            Example: "CET-1CEST,M3.5.0,M10.5.0/3" for Europe/Paris with EU DST.
+            The device does not embed an IANA tz database — clients should
+            convert IANA names (e.g. "Europe/Paris") to POSIX TZ before
+            sending.
+          examples:
+            - "CET-1CEST,M3.5.0,M10.5.0/3"
+            - "UTC0"
+            - "EST5EDT,M3.2.0,M11.1.0"
+          default: "CET-1CEST,M3.5.0,M10.5.0/3"
     mqtt:
       type: object
       properties:

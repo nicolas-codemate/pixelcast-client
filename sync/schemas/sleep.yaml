@@ -1,0 +1,134 @@
+# Sleep schemas
+#
+# Note on `sleep_until` / `until` epoch frame:
+# All epoch values in this schema are standard UTC Unix timestamps (seconds
+# since 1970-01-01 UTC). The device handles local time display via its
+# configured `ntp.tz_posix`; clients send and receive epochs in UTC
+# unchanged.
+#
+# BREAKING (v0.2.0): `sleep_until` epoch semantics changed from the device's
+# local frame to UTC. Clients that previously added the device's `ntp_offset`
+# to their UTC timestamp before sending must stop doing so.
+
+SleepSlot:
+  type: object
+  required: [start, end]
+  properties:
+    start:
+      type: string
+      pattern: "^[0-2][0-9]:[0-5][0-9]$"
+      description: >
+        Start time in 24h `HH:MM` format (zero-padded). See `end` for the
+        rule that lets a slot wrap past midnight (`end < start`).
+      examples:
+        - "20:00"
+    end:
+      type: string
+      pattern: "^[0-2][0-9]:[0-5][0-9]$"
+      description: >
+        End time in 24h `HH:MM` format (zero-padded). When `end` is less than
+        `start`, the slot wraps past midnight into the following day
+        (e.g. `start=20:00`, `end=07:00` means 20:00 tonight through 07:00
+        tomorrow).
+      examples:
+        - "07:00"
+
+SleepDay:
+  type: object
+  description: >
+    Sleep configuration for a single day of the week. Fields are optional in
+    partial updates: omitted fields leave the corresponding day untouched.
+  properties:
+    all_day:
+      type: boolean
+      description: >
+        When true, the device is considered asleep for the entire day and
+        `slots` is ignored.
+    slots:
+      type: array
+      maxItems: 2
+      items:
+        $ref: "#/SleepSlot"
+      description: >
+        Up to 2 sleep windows for this day. A slot with `end < start`
+        wraps past midnight into the next day.
+
+SleepSchedule:
+  type: object
+  description: >
+    Weekly sleep schedule keyed by lowercase day name. All day keys are
+    optional in partial updates.
+  properties:
+    monday:
+      $ref: "#/SleepDay"
+    tuesday:
+      $ref: "#/SleepDay"
+    wednesday:
+      $ref: "#/SleepDay"
+    thursday:
+      $ref: "#/SleepDay"
+    friday:
+      $ref: "#/SleepDay"
+    saturday:
+      $ref: "#/SleepDay"
+    sunday:
+      $ref: "#/SleepDay"
+  additionalProperties: false
+
+SleepConfig:
+  type: object
+  description: >
+    Sleep configuration. All fields are optional: `POST /api/sleep` performs
+    a partial update and only changes the fields that are present.
+  properties:
+    enabled:
+      type: boolean
+      description: Master toggle for the schedule-based sleep.
+    display_mode:
+      type: string
+      enum: [black, clock]
+      description: >
+        What to render while the device is sleeping. `black` blanks the
+        panel; `clock` shows a dimmed clock.
+    schedule:
+      $ref: "#/SleepSchedule"
+    sleep_until:
+      type: integer
+      minimum: 0
+      description: >
+        Manual sleep override expressed as a UTC Unix timestamp (seconds
+        since 1970-01-01 UTC). When non-zero and in the future, the device
+        sleeps regardless of `schedule`. A value of `0` clears any active
+        override.
+      examples:
+        - 4102444800
+
+SleepState:
+  type: object
+  required: [sleeping, config]
+  description: Current sleep state plus full configuration snapshot.
+  properties:
+    sleeping:
+      type: boolean
+      description: True when the device is currently in a sleep state.
+    reason:
+      type: string
+      enum: [schedule, override, ntp_not_synced]
+      description: >
+        Why the device is in its current state. Present when `sleeping` is
+        true, AND when `sleeping` is false because NTP is not yet synced
+        (fail-open: an unreliable clock takes precedence over the schedule
+        so the device stays awake while still surfacing the diagnostic).
+        Values: `schedule` = matched a weekly slot; `override` =
+        `sleep_until` is in the future; `ntp_not_synced` = NTP time not
+        acquired. Omitted otherwise (device awake under normal conditions).
+    until:
+      type: integer
+      minimum: 0
+      description: >
+        UTC Unix timestamp at which the override expires. Only present
+        when `reason` is `override`.
+      examples:
+        - 4102444800
+    config:
+      $ref: "#/SleepConfig"
