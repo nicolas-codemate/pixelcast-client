@@ -131,6 +131,14 @@ and turns the container `unhealthy` after three intervals without a successful
 push, whatever the cause — the logs name it. Both `coingecko` and `twelvedata`
 ship with `enabled: false` in `pixelcast.yaml.dist`.
 
+The `twelvedata` group covers stocks, ETFs and indices together, in a single
+call to the provider per cycle whatever the number of assets, because the free
+quota is 800 requests a day — hence no separate `etf` or `stocks` group. Twelve
+Data quotes every asset in the currency of its exchange and converts nothing, so
+the `currency` of the file is only a fallback for the responses that carry none,
+indices first of all. A symbol Twelve Data does not serve is logged and skipped,
+and the other assets of the group still reach the screen.
+
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host
 takes effect at the next start of the consumer, which the image recycles every
@@ -146,4 +154,17 @@ To confirm a deployment without waiting for the next scheduled run:
 ```
 docker compose run --rm php bin/console app:sync weather
 ```
+
+A tracker cycle is checked the same way from the repository, against the local
+simulator:
+
+```
+make sync ARGS="twelvedata"
+make inspect
+```
+
+`state.trackers.count` then holds the number of configured assets, and the
+request log carries one `POST /api/tracker` per asset. `make inspect` reads the
+local simulator, on `PIXELCAST_SIMULATOR_HOST_PORT` (8088 by default), never the
+screen: the state of a real screen is read with `app:device:dump --target=...`.
 
