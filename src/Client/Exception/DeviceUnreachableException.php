@@ -9,7 +9,7 @@ final class DeviceUnreachableException extends \RuntimeException implements Pixe
     public static function forPath(string $path, \Throwable $previous): self
     {
         return new self(
-            \sprintf('Device unreachable while posting to "%s": %s', $path, $previous->getMessage()),
+            \sprintf('Device unreachable while calling "%s": %s', $path, $previous->getMessage()),
             0,
             $previous,
         );

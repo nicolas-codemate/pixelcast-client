@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Stub;
 
+use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClientInterface;
+use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
 
 final class RecordingPixelcastClientStub implements PixelcastClientInterface
@@ -13,6 +15,23 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
      * @var list<WeatherPayload>
      */
     public array $pushedPayloads = [];
+
+    /**
+     * @var list<TrackerPayload>
+     */
+    public array $pushedTrackers = [];
+
+    /**
+     * @var list<string>
+     */
+    public array $deletedTrackerNames = [];
+
+    /**
+     * @var list<NotificationPayload>
+     */
+    public array $pushedNotifications = [];
+
+    public int $dismissedNotificationCount = 0;
 
     public function __construct(
         private readonly ?\Throwable $failure = null,
@@ -26,5 +45,41 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         }
 
         $this->pushedPayloads[] = $weather;
+    }
+
+    public function pushTracker(TrackerPayload $tracker): void
+    {
+        if (null !== $this->failure) {
+            throw $this->failure;
+        }
+
+        $this->pushedTrackers[] = $tracker;
+    }
+
+    public function deleteTracker(string $trackerName): void
+    {
+        if (null !== $this->failure) {
+            throw $this->failure;
+        }
+
+        $this->deletedTrackerNames[] = $trackerName;
+    }
+
+    public function pushNotification(NotificationPayload $notification): void
+    {
+        if (null !== $this->failure) {
+            throw $this->failure;
+        }
+
+        $this->pushedNotifications[] = $notification;
+    }
+
+    public function dismissNotification(): void
+    {
+        if (null !== $this->failure) {
+            throw $this->failure;
+        }
+
+        ++$this->dismissedNotificationCount;
     }
 }

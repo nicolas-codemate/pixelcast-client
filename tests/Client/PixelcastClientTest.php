@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Client;
 
+use App\Client\Color;
 use App\Client\Exception\DeviceBusyException;
 use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\PixelcastClientException;
 use App\Client\Exception\ResourceNotFoundException;
+use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClient;
+use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\CurrentWeather;
 use App\Client\Weather\ForecastDay;
 use App\Client\Weather\WeatherIcon;
@@ -27,6 +30,9 @@ final class PixelcastClientTest extends TestCase
 {
     private const string TEST_DEVICE_BASE_URL = 'http://device.test/api';
     private const string EXPECTED_WEATHER_URL = 'http://device.test/api/weather';
+    private const string EXPECTED_TRACKER_URL = 'http://device.test/api/tracker?name=BTC';
+    private const string EXPECTED_NOTIFY_URL = 'http://device.test/api/notify';
+    private const string EXPECTED_DISMISS_URL = 'http://device.test/api/notify/dismiss';
 
     // Parsing the vendored spec costs more than every test of this class combined.
     private static RequestValidator $requestValidator;
@@ -78,6 +84,55 @@ final class PixelcastClientTest extends TestCase
         self::assertSame('POST', $response->getRequestMethod());
         self::assertSame(self::EXPECTED_WEATHER_URL, $response->getRequestUrl());
         self::assertSame($payload->toArray(), self::decodedRequestBody($response));
+    }
+
+    public function testPushTrackerSendsTheNameAsQueryParameterAndTheRestAsBody(): void
+    {
+        $response = new MockResponse('{"success":true}');
+        $tracker = self::buildTrackerPayload();
+
+        $this->buildClient($response)->pushTracker($tracker);
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_TRACKER_URL, $response->getRequestUrl());
+        $sentBody = self::decodedRequestBody($response);
+
+        self::assertSame($tracker->toArray(), $sentBody);
+        self::assertArrayNotHasKey('name', $sentBody);
+    }
+
+    public function testDeleteTrackerSendsNoBody(): void
+    {
+        $response = new MockResponse('{"success":true}');
+
+        $this->buildClient($response)->deleteTracker('BTC');
+
+        self::assertSame('DELETE', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_TRACKER_URL, $response->getRequestUrl());
+        self::assertNull($response->getRequestOptions()['body'] ?? null);
+    }
+
+    public function testPushNotificationSendsTheSerializedPayload(): void
+    {
+        $response = new MockResponse('{"success":true}');
+        $notification = self::buildNotificationPayload();
+
+        $this->buildClient($response)->pushNotification($notification);
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_NOTIFY_URL, $response->getRequestUrl());
+        self::assertSame($notification->toArray(), self::decodedRequestBody($response));
+    }
+
+    public function testDismissNotificationSendsABodylessPost(): void
+    {
+        $response = new MockResponse('{"success":true}');
+
+        $this->buildClient($response)->dismissNotification();
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_DISMISS_URL, $response->getRequestUrl());
+        self::assertNull($response->getRequestOptions()['body'] ?? null);
     }
 
     public function testLocallyRejectedPayloadIsNotSentAtAll(): void
@@ -156,6 +211,33 @@ final class PixelcastClientTest extends TestCase
         return new WeatherPayload(
             new CurrentWeather(WeatherIcon::Rain, 9, -2, 14, 80),
             [new ForecastDay('LUN', WeatherIcon::Cloudy, 4, 12)],
+        );
+    }
+
+    private static function buildTrackerPayload(): TrackerPayload
+    {
+        return new TrackerPayload(
+            name: 'BTC',
+            symbol: 'BTC',
+            iconName: 'bitcoin',
+            currency: '$',
+            currentValue: 67890.5,
+            changePercentage: -1.25,
+            sparklinePoints: [67000.0, 67500.0, 67890.5],
+            symbolColor: Color::fromHexCode('#FF8800'),
+            sparklineColor: Color::fromHexCode('#00D4FF'),
+            bottomText: 'Bitcoin',
+        );
+    }
+
+    private static function buildNotificationPayload(): NotificationPayload
+    {
+        return new NotificationPayload(
+            text: 'Build finished',
+            iconName: 'check',
+            textColor: Color::fromHexCode('#0096FF'),
+            holdUntilDismissed: true,
+            urgent: true,
         );
     }
 
