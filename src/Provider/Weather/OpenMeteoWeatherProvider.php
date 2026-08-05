@@ -6,6 +6,7 @@ namespace App\Provider\Weather;
 
 use App\Client\Weather\CurrentWeather;
 use App\Client\Weather\ForecastDay;
+use App\Client\Weather\HourlyWeatherPoint;
 use App\Client\Weather\WeatherIcon;
 use App\Client\Weather\WeatherPayload;
 use App\Config\Sync\WeatherSyncConfig;
@@ -24,10 +25,12 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
     private const string FORECAST_PATH = 'forecast';
     private const string CURRENT_FIELDS = 'temperature_2m,relative_humidity_2m,weather_code,is_day';
     private const string DAILY_FIELDS = 'weather_code,temperature_2m_max,temperature_2m_min';
+    private const string HOURLY_FIELDS = 'temperature_2m,precipitation_probability,precipitation';
     private const int FORECAST_DAY_COUNT = 7;
     private const int CACHE_TTL_IN_SECONDS = 1500;
     private const string CACHE_KEY_PREFIX = 'open_meteo_forecast_';
     private const string FORECAST_DATE_FORMAT = '!Y-m-d';
+    private const string HOURLY_TIME_FORMAT = '!Y-m-d\TH:i';
 
     public function __construct(
         #[Target('weather.client')]
@@ -89,7 +92,10 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
                     'longitude' => $longitude,
                     'current' => self::CURRENT_FIELDS,
                     'daily' => self::DAILY_FIELDS,
+                    'hourly' => self::HOURLY_FIELDS,
                     'forecast_days' => self::FORECAST_DAY_COUNT,
+                    // Open-Meteo starts the hourly series at the current hour, which is exactly the window the device charts.
+                    'forecast_hours' => WeatherPayload::MAXIMUM_HOURLY_WINDOW_POINTS,
                     'timezone' => 'auto',
                     'temperature_unit' => self::temperatureUnitParameter($weatherUnits),
                 ],
@@ -139,7 +145,57 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
             return null;
         }
 
-        return new WeatherPayload($currentWeather, $forecastDays);
+        // Today is left out of the forecast: its minimum and maximum are already on screen as the current conditions.
+        return new WeatherPayload(
+            $currentWeather,
+            \array_slice($forecastDays, 1),
+            $this->buildHourlyWindow($rawForecast['hourly'] ?? null),
+        );
+    }
+
+    /**
+     * @return list<HourlyWeatherPoint>
+     */
+    private function buildHourlyWindow(mixed $hourlyBlock): array
+    {
+        if (!\is_array($hourlyBlock)) {
+            $this->logUnexpectedShape('the hourly block is missing');
+
+            return [];
+        }
+
+        $hours = self::readStringSeries($hourlyBlock, 'time');
+        $temperatures = self::readNumberSeries($hourlyBlock, 'temperature_2m');
+
+        if (null === $hours || null === $temperatures) {
+            $this->logUnexpectedShape('the hourly block does not carry the time and temperature series');
+
+            return [];
+        }
+
+        $precipitationProbabilities = self::readOptionalNumberSeries($hourlyBlock, 'precipitation_probability');
+        $precipitations = self::readOptionalNumberSeries($hourlyBlock, 'precipitation');
+
+        $pointCount = min(\count($hours), \count($temperatures), WeatherPayload::MAXIMUM_HOURLY_WINDOW_POINTS);
+
+        $hourlyWindow = [];
+        for ($pointIndex = 0; $pointIndex < $pointCount; ++$pointIndex) {
+            $hour = \DateTimeImmutable::createFromFormat(self::HOURLY_TIME_FORMAT, $hours[$pointIndex]);
+            if (false === $hour) {
+                $this->logUnexpectedShape(\sprintf('the hourly time "%s" is unreadable', $hours[$pointIndex]));
+
+                return [];
+            }
+
+            $hourlyWindow[] = HourlyWeatherPoint::fromMeasurements(
+                (int) $hour->format('G'),
+                $temperatures[$pointIndex],
+                $precipitationProbabilities[$pointIndex] ?? null,
+                $precipitations[$pointIndex] ?? null,
+            );
+        }
+
+        return $hourlyWindow;
     }
 
     /**
@@ -253,6 +309,28 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
             }
 
             $numbers[] = (float) $value;
+        }
+
+        return $numbers;
+    }
+
+    /**
+     * Open-Meteo leaves a gap as null rather than dropping the entry, so an hour without the measurement keeps its slot.
+     *
+     * @param array<array-key, mixed> $block
+     *
+     * @return list<float|null>
+     */
+    private static function readOptionalNumberSeries(array $block, string $key): array
+    {
+        $series = $block[$key] ?? null;
+        if (!\is_array($series)) {
+            return [];
+        }
+
+        $numbers = [];
+        foreach ($series as $value) {
+            $numbers[] = is_numeric($value) ? (float) $value : null;
         }
 
         return $numbers;

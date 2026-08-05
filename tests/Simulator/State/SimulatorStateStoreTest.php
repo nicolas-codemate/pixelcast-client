@@ -43,7 +43,7 @@ final class SimulatorStateStoreTest extends TestCase
     public function testSavedDomainStateIsRestoredIntoFreshInstances(): void
     {
         $savedWeather = new WeatherState();
-        $savedWeather->update(['icon' => 'w_rain', 'temp' => 9], [['icon' => 'w_clear_day', 'temp' => 14]]);
+        $savedWeather->update(['icon' => 'w_rain', 'temp' => 9], [['icon' => 'w_clear_day', 'temp' => 14]], ['hours' => [['h' => 15, 'temp' => 22]]]);
 
         $savedTrackers = new TrackerState();
         $savedTrackers->upsert('btc', ['name' => 'btc', 'value' => '42']);
@@ -179,7 +179,7 @@ final class SimulatorStateStoreTest extends TestCase
     public function testPurgeResetsEveryStateAndDeletesTheStateFile(): void
     {
         $weather = new WeatherState();
-        $weather->update(['icon' => 'w_rain', 'temp' => 9], []);
+        $weather->update(['icon' => 'w_rain', 'temp' => 9], [], null);
 
         $requestLog = new RequestLog();
         $requestLog->record($this->createLogEntry('/weather'));

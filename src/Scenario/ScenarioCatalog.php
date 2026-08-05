@@ -45,7 +45,7 @@ final class ScenarioCatalog
             new ScenarioDefinition(
                 id: 'weather',
                 label: 'Weather',
-                description: 'current conditions + 3-day forecast',
+                description: 'current conditions + hourly window + forecast',
                 httpMethod: 'POST',
                 path: '/weather',
                 body: [
@@ -62,6 +62,16 @@ final class ScenarioCatalog
                             'icon' => 'w_partly_day',
                             'temp_min' => 14,
                             'temp_max' => 23,
+                        ],
+                    ],
+                    'today' => [
+                        'hours' => [
+                            ['h' => 15, 'temp' => 22, 'pop' => 0, 'precip' => 0],
+                            ['h' => 16, 'temp' => 23, 'pop' => 10, 'precip' => 2],
+                            ['h' => 17, 'temp' => 23, 'pop' => 40, 'precip' => 8],
+                            ['h' => 18, 'temp' => 21, 'pop' => 80, 'precip' => 25],
+                            ['h' => 19, 'temp' => 19, 'pop' => 30, 'precip' => 4],
+                            ['h' => 20, 'temp' => 18, 'pop' => 10, 'precip' => 0],
                         ],
                     ],
                 ],

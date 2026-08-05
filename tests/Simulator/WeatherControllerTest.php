@@ -27,6 +27,12 @@ final class WeatherControllerTest extends SimulatorWebTestCase
                 'humidity' => 50,
             ],
             'forecast' => [],
+            'today' => [
+                'hours' => [
+                    ['h' => 15, 'temp' => 22, 'pop' => 0, 'precip' => 0],
+                    ['h' => 16, 'temp' => 23, 'pop' => 10, 'precip' => 2],
+                ],
+            ],
         ]);
 
         self::assertSame(
@@ -43,5 +49,15 @@ final class WeatherControllerTest extends SimulatorWebTestCase
         $current = $payload['current'] ?? null;
         self::assertIsArray($current);
         self::assertSame('w_clear_day', $current['icon'] ?? null);
+
+        self::assertSame(
+            [
+                'hours' => [
+                    ['h' => 15, 'temp' => 22, 'pop' => 0, 'precip' => 0],
+                    ['h' => 16, 'temp' => 23, 'pop' => 10, 'precip' => 2],
+                ],
+            ],
+            $payload['today'] ?? null,
+        );
     }
 }

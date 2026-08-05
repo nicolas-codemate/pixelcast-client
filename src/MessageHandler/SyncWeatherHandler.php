@@ -37,7 +37,10 @@ final readonly class SyncWeatherHandler
             $this->pixelcastClient->pushWeather($weather);
             $this->lastSuccessfulSyncStore->recordSuccess(WeatherSyncConfig::syncType());
 
-            $this->logger->info('Weather pushed to the device', ['forecast_days' => \count($weather->forecastDays)]);
+            $this->logger->info('Weather pushed to the device', [
+                'forecast_days' => \count($weather->forecastDays),
+                'hourly_points' => \count($weather->hourlyWindow),
+            ]);
 
             return SyncOutcome::Pushed;
         } catch (\Throwable $syncFailure) {
