@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Provider\Weather;
 
 use App\Client\Weather\ForecastDay;
+use App\Client\Weather\HourlyWeatherPoint;
 use App\Client\Weather\WeatherIcon;
 use App\Provider\Weather\OpenMeteoWeatherProvider;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
@@ -38,21 +39,74 @@ final class OpenMeteoWeatherProviderTest extends TestCase
         self::assertSame(27, $payload->current->maximumTemperature);
 
         self::assertSame(
-            ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'],
+            ['MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'],
             array_map(static fn (ForecastDay $forecastDay): string => $forecastDay->dayLabel, $payload->forecastDays),
         );
         self::assertSame(
-            [WeatherIcon::PartlyDay, WeatherIcon::Cloudy, WeatherIcon::Rain, WeatherIcon::Rain, WeatherIcon::Thunder, WeatherIcon::Snow, WeatherIcon::Fog],
+            [WeatherIcon::Cloudy, WeatherIcon::Rain, WeatherIcon::Rain, WeatherIcon::Thunder, WeatherIcon::Snow, WeatherIcon::Fog],
             array_map(static fn (ForecastDay $forecastDay): WeatherIcon => $forecastDay->icon, $payload->forecastDays),
         );
         self::assertSame(
-            [16, 16, 14, 14, 16, 10, 13],
+            [16, 14, 14, 16, 10, 13],
             array_map(static fn (ForecastDay $forecastDay): int => $forecastDay->minimumTemperature, $payload->forecastDays),
         );
         self::assertSame(
-            [27, 25, 23, 24, 26, 20, 21],
+            [25, 23, 24, 26, 20, 21],
             array_map(static fn (ForecastDay $forecastDay): int => $forecastDay->maximumTemperature, $payload->forecastDays),
         );
+    }
+
+    public function testForecastStartsTomorrowSoTodayIsNotRepeatedUnderTheCurrentConditions(): void
+    {
+        $payload = $this->buildProvider(new MockHttpClient(self::fixtureResponse(), self::OPEN_METEO_BASE_URI))->fetchWeather();
+
+        self::assertNotNull($payload);
+        self::assertNotSame('LUN', $payload->forecastDays[0]->dayLabel);
+        self::assertSame($payload->current->minimumTemperature, 16);
+        self::assertSame($payload->current->maximumTemperature, 27);
+    }
+
+    public function testHourlyWindowCarriesTwelveAbsoluteLocalHours(): void
+    {
+        $payload = $this->buildProvider(new MockHttpClient(self::fixtureResponse(), self::OPEN_METEO_BASE_URI))->fetchWeather();
+
+        self::assertNotNull($payload);
+        self::assertSame(
+            [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1],
+            array_map(static fn (HourlyWeatherPoint $hourlyPoint): int => $hourlyPoint->hourOfDay, $payload->hourlyWindow),
+        );
+        self::assertSame(
+            [25, 25, 25, 24, 23, 21, 20, 19, 19, 18, 18, 18],
+            array_map(static fn (HourlyWeatherPoint $hourlyPoint): int => $hourlyPoint->temperature, $payload->hourlyWindow),
+        );
+        self::assertSame(
+            [0, 10, 40, 80, 65, 30, 10, 0, 0, null, 5, 5],
+            array_map(static fn (HourlyWeatherPoint $hourlyPoint): ?int => $hourlyPoint->precipitationProbabilityPercentage, $payload->hourlyWindow),
+        );
+    }
+
+    public function testHourlyPrecipitationIsConvertedToTenthsOfMillimetreAndCappedAtTheDeviceLimit(): void
+    {
+        $payload = $this->buildProvider(new MockHttpClient(self::fixtureResponse(), self::OPEN_METEO_BASE_URI))->fetchWeather();
+
+        self::assertNotNull($payload);
+        self::assertSame(
+            [0, 2, 8, 25, 11, 3, 0, 0, 0, 0, 255, 0],
+            array_map(static fn (HourlyWeatherPoint $hourlyPoint): ?int => $hourlyPoint->precipitationInTenthsOfMillimetre, $payload->hourlyWindow),
+        );
+    }
+
+    public function testMissingHourlyBlockLeavesTheRestOfThePayloadUsable(): void
+    {
+        $logger = new RecordingLoggerStub();
+        $httpClient = new MockHttpClient(new MockResponse(self::forecastWithoutHourlyBlock()), self::OPEN_METEO_BASE_URI);
+
+        $payload = $this->buildProvider($httpClient, $logger)->fetchWeather();
+
+        self::assertNotNull($payload);
+        self::assertSame([], $payload->hourlyWindow);
+        self::assertCount(6, $payload->forecastDays);
+        self::assertSame(['Unexpected Open-Meteo response shape'], array_column($logger->records, 'message'));
     }
 
     public function testRequestTargetsOpenMeteoForecastEndpointWithExpectedQuery(): void
@@ -69,7 +123,9 @@ final class OpenMeteoWeatherProviderTest extends TestCase
         self::assertSame('2.3522', $queryParameters['longitude'] ?? null);
         self::assertSame('temperature_2m,relative_humidity_2m,weather_code,is_day', $queryParameters['current'] ?? null);
         self::assertSame('weather_code,temperature_2m_max,temperature_2m_min', $queryParameters['daily'] ?? null);
+        self::assertSame('temperature_2m,precipitation_probability,precipitation', $queryParameters['hourly'] ?? null);
         self::assertSame('7', $queryParameters['forecast_days'] ?? null);
+        self::assertSame('12', $queryParameters['forecast_hours'] ?? null);
         self::assertSame('auto', $queryParameters['timezone'] ?? null);
         self::assertSame('celsius', $queryParameters['temperature_unit'] ?? null);
     }
@@ -94,7 +150,7 @@ final class OpenMeteoWeatherProviderTest extends TestCase
 
         self::assertNotNull($payload);
         self::assertSame(
-            ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
+            ['TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
             array_map(static fn (ForecastDay $forecastDay): string => $forecastDay->dayLabel, $payload->forecastDays),
         );
     }
@@ -192,6 +248,14 @@ final class OpenMeteoWeatherProviderTest extends TestCase
     {
         $forecast = self::decodedFixture();
         unset($forecast['daily']);
+
+        return self::encodeForecast($forecast);
+    }
+
+    private static function forecastWithoutHourlyBlock(): string
+    {
+        $forecast = self::decodedFixture();
+        unset($forecast['hourly']);
 
         return self::encodeForecast($forecast);
     }

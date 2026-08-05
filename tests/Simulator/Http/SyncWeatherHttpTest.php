@@ -19,7 +19,8 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 final class SyncWeatherHttpTest extends SimulatorHttpTestCase
 {
     private const string OPEN_METEO_BASE_URI = 'https://api.open-meteo.com/v1/';
-    private const int EXPECTED_FORECAST_DAYS = 7;
+    private const int EXPECTED_FORECAST_DAYS = 6;
+    private const int EXPECTED_HOURLY_POINTS = 12;
 
     public function testProviderPayloadReachesTheSimulatorUnchanged(): void
     {
@@ -28,6 +29,7 @@ final class SyncWeatherHttpTest extends SimulatorHttpTestCase
         $expectedPayload = $weatherProvider->fetchWeather();
         self::assertNotNull($expectedPayload);
         self::assertCount(self::EXPECTED_FORECAST_DAYS, $expectedPayload->forecastDays);
+        self::assertCount(self::EXPECTED_HOURLY_POINTS, $expectedPayload->hourlyWindow);
 
         $syncWeatherHandler = new SyncWeatherHandler(
             $weatherProvider,
@@ -54,6 +56,7 @@ final class SyncWeatherHttpTest extends SimulatorHttpTestCase
         self::assertTrue($weatherState['valid'] ?? null, $this->server->serverOutput());
         self::assertSame($expectedBody['current'], $weatherState['current'] ?? null);
         self::assertSame($expectedBody['forecast'] ?? [], $weatherState['forecast'] ?? null);
+        self::assertSame($expectedBody['today'] ?? null, $weatherState['today'] ?? null);
         self::assertNotNull($weatherState['lastUpdatedAt'] ?? null);
     }
 

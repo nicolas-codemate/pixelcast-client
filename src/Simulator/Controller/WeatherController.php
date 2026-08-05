@@ -26,6 +26,7 @@ final class WeatherController extends AbstractSimulatorController
             'stale' => null !== $age && $age > self::STALE_THRESHOLD_SECONDS,
             'current' => $current,
             'forecast' => $weather->forecast(),
+            'today' => $weather->today(),
         ]);
     }
 
@@ -47,7 +48,7 @@ final class WeatherController extends AbstractSimulatorController
             }
         }
 
-        $weather->update($current, $forecast);
+        $weather->update($current, $forecast, self::asStringKeyedArray($body['today'] ?? null));
 
         return new JsonResponse(['success' => true]);
     }
