@@ -33,3 +33,13 @@ framework:
                     # 429 is left out on purpose: retrying a rate-limited call spends credits
                     # the daily quota no longer has, and each retry bills one credit per symbol.
                     http_codes: [0, 500, 502, 503, 504, 507, 510]
+
+            boursorama.client:
+                base_uri: 'https://www.boursorama.com/'
+                timeout: 5
+                max_duration: 10
+                retry_failed:
+                    max_retries: 2
+                    # 423, 425 and 429 are left out on purpose: this is an internal endpoint called
+                    # once per asset, and retrying after a throttling is the surest way to lose access.
+                    http_codes: [0, 500, 502, 503, 504, 507, 510]

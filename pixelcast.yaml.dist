@@ -71,3 +71,22 @@ syncs:
             - symbol: IXIC
               currency: usd
               icon: stock
+
+    # European ETFs read from Boursorama, one call per asset. This source needs no API key,
+    # but it is an internal endpoint under no commitment and can change without notice.
+    boursorama:
+        # A disabled group is never scheduled and cannot be dispatched by hand.
+        enabled: false
+
+        # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
+        interval: '15 minutes'
+
+        # Assets tracked in this group.
+        # symbol: Boursorama code of the asset, not its ISIN. The code of an ISIN is found on
+        #   https://www.boursorama.com/recherche/ajax?query=<ISIN>, once, by hand.
+        # currency: authoritative here. The response carries no currency at all.
+        # icon: name of the icon shown next to the asset on the device, optional.
+        items:
+            - symbol: 1rTDCAM
+              currency: eur
+              icon: etf

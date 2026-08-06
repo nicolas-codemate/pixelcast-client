@@ -16,6 +16,7 @@ final class SyncGroupRegistry
         WeatherSyncConfig::class,
         CoinGeckoSyncConfig::class,
         TwelveDataSyncConfig::class,
+        BoursoramaSyncConfig::class,
     ];
 
     /**

@@ -1,0 +1,17 @@
+{
+    "d": {
+        "Name": "AMUNDI PEA MONDE MSCI World UCITS ETF Acc",
+        "SymbolId": "1rTDCAM",
+        "Xperiod": 0,
+        "QuoteTab": [
+            {
+                "d": 20640,
+                "o": 6.2,
+                "h": 6.27,
+                "l": 6.19,
+                "c": 6.262,
+                "v": 1489358
+            }
+        ]
+    }
+}
