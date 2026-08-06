@@ -33,3 +33,14 @@ framework:
                     # 429 is left out on purpose: retrying a rate-limited call spends credits
                     # the daily quota no longer has, and each retry bills one credit per symbol.
                     http_codes: [0, 500, 502, 503, 504, 507, 510]
+
+            boursorama.client:
+                base_uri: 'https://www.boursorama.com/'
+                timeout: 5
+                headers:
+                    # Without both of these the endpoint answers 200 with an empty quote list
+                    # instead of an error, so a missing header looks like an unknown symbol.
+                    User-Agent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+                    X-Requested-With: 'XMLHttpRequest'
+                retry_failed:
+                    max_retries: 2
