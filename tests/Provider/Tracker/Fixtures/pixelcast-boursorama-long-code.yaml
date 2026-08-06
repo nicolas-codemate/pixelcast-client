@@ -1,0 +1,10 @@
+# Sample configuration used by BoursoramaTrackerProviderTest: a code too long for the screen
+# once its prefix is stripped, to prove it is shortened instead of being rejected.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: 1rTVERYLONGCODE
+              currency: eur
+              icon: etf

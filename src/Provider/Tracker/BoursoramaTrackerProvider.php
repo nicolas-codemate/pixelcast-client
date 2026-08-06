@@ -22,7 +22,8 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     private const string POSITIVE_TREND_COLOR_HEX = '#00FF00';
     private const string NEGATIVE_TREND_COLOR_HEX = '#FF0000';
     private const string BOURSORAMA_CODE_PREFIX_PATTERN = '/^\d[a-z][A-Z]/';
-    private const int MAXIMUM_DISPLAY_SYMBOL_LENGTH = 7;
+    private const string BROWSER_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+    private const string AJAX_REQUESTED_WITH = 'XMLHttpRequest';
 
     public function __construct(
         #[Target('boursorama.client')]
@@ -64,6 +65,12 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     {
         try {
             return $this->boursoramaClient->request('GET', self::TICKS_PATH, [
+                // Without both of these the endpoint answers 200 with an empty quote
+                // list instead of an error, so a missing header reads as an unknown code.
+                'headers' => [
+                    'User-Agent' => self::BROWSER_USER_AGENT,
+                    'X-Requested-With' => self::AJAX_REQUESTED_WITH,
+                ],
                 'query' => [
                     'symbol' => $boursoramaCode,
                     'length' => self::REQUESTED_BAR_COUNT,
@@ -86,19 +93,21 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
      */
     private function buildTrackerPayload(TrackerItem $item, array $decodedResponse): ?TrackerPayload
     {
-        $closingPrices = self::readClosingPrices($decodedResponse);
-        $closingPriceCount = \count($closingPrices);
+        $quoteBars = self::readQuoteBars($decodedResponse);
 
-        if ([] === $closingPrices) {
+        if ([] === $quoteBars) {
             $this->logger->warning('Boursorama served no quotes for a symbol', ['symbol' => $item->symbol]);
 
             return null;
         }
 
-        if ($closingPriceCount < 2 || 0.0 === $closingPrices[$closingPriceCount - 2]) {
+        $closingPrices = self::readClosingPrices($quoteBars);
+        $closingPriceCount = null === $closingPrices ? 0 : \count($closingPrices);
+
+        if (null === $closingPrices || $closingPriceCount < 2 || 0.0 === $closingPrices[$closingPriceCount - 2]) {
             $this->logger->warning('Unexpected Boursorama quote series shape', [
                 'symbol' => $item->symbol,
-                'bar_count' => $closingPriceCount,
+                'bar_count' => \count($quoteBars),
             ]);
 
             return null;
@@ -137,26 +146,33 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     /**
      * @param array<array-key, mixed> $decodedResponse
      *
-     * @return list<float>
+     * @return array<array-key, mixed>
      */
-    private static function readClosingPrices(array $decodedResponse): array
+    private static function readQuoteBars(array $decodedResponse): array
+    {
+        $quoteBlock = $decodedResponse['d'] ?? null;
+        $quoteBars = \is_array($quoteBlock) ? ($quoteBlock['QuoteTab'] ?? null) : null;
+
+        return \is_array($quoteBars) ? $quoteBars : [];
+    }
+
+    /**
+     * @param array<array-key, mixed> $quoteBars
+     *
+     * @return list<float>|null
+     */
+    private static function readClosingPrices(array $quoteBars): ?array
     {
         // The last daily bar is the running session, not a settled close: its close is the live price.
-        $quoteBlock = $decodedResponse['d'] ?? null;
-        $bars = \is_array($quoteBlock) ? ($quoteBlock['QuoteTab'] ?? null) : null;
-        if (!\is_array($bars)) {
-            return [];
-        }
-
         $closingPrices = [];
-        foreach ($bars as $bar) {
-            if (!\is_array($bar)) {
-                return [];
+        foreach ($quoteBars as $quoteBar) {
+            if (!\is_array($quoteBar)) {
+                return null;
             }
 
-            $closingPrice = self::readNumber($bar, 'c');
+            $closingPrice = self::readNumber($quoteBar, 'c');
             if (null === $closingPrice) {
-                return [];
+                return null;
             }
 
             $closingPrices[] = $closingPrice;
@@ -172,7 +188,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
             $codeWithoutPrefix = $boursoramaCode;
         }
 
-        return mb_substr(mb_strtoupper($codeWithoutPrefix), 0, self::MAXIMUM_DISPLAY_SYMBOL_LENGTH);
+        return mb_substr(mb_strtoupper($codeWithoutPrefix), 0, TrackerPayload::MAXIMUM_SYMBOL_LENGTH);
     }
 
     /**

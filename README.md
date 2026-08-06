@@ -173,9 +173,7 @@ rather than a fallback.
 That endpoint is internal to the Boursorama website: undocumented, under no
 commitment, and free to change or vanish without notice. The trade is a
 deliberate one — the alternative for European coverage is the Twelve Data plan
-at $229 a month. A break stays visible rather than silent: the group is logged
-and skipped, the screen keeps the values it already shows, and the container
-turns `unhealthy` after three intervals without a push, like any other group.
+at $229 a month.
 
 The percentage a `coingecko` tracker shows is the distance between the current
 price and the price of the last midnight in Paris, not the rolling 24 hour
@@ -213,12 +211,7 @@ make inspect
 ```
 
 `boursorama` is checked the same way and needs no environment variable at all,
-only `enabled: true` in the local `pixelcast.yaml`:
-
-```
-make sync ARGS="boursorama"
-make inspect
-```
+only `enabled: true` in the local `pixelcast.yaml`.
 
 `state.trackers.count` then holds one entry per asset the provider served, and
 the request log carries one `POST /api/tracker` per asset. `make inspect` reads

@@ -7,6 +7,7 @@ namespace App\Tests\Config\Sync;
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\CoinGeckoSyncConfig;
+use App\Config\Sync\TrackerSyncConfig;
 use App\Config\Sync\TwelveDataSyncConfig;
 use App\Message\SyncTrackerMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -15,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 final class TrackerSyncConfigTest extends TestCase
 {
     /**
-     * @return iterable<string, array{class-string<BoursoramaSyncConfig|CoinGeckoSyncConfig|TwelveDataSyncConfig>, string}>
+     * @return iterable<string, array{class-string<TrackerSyncConfig>, string}>
      */
     public static function provideTrackerSyncGroups(): iterable
     {
@@ -40,7 +41,7 @@ final class TrackerSyncConfigTest extends TestCase
     }
 
     /**
-     * @param class-string<BoursoramaSyncConfig|CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
      */
     #[DataProvider('provideTrackerSyncGroups')]
     public function testTheSyncTypeIsTheProviderName(string $syncGroupClass, string $expectedSyncType): void
@@ -49,7 +50,7 @@ final class TrackerSyncConfigTest extends TestCase
     }
 
     /**
-     * @param class-string<BoursoramaSyncConfig|CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
      */
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAValidOptionMapIsHydrated(string $syncGroupClass, string $expectedSyncType): void
@@ -62,7 +63,7 @@ final class TrackerSyncConfigTest extends TestCase
     }
 
     /**
-     * @param class-string<BoursoramaSyncConfig|CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
      */
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAnItemKeepsItsIconWhenItHasOneAndIsNullOtherwise(string $syncGroupClass, string $expectedSyncType): void
@@ -78,7 +79,7 @@ final class TrackerSyncConfigTest extends TestCase
     }
 
     /**
-     * @param class-string<BoursoramaSyncConfig|CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
      */
     #[DataProvider('provideTrackerSyncGroups')]
     public function testTheGroupIsTriggeredByATrackerSyncMessageCarryingItsType(string $syncGroupClass, string $expectedSyncType): void
@@ -89,7 +90,7 @@ final class TrackerSyncConfigTest extends TestCase
     }
 
     /**
-     * @param class-string<BoursoramaSyncConfig|CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
      */
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAnIntervalTheSchedulerCannotParseNamesTheOption(string $syncGroupClass, string $expectedSyncType): void
@@ -100,7 +101,7 @@ final class TrackerSyncConfigTest extends TestCase
     }
 
     /**
-     * @param class-string<BoursoramaSyncConfig|CoinGeckoSyncConfig|TwelveDataSyncConfig> $syncGroupClass
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
      */
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAnItemMissingAnOptionNamesItsIndex(string $syncGroupClass, string $expectedSyncType): void

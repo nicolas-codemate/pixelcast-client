@@ -37,10 +37,9 @@ framework:
             boursorama.client:
                 base_uri: 'https://www.boursorama.com/'
                 timeout: 5
-                headers:
-                    # Without both of these the endpoint answers 200 with an empty quote list
-                    # instead of an error, so a missing header looks like an unknown symbol.
-                    User-Agent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
-                    X-Requested-With: 'XMLHttpRequest'
+                max_duration: 10
                 retry_failed:
                     max_retries: 2
+                    # 423, 425 and 429 are left out on purpose: this is an internal endpoint called
+                    # once per asset, and retrying after a throttling is the surest way to lose access.
+                    http_codes: [0, 500, 502, 503, 504, 507, 510]

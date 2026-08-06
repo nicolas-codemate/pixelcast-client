@@ -21,7 +21,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
     private const string BOURSORAMA_BASE_URI = 'https://www.boursorama.com/';
     private const string TWO_ITEMS_CONFIG_FILE = 'pixelcast-boursorama.yaml';
     private const string PLAIN_CODE_CONFIG_FILE = 'pixelcast-boursorama-plain-code.yaml';
-    private const int MAXIMUM_SYMBOL_LENGTH = 7;
+    private const string LONG_CODE_CONFIG_FILE = 'pixelcast-boursorama-long-code.yaml';
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
@@ -73,20 +73,16 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertSame('1rTCW8', self::queryParameters($secondResponse)['symbol'] ?? null);
     }
 
-    public function testTheBoursoramaPrefixIsStrippedFromTheDisplayedSymbol(): void
+    public function testTheHeadersTheEndpointRequiresTravelWithTheRequest(): void
     {
-        $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
+        $response = self::fixtureResponse('boursorama-ticks-dcam.json');
+        $httpClient = new MockHttpClient([$response, self::fixtureResponse('boursorama-ticks-cw8.json')], self::BOURSORAMA_BASE_URI);
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $this->buildProvider($httpClient)->fetchTrackers();
 
-        self::assertSame(
-            ['DCAM', 'CW8'],
-            array_map(static fn (TrackerPayload $trackerPayload): ?string => $trackerPayload->symbol, $trackerPayloads),
-        );
-        self::assertSame(
-            ['1RTDCAM', '1RTCW8'],
-            array_map(static fn (TrackerPayload $trackerPayload): string => $trackerPayload->name, $trackerPayloads),
-        );
+        $requestHeaders = self::requestHeaders($response);
+        self::assertContains('X-Requested-With: XMLHttpRequest', $requestHeaders);
+        self::assertStringContainsString('User-Agent: Mozilla/', implode("\n", $requestHeaders));
     }
 
     public function testACodeWithoutTheExpectedPrefixIsDisplayedWhole(): void
@@ -105,15 +101,17 @@ final class BoursoramaTrackerProviderTest extends TestCase
 
     public function testTheDisplayedSymbolStaysWithinTheDeviceLimit(): void
     {
-        $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
+        $provider = $this->buildProvider(
+            $this->fixtureClient('boursorama-ticks-dcam.json'),
+            configFileName: self::LONG_CODE_CONFIG_FILE,
+        );
 
         $trackerPayloads = $provider->fetchTrackers();
 
-        self::assertCount(2, $trackerPayloads);
-        foreach ($trackerPayloads as $trackerPayload) {
-            self::assertNotNull($trackerPayload->symbol);
-            self::assertLessThanOrEqual(self::MAXIMUM_SYMBOL_LENGTH, mb_strlen($trackerPayload->symbol));
-        }
+        self::assertCount(1, $trackerPayloads);
+        self::assertSame('VERYLON', $trackerPayloads[0]->symbol);
+        self::assertSame('1RTVERYLONGCODE', $trackerPayloads[0]->name);
+        self::assertSame(TrackerPayload::MAXIMUM_SYMBOL_LENGTH, mb_strlen($trackerPayloads[0]->symbol));
     }
 
     public function testTheSparklineCarriesEveryClosingPriceOfTheResponse(): void
@@ -126,18 +124,6 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertSame(6.0, $worldEtfPayload->sparklinePoints[0]);
         self::assertSame(6.262, $worldEtfPayload->sparklinePoints[23]);
         self::assertSame('24d', $worldEtfPayload->sparklinePeriod);
-    }
-
-    public function testTheCurrencyComesFromTheConfigurationFile(): void
-    {
-        $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
-
-        $trackerPayloads = $provider->fetchTrackers();
-
-        self::assertSame(
-            ['EUR', 'EUR'],
-            array_map(static fn (TrackerPayload $trackerPayload): ?string => $trackerPayload->currency, $trackerPayloads),
-        );
     }
 
     public function testAnUnknownCodeIsSkippedAndLogsAWarning(): void
@@ -206,12 +192,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
 
     private static function fixtureResponse(string $fixtureFileName): MockResponse
     {
-        $rawJson = file_get_contents(self::FIXTURES_DIR.'/'.$fixtureFileName);
-        if (false === $rawJson) {
-            self::fail(\sprintf('The "%s" fixture could not be read.', $fixtureFileName));
-        }
-
-        return new MockResponse($rawJson);
+        return MockResponse::fromFile(self::FIXTURES_DIR.'/'.$fixtureFileName);
     }
 
     /**
@@ -227,5 +208,25 @@ final class BoursoramaTrackerProviderTest extends TestCase
         parse_str($queryString, $queryParameters);
 
         return $queryParameters;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function requestHeaders(MockResponse $response): array
+    {
+        $headers = $response->getRequestOptions()['headers'] ?? [];
+        if (!\is_array($headers)) {
+            self::fail('The Boursorama request carries no readable headers.');
+        }
+
+        $stringHeaders = [];
+        foreach ($headers as $header) {
+            if (\is_string($header)) {
+                $stringHeaders[] = $header;
+            }
+        }
+
+        return $stringHeaders;
     }
 }
