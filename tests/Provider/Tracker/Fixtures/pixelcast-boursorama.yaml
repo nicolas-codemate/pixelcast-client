@@ -1,0 +1,13 @@
+# Sample configuration used by BoursoramaTrackerProviderTest: two European ETFs, to exercise
+# the one-request-per-asset loop and the shortening of the Boursorama code.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: 1rTDCAM
+              currency: eur
+              icon: etf
+            - symbol: 1rTCW8
+              currency: eur
+              icon: etf

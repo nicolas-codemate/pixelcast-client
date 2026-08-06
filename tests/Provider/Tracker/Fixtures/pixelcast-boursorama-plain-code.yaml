@@ -1,0 +1,10 @@
+# Sample configuration used by BoursoramaTrackerProviderTest: a code that does not carry the
+# usual Boursorama prefix, to prove it reaches the screen whole instead of being trimmed.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: DCAM
+              currency: eur
+              icon: etf
