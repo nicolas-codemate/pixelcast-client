@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Simulator\Http;
 
+use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Config\Sync\TwelveDataSyncConfig;
 use App\Health\LastSuccessfulSyncStore;
 use App\Message\SyncOutcome;
 use App\Message\SyncTrackerMessage;
 use App\MessageHandler\SyncTrackerHandler;
+use App\Provider\Tracker\BoursoramaTrackerProvider;
 use App\Provider\Tracker\CoinGeckoTrackerProvider;
 use App\Provider\Tracker\TrackerProviderInterface;
 use App\Provider\Tracker\TwelveDataTrackerProvider;
@@ -26,9 +28,12 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
 {
     private const string COINGECKO_BASE_URI = 'https://api.coingecko.com/api/v3/';
     private const string TWELVEDATA_BASE_URI = 'https://api.twelvedata.com/';
+    private const string BOURSORAMA_BASE_URI = 'https://www.boursorama.com/';
     private const string COINGECKO_FIXTURE_FILE = 'coingecko-markets.json';
     private const string COINGECKO_NEXT_CYCLE_FIXTURE_FILE = 'coingecko-markets-next-cycle.json';
     private const string TWELVEDATA_FIXTURE_FILE = 'twelvedata-time-series-three-categories.json';
+    private const string BOURSORAMA_DCAM_FIXTURE_FILE = 'boursorama-ticks-dcam.json';
+    private const string BOURSORAMA_CW8_FIXTURE_FILE = 'boursorama-ticks-cw8.json';
 
     public function testTrackersReachTheSimulatorInASingleUpstreamCall(): void
     {
@@ -109,6 +114,36 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         self::assertSame(0, $lastSuccessfulSyncStore->ageInSecondsOf(TwelveDataSyncConfig::syncType()));
     }
 
+    public function testTwoEuropeanEtfsReachTheSimulatorInOneUpstreamCallEach(): void
+    {
+        $boursoramaClient = self::boursoramaClient(self::BOURSORAMA_DCAM_FIXTURE_FILE, self::BOURSORAMA_CW8_FIXTURE_FILE);
+        $lastSuccessfulSyncStore = new LastSuccessfulSyncStore(new ArrayAdapter(), new MockClock());
+        $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildBoursoramaProvider($boursoramaClient), $lastSuccessfulSyncStore);
+        $expectedBodies = self::boursoramaWireBodies();
+
+        self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::boursoramaMessage()), $this->server->serverOutput());
+        // Boursorama serves one symbol per call, unlike the single grouped call of twelvedata.
+        self::assertSame(2, $boursoramaClient->getRequestsCount());
+
+        $inspectPayload = $this->inspect();
+        $this->assertLoggedRequest($inspectPayload, 0, 2, 'POST', '/api/tracker', $expectedBodies['1RTDCAM']);
+        $this->assertLoggedRequest($inspectPayload, 1, 2, 'POST', '/api/tracker', $expectedBodies['1RTCW8']);
+
+        $trackerState = self::domainState($inspectPayload, 'trackers');
+        self::assertSame(2, $trackerState['count'] ?? null, $this->server->serverOutput());
+        self::assertSame(
+            $expectedBodies,
+            PersistedStateReader::payloadMap($trackerState['trackers'] ?? null),
+            $this->server->serverOutput(),
+        );
+
+        self::assertSame('DCAM', $expectedBodies['1RTDCAM']['symbol']);
+        self::assertSame('EUR', $expectedBodies['1RTDCAM']['currency']);
+        self::assertSame('24d', $expectedBodies['1RTDCAM']['sparklinePeriod']);
+
+        self::assertSame(0, $lastSuccessfulSyncStore->ageInSecondsOf(BoursoramaSyncConfig::syncType()));
+    }
+
     public function testAFailingUpstreamCallLeavesTheSimulatorUntouched(): void
     {
         $twelveDataClient = self::twelveDataClient(new MockResponse('', ['error' => 'connection refused']));
@@ -155,6 +190,16 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     }
 
     /**
+     * @return array<string, array<string, mixed>> keyed by tracker name
+     */
+    private static function boursoramaWireBodies(): array
+    {
+        return self::expectedWireBodies(self::buildBoursoramaProvider(
+            self::boursoramaClient(self::BOURSORAMA_DCAM_FIXTURE_FILE, self::BOURSORAMA_CW8_FIXTURE_FILE),
+        ));
+    }
+
+    /**
      * Replays the provider to get the very bodies the handler pushes, as they land on the
      * wire: json_encode drops the zero fraction of whole sparkline points.
      *
@@ -193,6 +238,15 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         );
     }
 
+    private static function buildBoursoramaProvider(MockHttpClient $boursoramaClient): BoursoramaTrackerProvider
+    {
+        return new BoursoramaTrackerProvider(
+            $boursoramaClient,
+            SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast-boursorama.yaml'),
+            new NullLogger(),
+        );
+    }
+
     private static function coinGeckoClient(string ...$fixtureFileNames): MockHttpClient
     {
         $responses = array_map(self::trackerFixtureResponse(...), $fixtureFileNames);
@@ -205,6 +259,13 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         return new MockHttpClient($response, self::TWELVEDATA_BASE_URI);
     }
 
+    private static function boursoramaClient(string ...$fixtureFileNames): MockHttpClient
+    {
+        $responses = array_map(self::trackerFixtureResponse(...), $fixtureFileNames);
+
+        return new MockHttpClient($responses, self::BOURSORAMA_BASE_URI);
+    }
+
     private static function coinGeckoMessage(): SyncTrackerMessage
     {
         return new SyncTrackerMessage(CoinGeckoSyncConfig::syncType());
@@ -213,6 +274,11 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     private static function twelveDataMessage(): SyncTrackerMessage
     {
         return new SyncTrackerMessage(TwelveDataSyncConfig::syncType());
+    }
+
+    private static function boursoramaMessage(): SyncTrackerMessage
+    {
+        return new SyncTrackerMessage(BoursoramaSyncConfig::syncType());
     }
 
     private static function trackerFixtureResponse(string $fixtureFileName): MockResponse

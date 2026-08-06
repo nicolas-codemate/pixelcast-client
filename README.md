@@ -148,8 +148,8 @@ An enabled tracker group pushes one screen per tracked asset at every interval,
 and turns the container `unhealthy` after three intervals without a successful
 push, whatever the cause — the logs name it. An asset the provider does not
 serve is logged and skipped, and the other assets of the group still reach the
-screen. Both `coingecko` and `twelvedata` ship with `enabled: false` in
-`pixelcast.yaml.dist`.
+screen. `coingecko`, `twelvedata` and `boursorama` all ship with
+`enabled: false` in `pixelcast.yaml.dist`.
 
 The `twelvedata` group covers stocks, ETFs and indices together, in a single
 call to the provider per cycle whatever the number of assets, because the free
@@ -157,6 +157,25 @@ quota is 800 requests a day — hence no separate `etf` or `stocks` group. Twelv
 Data quotes every asset in the currency of its exchange and converts nothing, so
 the `currency` of the file is only a fallback for the responses that carry none,
 indices first of all.
+
+The `boursorama` group covers the European ETFs the free Twelve Data plan does
+not quote, and it is the only tracker group that asks for no API key at all. It
+pays for that with one request per asset and per cycle, since the source quotes
+a single symbol at a time — six tracked assets mean six calls where
+`twelvedata` still makes one. `symbol` holds the Boursorama code of the asset,
+`1rTDCAM`, not its ISIN; the code behind an ISIN is read once, by hand, on
+`https://www.boursorama.com/recherche/ajax?query=<ISIN>`. What the screen shows
+is that code stripped of its leading `1rT`-shaped prefix, so `1rTDCAM` reads
+`DCAM`, while the tracker keeps the whole code as its name. The response carries
+no currency whatsoever, so here the `currency` of the file is authoritative
+rather than a fallback.
+
+That endpoint is internal to the Boursorama website: undocumented, under no
+commitment, and free to change or vanish without notice. The trade is a
+deliberate one — the alternative for European coverage is the Twelve Data plan
+at $229 a month. A break stays visible rather than silent: the group is logged
+and skipped, the screen keeps the values it already shows, and the container
+turns `unhealthy` after three intervals without a push, like any other group.
 
 The percentage a `coingecko` tracker shows is the distance between the current
 price and the price of the last midnight in Paris, not the rolling 24 hour
@@ -190,6 +209,14 @@ the cycle is logged and skipped.
 
 ```
 make sync ARGS="twelvedata"
+make inspect
+```
+
+`boursorama` is checked the same way and needs no environment variable at all,
+only `enabled: true` in the local `pixelcast.yaml`:
+
+```
+make sync ARGS="boursorama"
 make inspect
 ```
 
