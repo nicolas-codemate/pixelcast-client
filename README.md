@@ -158,6 +158,15 @@ Data quotes every asset in the currency of its exchange and converts nothing, so
 the `currency` of the file is only a fallback for the responses that carry none,
 indices first of all.
 
+The percentage a `coingecko` tracker shows is the distance between the current
+price and the price of the last midnight in Paris, not the rolling 24 hour
+figure the provider serves: a reference that moves with the clock makes a rising
+price show a falling percentage, which reads as a bug on a screen. That midnight
+price is fetched once a day per asset and currency, then held in the cache until
+the next midnight, which keeps the whole group well inside the free quota of
+10 000 calls a month. An asset whose midnight price cannot be fetched is logged
+and skipped for that cycle, and the screen keeps what it already shows.
+
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host
 takes effect at the next start of the consumer, which the image recycles every

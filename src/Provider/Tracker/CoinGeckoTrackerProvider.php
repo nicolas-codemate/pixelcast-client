@@ -27,6 +27,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
         #[Target('coingecko.client')]
         private HttpClientInterface $coinGeckoClient,
         private SyncsConfigLoader $configLoader,
+        private CoinGeckoMidnightPriceProvider $midnightPriceProvider,
         private LoggerInterface $logger,
         private ?string $apiKey = null,
     ) {
@@ -156,13 +157,21 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
     {
         $tickerSymbol = self::readString($market, 'symbol');
         $currentPrice = self::readNumber($market, 'current_price');
-        $changePercentage = self::readNumber($market, 'price_change_percentage_24h');
 
-        if (null === $tickerSymbol || null === $currentPrice || null === $changePercentage) {
+        if (null === $tickerSymbol || null === $currentPrice) {
             $this->logger->warning('Unexpected CoinGecko market shape', ['coin_id' => $item->symbol]);
 
             return null;
         }
+
+        $midnightPrice = $this->midnightPriceProvider->priceAtMidnightOf($item->symbol, $item->currency);
+        if (null === $midnightPrice || 0.0 === $midnightPrice) {
+            $this->logger->warning('CoinGecko tracker skipped for lack of a midnight price', ['coin_id' => $item->symbol]);
+
+            return null;
+        }
+
+        $changePercentage = round(($currentPrice - $midnightPrice) / $midnightPrice * 100, 2);
 
         $tickerSymbolUppercase = mb_strtoupper($tickerSymbol);
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);

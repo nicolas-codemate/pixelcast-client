@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Provider\Tracker;
 
 use App\Client\Tracker\TrackerPayload;
+use App\Provider\Tracker\CoinGeckoMidnightPriceProvider;
 use App\Provider\Tracker\CoinGeckoTrackerProvider;
+use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
 use PHPUnit\Framework\TestCase;
@@ -37,7 +39,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         self::assertSame('bitcoin', $bitcoinPayload->iconName);
         self::assertSame('EUR', $bitcoinPayload->currency);
         self::assertSame(45450.53, $bitcoinPayload->currentValue);
-        self::assertSame(2.47, $bitcoinPayload->changePercentage);
+        self::assertSame(3.3, $bitcoinPayload->changePercentage);
         self::assertSame('#00FF00', $bitcoinPayload->symbolColor?->hexCode);
         self::assertSame('#00FF00', $bitcoinPayload->sparklineColor?->hexCode);
         self::assertSame('Volume : 18B', $bitcoinPayload->bottomText);
@@ -48,10 +50,26 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         self::assertSame('ethereum', $ethereumPayload->iconName);
         self::assertSame('EUR', $ethereumPayload->currency);
         self::assertSame(2455.12, $ethereumPayload->currentValue);
-        self::assertSame(-3.85, $ethereumPayload->changePercentage);
+        self::assertSame(-3.72, $ethereumPayload->changePercentage);
         self::assertSame('#FF0000', $ethereumPayload->symbolColor?->hexCode);
         self::assertSame('#FF0000', $ethereumPayload->sparklineColor?->hexCode);
         self::assertSame('Volume : 9.8B', $ethereumPayload->bottomText);
+    }
+
+    public function testACoinWithoutAMidnightPriceIsSkippedAndLogsAWarning(): void
+    {
+        $logger = new RecordingLoggerStub();
+        $midnightPriceProvider = CoinGeckoMidnightPriceProviderFactory::withHttpClient(
+            new MockHttpClient(new MockResponse('', ['error' => 'connection refused']), self::COINGECKO_BASE_URI),
+            $logger,
+        );
+
+        $trackerPayloads = $this
+            ->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets-bitcoin-only.json'), self::COINGECKO_BASE_URI), $logger, midnightPriceProvider: $midnightPriceProvider)
+            ->fetchTrackers();
+
+        self::assertSame([], $trackerPayloads);
+        self::assertContains('CoinGecko tracker skipped for lack of a midnight price', array_column($logger->records, 'message'));
     }
 
     public function testAMarketWithoutVolumeCarriesNoBottomText(): void
@@ -191,10 +209,12 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         ?LoggerInterface $logger = null,
         string $configFileName = self::SINGLE_CURRENCY_CONFIG_FILE,
         ?string $apiKey = null,
+        ?CoinGeckoMidnightPriceProvider $midnightPriceProvider = null,
     ): CoinGeckoTrackerProvider {
         return new CoinGeckoTrackerProvider(
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
+            $midnightPriceProvider ?? CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
             $logger ?? new NullLogger(),
             $apiKey,
         );

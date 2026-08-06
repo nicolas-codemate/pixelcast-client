@@ -14,6 +14,7 @@ use App\Provider\Tracker\CoinGeckoTrackerProvider;
 use App\Provider\Tracker\TrackerProviderInterface;
 use App\Provider\Tracker\TwelveDataTrackerProvider;
 use App\Simulator\State\PersistedStateReader;
+use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -177,6 +178,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         return new CoinGeckoTrackerProvider(
             $coinGeckoClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast.yaml'),
+            CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
             new NullLogger(),
         );
     }
