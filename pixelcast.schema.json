@@ -136,6 +136,32 @@
                         "string",
                         "null"
                     ]
+                },
+                "label": {
+                    "description": "Text shown on the top row instead of the symbol derived from the provider identifier.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 31
+                },
+                "labelColor": {
+                    "description": "Hex color of the label. Without it the label follows the trend color, like the sparkline.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                },
+                "bottomText": {
+                    "description": "Text shown under the price.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 31
                 }
             }
         }

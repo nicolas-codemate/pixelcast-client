@@ -173,15 +173,16 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         try {
             return new TrackerPayload(
                 name: mb_strtoupper($item->symbol),
-                symbol: self::displayTickerOf($item->symbol),
+                symbol: $item->label ?? self::displayTickerOf($item->symbol),
                 iconName: $item->icon,
                 currency: mb_strtoupper($quotedCurrency),
                 currentValue: $latestClosingPrice,
                 changePercentage: $changePercentage,
                 sparklinePoints: $sparklinePoints,
-                symbolColor: $trendColor,
+                symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
                 sparklinePeriod: self::SPARKLINE_PERIOD,
+                bottomText: $item->bottomText,
             );
         } catch (\InvalidArgumentException $validationError) {
             $this->logger->warning('Twelve Data series could not be turned into a tracker', [

@@ -165,8 +165,8 @@ a single symbol at a time — six tracked assets mean six calls where
 `twelvedata` still makes one. `symbol` holds the Boursorama code of the asset,
 `1rTDCAM`, not its ISIN; the code behind an ISIN is read once, by hand, on
 `https://www.boursorama.com/recherche/ajax?query=<ISIN>`. What the screen shows
-is that code stripped of its leading `1rT`-shaped prefix, so `1rTDCAM` reads
-`DCAM`, while the tracker keeps the whole code as its name. The response carries
+by default is that code stripped of its leading `1rT`-shaped prefix, so
+`1rTDCAM` reads `DCAM`, while the tracker keeps the whole code as its name. The response carries
 no currency whatsoever, so here the `currency` of the file is authoritative
 rather than a fallback.
 
@@ -174,6 +174,30 @@ That endpoint is internal to the Boursorama website: undocumented, under no
 commitment, and free to change or vanish without notice. The trade is a
 deliberate one — the alternative for European coverage is the Twelve Data plan
 at $229 a month.
+
+`label`, `labelColor` and `bottomText` are optional on any asset of the three
+tracker groups. `label` replaces the text derived from `symbol` on the top row,
+and there only: the tracker keeps the same name on the device, so renaming a
+label updates the screen that already exists instead of creating a second one.
+Up to 31 characters are accepted, and the screen scrolls whatever is wider than
+the panel, pausing at each end — which is what makes that length usable rather
+than merely legal. The matrix carries no accented glyphs: `Santé` reads
+`Sante`, `Cœur` reads `Cur`, and a typographic apostrophe disappears
+altogether. The client sends the text exactly as it is written, the
+transposition being the work of the screen. `bottomText` writes the row under
+the price, within the same 31 characters; on `coingecko` it takes the place of
+the 24 hour volume shown there by default. The device also accepts a colored
+footer, as a single colored string or as up to eight colored segments, but the
+configuration exposes the plain string alone — a deliberate limit of the
+current scope rather than an omission.
+
+Colors follow the trend unless they are told otherwise. By default the name and
+the sparkline both turn green above zero and red below it, which paints the
+whole screen red on a variation of -0.03% even when the curve has been
+climbing for weeks. `labelColor` pins the color of the name and takes it out of
+that rule; the sparkline keeps the trend color, the one place where green or
+red still reads as the direction of the day. The expected form is a `#RRGGBB`
+hex string, `#4CAF50` for instance.
 
 The percentage a `coingecko` tracker shows is the distance between the current
 price and the price of the last midnight in Paris, not the rolling 24 hour

@@ -500,7 +500,8 @@ Le `PixelcastClient` encapsule tous les appels REST vers l'ESP32. Les endpoints 
 | Notification text | max 128 caractères (`maxLength: 128`) | `schemas/notification.yaml` |
 | Forecast | max 7 jours (`maxItems: 7`) | `schemas/weather.yaml` |
 | Brightness | entier 0-255 | `sync/openapi.yaml` |
-| Tracker symbol/currency | max 7 caractères | `schemas/tracker.yaml` |
+| Tracker symbol | max 31 caractères | `schemas/tracker.yaml` |
+| Tracker currency | max 7 caractères | `schemas/tracker.yaml` |
 | Tracker bottomText | max 31 caractères | `schemas/tracker.yaml` |
 | Icône upload | PNG ou GIF, recommandé 8x8 ou 16x16 pixels | `sync/openapi.yaml` (POST /icons) |
 
@@ -531,7 +532,9 @@ Accepte trois formats :
 - Objet coloré : `{"text": "Hello", "color": "#FF0000"}`
 - Tableau de segments : `[{"t": "Hello", "c": "#FF0000"}, {"t": " world", "c": "#FFFFFF"}]` (max 8 segments)
 
-Utilisé dans les champs texte des apps custom et des zones.
+Utilisé dans les champs texte des apps custom et des zones, ainsi que dans le `bottomText` des trackers.
+
+Le client n'écrit que la forme chaîne simple : les deux formes colorées restent disponibles côté firmware pour un besoin ultérieur, c'est une limite de périmètre assumée et non un oubli.
 
 ---
 

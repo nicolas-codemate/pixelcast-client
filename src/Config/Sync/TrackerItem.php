@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace App\Config\Sync;
 
+use App\Client\Color;
+
 final readonly class TrackerItem
 {
     public function __construct(
         public string $symbol,
         public string $currency,
         public ?string $icon,
+        public ?string $label = null,
+        public ?Color $labelColor = null,
+        public ?string $bottomText = null,
     ) {
     }
 
@@ -23,6 +28,9 @@ final readonly class TrackerItem
             symbol: SyncOptionReader::requireString($options, 'symbol', $itemPath),
             currency: SyncOptionReader::requireString($options, 'currency', $itemPath),
             icon: SyncOptionReader::optionalString($options, 'icon', $itemPath),
+            label: SyncOptionReader::optionalString($options, 'label', $itemPath),
+            labelColor: SyncOptionReader::optionalColor($options, 'labelColor', $itemPath),
+            bottomText: SyncOptionReader::optionalString($options, 'bottomText', $itemPath),
         );
     }
 }

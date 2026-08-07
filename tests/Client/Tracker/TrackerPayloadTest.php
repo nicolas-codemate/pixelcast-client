@@ -85,9 +85,9 @@ final class TrackerPayloadTest extends TestCase
     public function testConstructorRejectsAnOverlongSymbol(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('A tracker symbol holds at most 7 characters, got 8.');
+        $this->expectExceptionMessage('A tracker symbol holds at most 31 characters, got 32.');
 
-        new TrackerPayload(name: 'BTC', symbol: 'BTCUSDTX');
+        new TrackerPayload(name: 'BTC', symbol: str_repeat('a', 32));
     }
 
     public function testConstructorRejectsAnOverlongCurrency(): void

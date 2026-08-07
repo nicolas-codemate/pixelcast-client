@@ -21,6 +21,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     private const string TWELVEDATA_BASE_URI = 'https://api.twelvedata.com/';
     private const string TWO_ITEMS_CONFIG_FILE = 'pixelcast-twelvedata.yaml';
     private const string SINGLE_ITEM_CONFIG_FILE = 'pixelcast-twelvedata-single-item.yaml';
+    private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-twelvedata-labelled-item.yaml';
     private const int MAXIMUM_CURRENCY_LENGTH = 7;
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
@@ -143,6 +144,18 @@ final class TwelveDataTrackerProviderTest extends TestCase
         self::assertSame('AAPL', $trackerPayloads[0]->symbol);
         self::assertSame('USD', $trackerPayloads[0]->currency);
         self::assertSame(201.0, $trackerPayloads[0]->currentValue);
+    }
+
+    public function testAConfiguredBottomTextReachesAPayloadThisProviderNeverFillsOnItsOwn(): void
+    {
+        $httpClient = new MockHttpClient(self::fixtureResponse('twelvedata-time-series-single-symbol.json'), self::TWELVEDATA_BASE_URI);
+
+        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::LABELLED_ITEM_CONFIG_FILE)->fetchTrackers();
+
+        self::assertCount(1, $trackerPayloads);
+        self::assertSame('Nasdaq', $trackerPayloads[0]->bottomText);
+        self::assertSame('Apple', $trackerPayloads[0]->symbol);
+        self::assertSame('#4CAF50', $trackerPayloads[0]->symbolColor?->hexCode);
     }
 
     public function testRequestLevelErrorYieldsNoTrackerAndLogsAWarning(): void

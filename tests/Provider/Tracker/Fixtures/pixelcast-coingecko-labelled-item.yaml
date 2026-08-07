@@ -1,0 +1,13 @@
+# Sample configuration used by CoinGeckoTrackerProviderTest: an asset carrying the three optional
+# display fields, to prove they win over the ticker of the API and over the 24h traded volume.
+syncs:
+    coingecko:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+              icon: bitcoin
+              label: Bitcoin
+              labelColor: '#4CAF50'
+              bottomText: Réserve de valeur
