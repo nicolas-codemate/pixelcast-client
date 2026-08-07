@@ -41,13 +41,9 @@ syncs:
         # symbol: identifier of the asset for this provider, a coin id for CoinGecko.
         # currency: currency the asset price is quoted in.
         # icon: name of the icon shown next to the asset on the device, optional.
-        # label: text shown on the top row instead of the code derived from symbol, optional.
-        #   Up to 31 characters; the screen scrolls what does not fit and shows accented letters
-        #   without their accent ("Sante" for "Santé").
-        # labelColor: hex color of the label, optional. Without it the label follows the trend
-        #   color, green or red, like the sparkline does.
-        # bottomText: text shown under the price, optional, up to 31 characters. Here it replaces
-        #   the 24 hour volume shown by default.
+        # label: text shown on the top row instead of the text derived from symbol, optional.
+        # labelColor: hex color of the label, optional. Without it the label follows the trend color.
+        # bottomText: text shown under the price, optional. Here it replaces the 24 hour volume.
         items:
             - symbol: bitcoin
               currency: eur
@@ -68,12 +64,9 @@ syncs:
         # currency: only a fallback here. Twelve Data quotes every asset in the currency of its
         #   exchange and converts nothing, so the currency it reports wins over this value.
         # icon: name of the icon shown next to the asset on the device, optional.
-        # label: text shown on the top row instead of the code derived from symbol, optional.
-        #   Up to 31 characters; the screen scrolls what does not fit and shows accented letters
-        #   without their accent ("Sante" for "Santé").
-        # labelColor: hex color of the label, optional. Without it the label follows the trend
-        #   color, green or red, like the sparkline does.
-        # bottomText: text shown under the price, optional, up to 31 characters.
+        # label: text shown on the top row instead of the text derived from symbol, optional.
+        # labelColor: hex color of the label, optional. Without it the label follows the trend color.
+        # bottomText: text shown under the price, optional.
         items:
             - symbol: AAPL
               currency: usd
@@ -99,12 +92,9 @@ syncs:
         #   https://www.boursorama.com/recherche/ajax?query=<ISIN>, once, by hand.
         # currency: authoritative here. The response carries no currency at all.
         # icon: name of the icon shown next to the asset on the device, optional.
-        # label: text shown on the top row instead of the code derived from symbol, optional.
-        #   Up to 31 characters; the screen scrolls what does not fit and shows accented letters
-        #   without their accent ("Sante" for "Santé").
-        # labelColor: hex color of the label, optional. Without it the label follows the trend
-        #   color, green or red, like the sparkline does.
-        # bottomText: text shown under the price, optional, up to 31 characters.
+        # label: text shown on the top row instead of the text derived from symbol, optional.
+        # labelColor: hex color of the label, optional. Without it the label follows the trend color.
+        # bottomText: text shown under the price, optional.
         items:
             - symbol: 1rTDCAM
               currency: eur

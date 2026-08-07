@@ -39,6 +39,13 @@ final class SyncOptionReaderTest extends TestCase
         self::assertSame('54326', SyncOptionReader::optionalString(['icon' => '54326'], 'icon', self::PARENT_PATH));
     }
 
+    public function testAnOptionalColorIsNullWhenAbsentOrNullAndIsUppercasedOtherwise(): void
+    {
+        self::assertNull(SyncOptionReader::optionalColor([], 'labelColor', self::PARENT_PATH));
+        self::assertNull(SyncOptionReader::optionalColor(['labelColor' => null], 'labelColor', self::PARENT_PATH));
+        self::assertSame('#4CAF50', SyncOptionReader::optionalColor(['labelColor' => '#4caf50'], 'labelColor', self::PARENT_PATH)?->hexCode);
+    }
+
     public function testAnEnumCaseIsRead(): void
     {
         $units = SyncOptionReader::requireEnum(['units' => 'imperial'], 'units', self::PARENT_PATH, WeatherUnits::class);
@@ -87,6 +94,14 @@ final class SyncOptionReaderTest extends TestCase
         $this->expectExceptionMessage('expected one of: metric, imperial');
 
         SyncOptionReader::requireEnum(['units' => 'kelvin'], 'units', self::PARENT_PATH, WeatherUnits::class);
+    }
+
+    public function testAColorThatIsNotAHexCodeIsRejected(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('expected a hex color like "#00D4FF"');
+
+        SyncOptionReader::optionalColor(['labelColor' => 'green'], 'labelColor', self::PARENT_PATH);
     }
 
     public function testAMapWhereAListIsExpectedIsRejected(): void

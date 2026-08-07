@@ -11,7 +11,7 @@ final readonly class TrackerItem
     public function __construct(
         public string $symbol,
         public string $currency,
-        public ?string $icon = null,
+        public ?string $icon,
         public ?string $label = null,
         public ?Color $labelColor = null,
         public ?string $bottomText = null,

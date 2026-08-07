@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Provider\Tracker;
 
-use App\Client\Tracker\TrackerPayload;
 use App\Provider\Tracker\BoursoramaTrackerProvider;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
@@ -21,7 +20,6 @@ final class BoursoramaTrackerProviderTest extends TestCase
     private const string BOURSORAMA_BASE_URI = 'https://www.boursorama.com/';
     private const string TWO_ITEMS_CONFIG_FILE = 'pixelcast-boursorama.yaml';
     private const string PLAIN_CODE_CONFIG_FILE = 'pixelcast-boursorama-plain-code.yaml';
-    private const string LONG_CODE_CONFIG_FILE = 'pixelcast-boursorama-long-code.yaml';
     private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-boursorama-labelled-item.yaml';
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
@@ -98,21 +96,6 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertCount(1, $trackerPayloads);
         self::assertSame('DCAM', $trackerPayloads[0]->symbol);
         self::assertSame('DCAM', $trackerPayloads[0]->name);
-    }
-
-    public function testTheDisplayedSymbolStaysWithinTheDeviceLimit(): void
-    {
-        $provider = $this->buildProvider(
-            $this->fixtureClient('boursorama-ticks-dcam.json'),
-            configFileName: self::LONG_CODE_CONFIG_FILE,
-        );
-
-        $trackerPayloads = $provider->fetchTrackers();
-
-        self::assertCount(1, $trackerPayloads);
-        self::assertSame('VERYLONGCODETHATOVERFLOWSTHEPAN', $trackerPayloads[0]->symbol);
-        self::assertSame('1RTVERYLONGCODETHATOVERFLOWSTHEPANEL', $trackerPayloads[0]->name);
-        self::assertSame(TrackerPayload::MAXIMUM_SYMBOL_LENGTH, mb_strlen($trackerPayloads[0]->symbol));
     }
 
     public function testAConfiguredLabelColorAndBottomTextWinOverTheDerivedOnes(): void

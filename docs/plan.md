@@ -500,9 +500,9 @@ Le `PixelcastClient` encapsule tous les appels REST vers l'ESP32. Les endpoints 
 | Notification text | max 128 caractères (`maxLength: 128`) | `schemas/notification.yaml` |
 | Forecast | max 7 jours (`maxItems: 7`) | `schemas/weather.yaml` |
 | Brightness | entier 0-255 | `sync/openapi.yaml` |
-| Tracker symbol | max 31 caractères (`maxLength: 31`), le device fait défiler ce qui dépasse la largeur du panneau en marquant une pause à chaque extrémité ; la matrice n'a pas de glyphes accentués, `Santé` s'affiche `Sante` | `schemas/tracker.yaml` |
+| Tracker symbol | max 31 caractères | `schemas/tracker.yaml` |
 | Tracker currency | max 7 caractères | `schemas/tracker.yaml` |
-| Tracker bottomText | max 31 caractères, limite valable pour les trois formes du `PolymorphicTextField` : un segment qui ne rentre plus est supprimé entier | `schemas/tracker.yaml` |
+| Tracker bottomText | max 31 caractères | `schemas/tracker.yaml` |
 | Icône upload | PNG ou GIF, recommandé 8x8 ou 16x16 pixels | `sync/openapi.yaml` (POST /icons) |
 
 **Icônes météo PROGMEM intégrées** (10 constantes firmware, pas d'upload nécessaire) :

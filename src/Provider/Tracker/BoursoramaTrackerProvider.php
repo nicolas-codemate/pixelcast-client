@@ -189,7 +189,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
             $codeWithoutPrefix = $boursoramaCode;
         }
 
-        return mb_substr(mb_strtoupper($codeWithoutPrefix), 0, TrackerPayload::MAXIMUM_SYMBOL_LENGTH);
+        return mb_strtoupper($codeWithoutPrefix);
     }
 
     /**

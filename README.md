@@ -165,11 +165,10 @@ a single symbol at a time — six tracked assets mean six calls where
 `twelvedata` still makes one. `symbol` holds the Boursorama code of the asset,
 `1rTDCAM`, not its ISIN; the code behind an ISIN is read once, by hand, on
 `https://www.boursorama.com/recherche/ajax?query=<ISIN>`. What the screen shows
-by default is that code stripped of its leading `1rT`-shaped prefix, so
-`1rTDCAM` reads `DCAM`, while the tracker keeps the whole code as its name; a
-`label` on the asset replaces that derived text, as described below. The
-response carries no currency whatsoever, so here the `currency` of the file is
-authoritative rather than a fallback.
+is that code stripped of its leading `1rT`-shaped prefix, so `1rTDCAM` reads
+`DCAM`, while the tracker keeps the whole code as its name. The response carries
+no currency whatsoever, so here the `currency` of the file is authoritative
+rather than a fallback.
 
 That endpoint is internal to the Boursorama website: undocumented, under no
 commitment, and free to change or vanish without notice. The trade is a
