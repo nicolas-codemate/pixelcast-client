@@ -34,7 +34,7 @@ final class TrackerSyncConfigTest extends TestCase
             'enabled' => false,
             'interval' => '15 minutes',
             'items' => [
-                ['symbol' => 'BTC', 'currency' => 'eur', 'icon' => '54326'],
+                ['symbol' => 'BTC', 'currency' => 'eur', 'icon' => '54326', 'label' => 'Bitcoin', 'labelColor' => '#4caf50', 'bottomText' => 'MSCI World'],
                 ['symbol' => 'ETH', 'currency' => 'eur'],
             ],
         ];
@@ -76,6 +76,41 @@ final class TrackerSyncConfigTest extends TestCase
 
         self::assertSame('ETH', $trackerSync->items[1]->symbol);
         self::assertNull($trackerSync->items[1]->icon);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemKeepsItsLabelColorAndBottomTextWhenItHasThemAndIsNullOtherwise(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+
+        self::assertSame('Bitcoin', $trackerSync->items[0]->label);
+        self::assertSame('#4CAF50', $trackerSync->items[0]->labelColor?->hexCode);
+        self::assertSame('MSCI World', $trackerSync->items[0]->bottomText);
+
+        self::assertNull($trackerSync->items[1]->label);
+        self::assertNull($trackerSync->items[1]->labelColor);
+        self::assertNull($trackerSync->items[1]->bottomText);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemLabelColorThatIsNotAHexCodeNamesTheOption(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $options = array_merge(self::validOptions(), [
+            'items' => [
+                ['symbol' => 'BTC', 'currency' => 'eur', 'labelColor' => 'green'],
+            ],
+        ]);
+
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage(\sprintf('syncs.%s.items[0].labelColor', $expectedSyncType));
+
+        $syncGroupClass::fromOptions($options);
     }
 
     /**

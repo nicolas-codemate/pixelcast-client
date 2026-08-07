@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Config\Sync;
 
+use App\Client\Color;
 use App\Config\Exception\PixelCastConfigException;
 
 final class SyncOptionReader
@@ -38,6 +39,24 @@ final class SyncOptionReader
         }
 
         return self::requireString($options, $key, $parentPath);
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    public static function optionalColor(array $options, string $key, string $parentPath): ?Color
+    {
+        $hexCode = self::optionalString($options, $key, $parentPath);
+
+        if (null === $hexCode) {
+            return null;
+        }
+
+        try {
+            return Color::fromHexCode($hexCode);
+        } catch (\InvalidArgumentException $conversionError) {
+            throw PixelCastConfigException::invalidValue(self::optionPath($parentPath, $key), 'expected a hex color like "#00D4FF"', $conversionError);
+        }
     }
 
     /**
