@@ -23,6 +23,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     private const string COINGECKO_BASE_URI = 'https://api.coingecko.com/api/v3/';
     private const string SINGLE_CURRENCY_CONFIG_FILE = 'pixelcast.yaml';
     private const string MIXED_CURRENCIES_CONFIG_FILE = 'pixelcast-mixed-currencies.yaml';
+    private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-coingecko-labelled-item.yaml';
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
@@ -79,6 +80,23 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         [$bitcoinPayload] = $provider->fetchTrackers();
 
         self::assertNull($bitcoinPayload->bottomText);
+    }
+
+    public function testAConfiguredLabelColorAndBottomTextWinOverTheDerivedOnes(): void
+    {
+        $provider = $this->buildProvider(
+            new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI),
+            configFileName: self::LABELLED_ITEM_CONFIG_FILE,
+        );
+
+        $trackerPayloads = $provider->fetchTrackers();
+
+        self::assertCount(1, $trackerPayloads);
+        self::assertSame('Bitcoin', $trackerPayloads[0]->symbol);
+        self::assertSame('BTC', $trackerPayloads[0]->name);
+        self::assertSame('#4CAF50', $trackerPayloads[0]->symbolColor?->hexCode);
+        self::assertSame('#00FF00', $trackerPayloads[0]->sparklineColor?->hexCode);
+        self::assertSame('Réserve de valeur', $trackerPayloads[0]->bottomText);
     }
 
     public function testSparklineIsDownsampledToAtMost24PointsKeepingFirstAndLastPoint(): void

@@ -1,0 +1,13 @@
+# Sample configuration used by TwelveDataTrackerProviderTest: an asset carrying the three optional
+# display fields, to prove they win over the values derived from the ticker.
+syncs:
+    twelvedata:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: AAPL
+              currency: usd
+              icon: stock
+              label: Apple Inc.
+              labelColor: '#4CAF50'
+              bottomText: Nasdaq

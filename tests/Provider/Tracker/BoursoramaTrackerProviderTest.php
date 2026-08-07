@@ -22,6 +22,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
     private const string TWO_ITEMS_CONFIG_FILE = 'pixelcast-boursorama.yaml';
     private const string PLAIN_CODE_CONFIG_FILE = 'pixelcast-boursorama-plain-code.yaml';
     private const string LONG_CODE_CONFIG_FILE = 'pixelcast-boursorama-long-code.yaml';
+    private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-boursorama-labelled-item.yaml';
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
@@ -109,9 +110,26 @@ final class BoursoramaTrackerProviderTest extends TestCase
         $trackerPayloads = $provider->fetchTrackers();
 
         self::assertCount(1, $trackerPayloads);
-        self::assertSame('VERYLON', $trackerPayloads[0]->symbol);
-        self::assertSame('1RTVERYLONGCODE', $trackerPayloads[0]->name);
+        self::assertSame('VERYLONGCODETHATOVERFLOWSTHEPAN', $trackerPayloads[0]->symbol);
+        self::assertSame('1RTVERYLONGCODETHATOVERFLOWSTHEPANEL', $trackerPayloads[0]->name);
         self::assertSame(TrackerPayload::MAXIMUM_SYMBOL_LENGTH, mb_strlen($trackerPayloads[0]->symbol));
+    }
+
+    public function testAConfiguredLabelColorAndBottomTextWinOverTheDerivedOnes(): void
+    {
+        $provider = $this->buildProvider(
+            $this->fixtureClient('boursorama-ticks-dcam.json'),
+            configFileName: self::LABELLED_ITEM_CONFIG_FILE,
+        );
+
+        $trackerPayloads = $provider->fetchTrackers();
+
+        self::assertCount(1, $trackerPayloads);
+        self::assertSame('Amundi PEA Monde', $trackerPayloads[0]->symbol);
+        self::assertSame('1RTDCAM', $trackerPayloads[0]->name);
+        self::assertSame('#4CAF50', $trackerPayloads[0]->symbolColor?->hexCode);
+        self::assertSame('#00FF00', $trackerPayloads[0]->sparklineColor?->hexCode);
+        self::assertSame('MSCI World', $trackerPayloads[0]->bottomText);
     }
 
     public function testTheSparklineCarriesEveryClosingPriceOfTheResponse(): void

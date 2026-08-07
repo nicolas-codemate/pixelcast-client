@@ -123,15 +123,16 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         try {
             return new TrackerPayload(
                 name: mb_strtoupper($item->symbol),
-                symbol: self::displaySymbolOf($item->symbol),
+                symbol: $item->label ?? self::displaySymbolOf($item->symbol),
                 iconName: $item->icon,
                 currency: mb_strtoupper($item->currency),
                 currentValue: $latestClosingPrice,
                 changePercentage: $changePercentage,
                 sparklinePoints: $sparklinePoints,
-                symbolColor: $trendColor,
+                symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
                 sparklinePeriod: \sprintf('%dd', $closingPriceCount),
+                bottomText: $item->bottomText,
             );
         } catch (\InvalidArgumentException $validationError) {
             $this->logger->warning('Boursorama quotes could not be turned into a tracker', [

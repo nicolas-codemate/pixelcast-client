@@ -1,0 +1,13 @@
+# Sample configuration used by BoursoramaTrackerProviderTest: an asset carrying the three optional
+# display fields, to prove they win over the values derived from the Boursorama code.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: 1rTDCAM
+              currency: eur
+              icon: etf
+              label: Amundi PEA Monde
+              labelColor: '#4CAF50'
+              bottomText: MSCI World
