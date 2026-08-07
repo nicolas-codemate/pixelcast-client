@@ -43,7 +43,9 @@ final readonly class CoinGeckoMidnightPriceProvider
         return $this->cache->get(
             self::buildCacheKey($coinId, $currency, $midnight),
             function (ItemInterface $cacheItem, bool &$shouldSave) use ($coinId, $currency, $midnight): ?float {
-                $cacheItem->expiresAt($midnight->modify('+1 day'));
+                // A lifetime, not a date: the cache pool compares expiry to the system clock,
+                // which an injected clock is free to disagree with.
+                $cacheItem->expiresAfter($midnight->modify('+1 day')->getTimestamp() - $this->clock->now()->getTimestamp());
 
                 $midnightPrice = $this->requestPriceAtMidnight($coinId, $currency, $midnight);
                 if (null === $midnightPrice) {
