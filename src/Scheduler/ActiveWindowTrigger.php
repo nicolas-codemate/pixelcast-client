@@ -39,9 +39,19 @@ final class ActiveWindowTrigger extends AbstractDecoratedTrigger
                 return $nextRun;
             }
 
-            $nextRun = $this->innerTrigger->getNextRunDate($this->activeWindow->nextOpeningAfter($nextRun));
+            $nextRun = $this->innerTrigger->getNextRunDate(self::instantJustBefore($this->activeWindow->nextOpeningAfter($nextRun)));
         }
 
         return null;
+    }
+
+    /**
+     * The inner trigger only answers with dates strictly after the one it is given, so the opening
+     * itself has to be asked for from just before it: the opening bound is inclusive, and a cycle
+     * landing exactly on it must fire then rather than one interval later.
+     */
+    private static function instantJustBefore(\DateTimeImmutable $instant): \DateTimeImmutable
+    {
+        return $instant->modify('-1 microsecond');
     }
 }

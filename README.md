@@ -225,7 +225,9 @@ is refused at startup: `timezone` exists precisely so the window is written in
 the local hours of the market, where it does not cross midnight, rather than in
 the UTC of the container clock. `app:sync <type>` ignores the window and pushes
 the group at any hour, which is what keeps it usable to test a closed market in
-the evening.
+the evening. One push escapes the window: a consumer stopped while it was open
+and started again after it closed catches up the single cycle it missed at that
+restart, before settling back on the declared hours.
 
 Every pushed payload carries a `staleAfter`, the silence in seconds the device
 tolerates before it treats the app as stale, and a `staleBehavior` when the
