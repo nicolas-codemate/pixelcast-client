@@ -82,13 +82,7 @@
                     ]
                 },
                 "staleAfter": {
-                    "description": "Silence tolerated by the device before the app is considered stale, in seconds. 0 = never. Without it the value is three times the interval, the same rule the healthcheck applies.",
-                    "type": [
-                        "integer",
-                        "null"
-                    ],
-                    "minimum": 0,
-                    "maximum": 604800
+                    "$ref": "#/definitions/staleAfter"
                 },
                 "staleBehavior": {
                     "description": "What the device does with the app once stale. \"hide\" falls back to the clock until the next push, \"none\" keeps showing the last forecast. Without it the firmware default applies.",
@@ -135,13 +129,7 @@
                     }
                 },
                 "staleAfter": {
-                    "description": "Silence tolerated by the device before the app is considered stale, in seconds. 0 = never. Without it the value is three times the interval, the same rule the healthcheck applies.",
-                    "type": [
-                        "integer",
-                        "null"
-                    ],
-                    "minimum": 0,
-                    "maximum": 604800
+                    "$ref": "#/definitions/staleAfter"
                 },
                 "staleBehavior": {
                     "description": "What the device does with the app once stale. \"hide\" leaves the rotation until the next push, \"dim\" stays visible dimmed with a STALE badge, \"badge\" stays at full colour with the badge, \"none\" shows no sign. Without it the firmware default applies.",
@@ -161,6 +149,15 @@
                     "$ref": "#/definitions/activeWindow"
                 }
             }
+        },
+        "staleAfter": {
+            "description": "Silence tolerated by the device before the app is considered stale, in seconds. 0 = never. Without it the value is three times the interval, the same rule the healthcheck applies.",
+            "type": [
+                "integer",
+                "null"
+            ],
+            "minimum": 0,
+            "maximum": 604800
         },
         "activeWindow": {
             "description": "Hours during which the group is scheduled and watched by the healthcheck. Without it the group runs around the clock.",

@@ -12,11 +12,10 @@ use App\Client\StaleBehavior;
  */
 final readonly class StaleDeclaration
 {
-    public const int MAXIMUM_STALE_AFTER_IN_SECONDS = 604800;
-
     private const string STALE_AFTER_OPTION_KEY = 'staleAfter';
     private const string STALE_BEHAVIOR_OPTION_KEY = 'staleBehavior';
     private const int MINIMUM_STALE_AFTER_IN_SECONDS = 0;
+    private const int MAXIMUM_STALE_AFTER_IN_SECONDS = 604800;
 
     private function __construct(
         public int $staleAfterInSeconds,
@@ -39,10 +38,8 @@ final readonly class StaleDeclaration
         );
 
         // An interval of three days would derive 777600 seconds, more than the device accepts.
-        $staleAfterInSeconds = min(
-            $declaredStaleAfterInSeconds ?? $interval->toleratedSilenceInSeconds(),
-            self::MAXIMUM_STALE_AFTER_IN_SECONDS,
-        );
+        $staleAfterInSeconds = $declaredStaleAfterInSeconds
+            ?? min($interval->toleratedSilenceInSeconds(), self::MAXIMUM_STALE_AFTER_IN_SECONDS);
 
         return new self(
             $staleAfterInSeconds,

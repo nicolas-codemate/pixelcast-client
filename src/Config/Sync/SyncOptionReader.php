@@ -10,6 +10,16 @@ use App\Config\Exception\PixelCastConfigException;
 final class SyncOptionReader
 {
     /**
+     * A key left out of the file and a key written with no value both mean the option is absent.
+     *
+     * @param array<string, mixed> $options
+     */
+    public static function isDeclared(array $options, string $key): bool
+    {
+        return \array_key_exists($key, $options) && null !== $options[$key];
+    }
+
+    /**
      * @param array<string, mixed> $options
      */
     public static function requireString(array $options, string $key, string $parentPath): string
@@ -34,7 +44,7 @@ final class SyncOptionReader
      */
     public static function optionalString(array $options, string $key, string $parentPath): ?string
     {
-        if (!\array_key_exists($key, $options) || null === $options[$key]) {
+        if (!self::isDeclared($options, $key)) {
             return null;
         }
 
@@ -92,7 +102,7 @@ final class SyncOptionReader
      */
     public static function optionalInt(array $options, string $key, string $parentPath, int $minimum, int $maximum): ?int
     {
-        if (!\array_key_exists($key, $options) || null === $options[$key]) {
+        if (!self::isDeclared($options, $key)) {
             return null;
         }
 

@@ -26,8 +26,6 @@ final readonly class ActiveWindow implements \Stringable
      */
     private function __construct(
         public array $days,
-        public string $fromTime,
-        public string $toTime,
         public int $fromMinuteOfDay,
         public int $toMinuteOfDay,
         public \DateTimeZone $timezone,
@@ -39,7 +37,7 @@ final readonly class ActiveWindow implements \Stringable
      */
     public static function optionalFromOptions(array $options, string $parentPath): ?self
     {
-        if (!\array_key_exists(self::OPTION_KEY, $options) || null === $options[self::OPTION_KEY]) {
+        if (!SyncOptionReader::isDeclared($options, self::OPTION_KEY)) {
             return null;
         }
 
@@ -57,8 +55,6 @@ final readonly class ActiveWindow implements \Stringable
 
         return new self(
             self::readDays($windowOptions, $windowPath),
-            $fromTime,
-            $toTime,
             $fromMinuteOfDay,
             $toMinuteOfDay,
             self::readTimezone($windowOptions, $windowPath),
@@ -85,9 +81,13 @@ final readonly class ActiveWindow implements \Stringable
         // The declared days repeat every week, so one of the eight days ahead always opens.
         for ($dayOffset = 0; $dayOffset <= self::DAYS_PER_WEEK; ++$dayOffset) {
             $localDay = $localInstant->modify(\sprintf('+%d days', $dayOffset));
-            $opening = $this->openingOfTheDayOf($localDay);
 
-            if ($this->coversTheDayOf($localDay) && $opening > $localInstant) {
+            if (!$this->coversTheDayOf($localDay)) {
+                continue;
+            }
+
+            $opening = $this->openingOfTheDayOf($localDay);
+            if ($opening > $localInstant) {
                 return $opening;
             }
         }
@@ -111,8 +111,8 @@ final readonly class ActiveWindow implements \Stringable
         return \sprintf(
             '%s %s-%s %s',
             implode(',', array_column($this->days, 'value')),
-            $this->fromTime,
-            $this->toTime,
+            $this->timeOfDay($this->fromMinuteOfDay),
+            $this->timeOfDay($this->toMinuteOfDay),
             $this->timezone->getName(),
         );
     }
@@ -126,7 +126,7 @@ final readonly class ActiveWindow implements \Stringable
     {
         $daysPath = $windowPath.'.'.self::DAYS_OPTION_KEY;
 
-        if (!\array_key_exists(self::DAYS_OPTION_KEY, $windowOptions) || null === $windowOptions[self::DAYS_OPTION_KEY]) {
+        if (!SyncOptionReader::isDeclared($windowOptions, self::DAYS_OPTION_KEY)) {
             return ActiveWindowDay::cases();
         }
 
@@ -186,11 +186,16 @@ final readonly class ActiveWindow implements \Stringable
 
     private function coversTheDayOf(\DateTimeImmutable $localInstant): bool
     {
-        return \in_array(ActiveWindowDay::fromIsoWeekdayNumber((int) $localInstant->format('N')), $this->days, true);
+        return \in_array(ActiveWindowDay::from(strtolower($localInstant->format('D'))), $this->days, true);
     }
 
     private function openingOfTheDayOf(\DateTimeImmutable $localDay): \DateTimeImmutable
     {
         return $localDay->setTime(intdiv($this->fromMinuteOfDay, self::MINUTES_PER_HOUR), $this->fromMinuteOfDay % self::MINUTES_PER_HOUR);
+    }
+
+    private function timeOfDay(int $minuteOfDay): string
+    {
+        return \sprintf('%02d:%02d', intdiv($minuteOfDay, self::MINUTES_PER_HOUR), $minuteOfDay % self::MINUTES_PER_HOUR);
     }
 }

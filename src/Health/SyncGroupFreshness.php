@@ -10,8 +10,8 @@ final readonly class SyncGroupFreshness
         public string $syncType,
         public ?int $ageInSeconds,
         public int $staleAfterInSeconds,
-        public bool $insideActiveWindow = true,
-        public ?int $secondsSinceWindowOpened = null,
+        public bool $insideActiveWindow,
+        public ?int $secondsSinceWindowOpened,
     ) {
     }
 
@@ -25,10 +25,22 @@ final readonly class SyncGroupFreshness
     }
 
     /**
-     * A group that just reopened has only been watched since its opening, not since its last push.
+     * How long the window has been open, when the group has only been watched since that opening
+     * rather than since its last push. Null when the last push is what the group is judged on.
      */
+    public function watchedSecondsSinceWindowOpening(): ?int
+    {
+        $secondsSinceWindowOpened = $this->secondsSinceWindowOpened;
+
+        if (null === $secondsSinceWindowOpened || $secondsSinceWindowOpened >= ($this->ageInSeconds ?? \PHP_INT_MAX)) {
+            return null;
+        }
+
+        return $secondsSinceWindowOpened;
+    }
+
     private function watchedSilenceInSeconds(): int
     {
-        return min($this->ageInSeconds ?? \PHP_INT_MAX, $this->secondsSinceWindowOpened ?? \PHP_INT_MAX);
+        return $this->watchedSecondsSinceWindowOpening() ?? $this->ageInSeconds ?? \PHP_INT_MAX;
     }
 }

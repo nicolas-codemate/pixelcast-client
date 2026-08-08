@@ -5,36 +5,24 @@ declare(strict_types=1);
 namespace App\Tests\Command;
 
 use App\Command\HealthCommand;
-use App\Health\LastSuccessfulSyncStore;
-use App\Health\SyncHealthChecker;
-use App\Tests\Factory\SyncsConfigLoaderFactory;
+use App\Tests\Factory\SyncHealthScenario;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
-use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 final class HealthCommandTest extends TestCase
 {
-    private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
-    private const string PUSH_INSTANT = '2026-08-03 10:00:00';
-    private const string MARKET_TIMEZONE = 'Europe/Paris';
-    private const string FRIDAY_CLOSING = '2026-08-07 17:45:00';
-    private const string SATURDAY_NOON = '2026-08-08 12:00:00';
-
-    private MockClock $clock;
-    private LastSuccessfulSyncStore $store;
+    private SyncHealthScenario $scenario;
 
     protected function setUp(): void
     {
-        $this->clock = new MockClock(self::PUSH_INSTANT);
-        $this->store = new LastSuccessfulSyncStore(new ArrayAdapter(), $this->clock);
+        $this->scenario = new SyncHealthScenario();
     }
 
     public function testAFreshSyncGroupExitsSuccessfully(): void
     {
-        $this->store->recordSuccess('weather');
-        $this->clock->modify('+12 minutes');
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify('+12 minutes');
 
         $tester = $this->createTester('syncs-valid.yaml');
         $exitCode = $tester->execute([]);
@@ -45,8 +33,8 @@ final class HealthCommandTest extends TestCase
 
     public function testAStaleSyncGroupExitsWithAFailure(): void
     {
-        $this->store->recordSuccess('weather');
-        $this->clock->modify('+91 minutes');
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify('+91 minutes');
 
         $tester = $this->createTester('syncs-valid.yaml');
         $exitCode = $tester->execute([]);
@@ -86,8 +74,8 @@ final class HealthCommandTest extends TestCase
 
     public function testAGroupOutsideItsActiveWindowIsPrintedAndDoesNotFailTheCommand(): void
     {
-        $this->useMarketClockAt(self::SATURDAY_NOON);
-        $this->store->recordSuccess('weather');
+        $this->scenario->useMarketClockAt(SyncHealthScenario::SATURDAY_NOON);
+        $this->scenario->store->recordSuccess('weather');
 
         $tester = $this->createTester('syncs-active-window.yaml');
         $exitCode = $tester->execute([]);
@@ -99,10 +87,10 @@ final class HealthCommandTest extends TestCase
 
     public function testAGroupJudgedFromItsReopeningSaysSoOnItsLine(): void
     {
-        $this->useMarketClockAt(self::FRIDAY_CLOSING);
-        $this->store->recordSuccess('boursorama');
-        $this->clock->modify('2026-08-10 09:05:00');
-        $this->store->recordSuccess('weather');
+        $this->scenario->useMarketClockAt(SyncHealthScenario::FRIDAY_CLOSING);
+        $this->scenario->store->recordSuccess('boursorama');
+        $this->scenario->clock->modify('2026-08-10 09:05:00');
+        $this->scenario->store->recordSuccess('weather');
 
         $tester = $this->createTester('syncs-active-window.yaml');
         $exitCode = $tester->execute([]);
@@ -113,18 +101,6 @@ final class HealthCommandTest extends TestCase
 
     private function createTester(string $fixtureName): CommandTester
     {
-        $syncHealthChecker = new SyncHealthChecker(
-            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName),
-            $this->store,
-            $this->clock,
-        );
-
-        return new CommandTester(new HealthCommand($syncHealthChecker));
-    }
-
-    private function useMarketClockAt(string $instant): void
-    {
-        $this->clock = new MockClock($instant, self::MARKET_TIMEZONE);
-        $this->store = new LastSuccessfulSyncStore(new ArrayAdapter(), $this->clock);
+        return new CommandTester(new HealthCommand($this->scenario->checkerFor($fixtureName)));
     }
 }
