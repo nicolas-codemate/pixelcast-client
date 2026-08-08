@@ -12,7 +12,9 @@ TrackerUpdateRequest:
       maxLength: 31
       description: >
         Headline shown on the top row (e.g. "BTC", "Amundi PEA Monde"). Longer than the
-        row is wide is fine: the display scrolls it, pausing at each end. The panel has
+        row is wide is fine: the display scrolls it, pausing at each end. The row holds
+        eight characters beside an icon and ten without one, since a tracker with no
+        `icon` gives its headline the full width. The panel has
         no accented glyphs, so Latin-1 accents are shown as their closest ASCII letter -
         "Santé" reads "Sante". Anything else outside ASCII is dropped: "Cœur" reads
         "Cur", and a typographic apostrophe disappears.
@@ -33,7 +35,12 @@ TrackerUpdateRequest:
     value:
       type: number
       format: float
-      description: Current price/value.
+      description: >
+        Current price/value. The panel shows as many decimals as fit the value row,
+        which the currency label shortens when one is set. Two decimals are always
+        shown when they fit, so 128.4 reads 128.40 and 6.232 keeps its third decimal.
+        Digits beyond the seven a float can carry are dropped rather than printed as
+        rounding noise.
       examples:
         - 98452.30
     change:
@@ -67,8 +74,8 @@ TrackerUpdateRequest:
         string, or colored segments - `maxLength` bounds the plain form, and the other two
         are cut at the same 31 characters, a segment that no longer fits being dropped
         whole. Accents are transliterated as they are in `symbol`, and the degree sign is
-        dropped, the footer font carrying no glyph for it. A stale tracker dims these
-        colors along with the rest of the screen.
+        dropped, the footer font carrying no glyph for it. A tracker left on the default
+        `staleBehavior` of `dim` dims these colors along with the rest of the screen.
       examples:
         - "Vol 24h: 42B"
         - [{"t": "Vol ", "c": "#888888"}, {"t": "42B", "c": "#00D4FF"}]
@@ -85,6 +92,12 @@ TrackerUpdateRequest:
       type: integer
       description: Display duration in milliseconds.
       default: 10000
+    staleAfter:
+      $ref: "common.yaml#/StaleAfter"
+      default: 3600
+    staleBehavior:
+      $ref: "common.yaml#/StaleBehavior"
+      default: dim
 
 TrackerResponse:
   type: object
@@ -131,8 +144,12 @@ TrackerResponse:
     stale:
       type: boolean
       description: >
-        True if data is older than 1 hour. Display dims colors and shows
-        a "STALE" badge.
+        True once the silence exceeds `staleAfter`. What the panel then does is
+        set by `staleBehavior`.
+    staleAfter:
+      $ref: "common.yaml#/StaleAfter"
+    staleBehavior:
+      $ref: "common.yaml#/StaleBehavior"
     sparkline:
       type: array
       items:
@@ -156,6 +173,10 @@ TrackerSummary:
       type: integer
     stale:
       type: boolean
+    staleAfter:
+      $ref: "common.yaml#/StaleAfter"
+    staleBehavior:
+      $ref: "common.yaml#/StaleBehavior"
 
 TrackerListResponse:
   type: object
