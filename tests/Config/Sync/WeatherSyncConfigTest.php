@@ -92,6 +92,29 @@ final class WeatherSyncConfigTest extends TestCase
         WeatherSyncConfig::fromOptions($options);
     }
 
+    public function testWithoutAnActiveWindowTheGroupHasAlwaysBeenDispatchable(): void
+    {
+        $activity = WeatherSyncConfig::fromOptions(self::validOptions())->activityAt(new \DateTimeImmutable('2026-08-08 03:00:00'));
+
+        self::assertTrue($activity->isActive);
+        self::assertNull($activity->secondsSinceBecameActive);
+    }
+
+    public function testAnActiveWindowSaysWhetherTheGroupIsDispatchableAndSinceWhen(): void
+    {
+        $weatherSync = WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), [
+            'activeWindow' => ['days' => ['mon'], 'from' => '08:00', 'to' => '18:00', 'timezone' => 'Europe/Paris'],
+        ]));
+
+        $insideTheWindow = $weatherSync->activityAt(new \DateTimeImmutable('2026-08-03 16:00:00', new \DateTimeZone('Europe/Paris')));
+        self::assertTrue($insideTheWindow->isActive);
+        self::assertSame(28800, $insideTheWindow->secondsSinceBecameActive);
+
+        $outsideTheWindow = $weatherSync->activityAt(new \DateTimeImmutable('2026-08-03 19:00:00', new \DateTimeZone('Europe/Paris')));
+        self::assertFalse($outsideTheWindow->isActive);
+        self::assertNull($outsideTheWindow->secondsSinceBecameActive);
+    }
+
     public function testAnUnknownUnitsValueNamesItsFullPath(): void
     {
         $this->expectException(PixelCastConfigException::class);

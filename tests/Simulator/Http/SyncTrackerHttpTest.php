@@ -224,6 +224,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
             $coinGeckoClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast.yaml'),
             CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
+            new MockClock(),
             new NullLogger(),
         );
     }
@@ -233,6 +234,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         return new TwelveDataTrackerProvider(
             $twelveDataClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast-twelvedata-three-categories.yaml'),
+            new MockClock(),
             new NullLogger(),
             'demo-key',
         );
@@ -243,6 +245,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         return new BoursoramaTrackerProvider(
             $boursoramaClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast-boursorama.yaml'),
+            new MockClock(),
             new NullLogger(),
         );
     }

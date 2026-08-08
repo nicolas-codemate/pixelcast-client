@@ -1,0 +1,12 @@
+# Sample configuration used by SyncsConfigLoaderTest: an item window whose bounds cross midnight.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: 1rTDCAM
+              currency: eur
+              activeWindow:
+                  from: '22:00'
+                  to: '06:00'
+                  timezone: Europe/Paris

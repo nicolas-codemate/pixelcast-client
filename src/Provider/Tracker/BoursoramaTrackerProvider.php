@@ -7,9 +7,9 @@ namespace App\Provider\Tracker;
 use App\Client\Color;
 use App\Client\Tracker\TrackerPayload;
 use App\Config\Sync\BoursoramaSyncConfig;
-use App\Config\Sync\StaleDeclaration;
 use App\Config\Sync\TrackerItem;
 use App\Config\SyncsConfigLoader;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
@@ -30,6 +30,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         #[Target('boursorama.client')]
         private HttpClientInterface $boursoramaClient,
         private SyncsConfigLoader $configLoader,
+        private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
     }
@@ -42,16 +43,15 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     public function fetchTrackers(): array
     {
         $boursoramaSyncGroup = $this->configLoader->load()->syncGroupOfType(BoursoramaSyncConfig::class);
-        $staleDeclaration = $boursoramaSyncGroup->staleDeclaration;
 
         $trackerPayloads = [];
-        foreach ($boursoramaSyncGroup->items as $item) {
+        foreach ($boursoramaSyncGroup->activeItemsAt($this->clock->now()) as $item) {
             $decodedResponse = $this->requestQuoteTab($item->symbol);
             if (null === $decodedResponse) {
                 continue;
             }
 
-            $trackerPayload = $this->buildTrackerPayload($item, $decodedResponse, $staleDeclaration);
+            $trackerPayload = $this->buildTrackerPayload($item, $decodedResponse);
             if (null !== $trackerPayload) {
                 $trackerPayloads[] = $trackerPayload;
             }
@@ -93,7 +93,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     /**
      * @param array<array-key, mixed> $decodedResponse
      */
-    private function buildTrackerPayload(TrackerItem $item, array $decodedResponse, StaleDeclaration $staleDeclaration): ?TrackerPayload
+    private function buildTrackerPayload(TrackerItem $item, array $decodedResponse): ?TrackerPayload
     {
         $quoteBars = self::readQuoteBars($decodedResponse);
 
@@ -135,8 +135,8 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
                 sparklineColor: $trendColor,
                 sparklinePeriod: \sprintf('%dd', $closingPriceCount),
                 bottomText: $item->bottomText,
-                staleAfterInSeconds: $staleDeclaration->staleAfterInSeconds,
-                staleBehavior: $staleDeclaration->staleBehavior,
+                staleAfterInSeconds: $item->staleDeclaration->staleAfterInSeconds,
+                staleBehavior: $item->staleDeclaration->staleBehavior,
             );
         } catch (\InvalidArgumentException $validationError) {
             $this->logger->warning('Boursorama quotes could not be turned into a tracker', [

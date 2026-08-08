@@ -7,9 +7,9 @@ namespace App\Provider\Tracker;
 use App\Client\Color;
 use App\Client\Tracker\TrackerPayload;
 use App\Config\Sync\CoinGeckoSyncConfig;
-use App\Config\Sync\StaleDeclaration;
 use App\Config\Sync\TrackerItem;
 use App\Config\SyncsConfigLoader;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
@@ -29,6 +29,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
         private HttpClientInterface $coinGeckoClient,
         private SyncsConfigLoader $configLoader,
         private CoinGeckoMidnightPriceProvider $midnightPriceProvider,
+        private ClockInterface $clock,
         private LoggerInterface $logger,
         private ?string $apiKey = null,
     ) {
@@ -42,10 +43,9 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
     public function fetchTrackers(): array
     {
         $coinGeckoSyncGroup = $this->configLoader->load()->syncGroupOfType(CoinGeckoSyncConfig::class);
-        $staleDeclaration = $coinGeckoSyncGroup->staleDeclaration;
 
         $trackerPayloads = [];
-        foreach (self::itemsByCurrency($coinGeckoSyncGroup->items) as $currency => $itemsForCurrency) {
+        foreach (self::itemsByCurrency($coinGeckoSyncGroup->activeItemsAt($this->clock->now())) as $currency => $itemsForCurrency) {
             $rawMarkets = $this->requestMarkets(self::coinIdsOf($itemsForCurrency), $currency);
             if (null === $rawMarkets) {
                 continue;
@@ -64,7 +64,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
                     continue;
                 }
 
-                $trackerPayload = $this->buildTrackerPayload($item, $market, $staleDeclaration);
+                $trackerPayload = $this->buildTrackerPayload($item, $market);
                 if (null !== $trackerPayload) {
                     $trackerPayloads[] = $trackerPayload;
                 }
@@ -155,7 +155,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
     /**
      * @param array<string, mixed> $market
      */
-    private function buildTrackerPayload(TrackerItem $item, array $market, StaleDeclaration $staleDeclaration): ?TrackerPayload
+    private function buildTrackerPayload(TrackerItem $item, array $market): ?TrackerPayload
     {
         $tickerSymbol = self::readString($market, 'symbol');
         $currentPrice = self::readNumber($market, 'current_price');
@@ -193,8 +193,8 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
                 sparklineColor: $trendColor,
                 sparklinePeriod: self::SPARKLINE_PERIOD,
                 bottomText: $item->bottomText ?? $tradedVolumeText,
-                staleAfterInSeconds: $staleDeclaration->staleAfterInSeconds,
-                staleBehavior: $staleDeclaration->staleBehavior,
+                staleAfterInSeconds: $item->staleDeclaration->staleAfterInSeconds,
+                staleBehavior: $item->staleDeclaration->staleBehavior,
             );
         } catch (\InvalidArgumentException $validationError) {
             $this->logger->warning('CoinGecko market could not be turned into a tracker', [

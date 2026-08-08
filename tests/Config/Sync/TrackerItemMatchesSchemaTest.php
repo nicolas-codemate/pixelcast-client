@@ -17,9 +17,16 @@ use Symfony\Component\Yaml\Yaml;
  */
 final class TrackerItemMatchesSchemaTest extends TestCase
 {
+    /**
+     * The two freshness keys are read into a single resolved declaration, so one constructor
+     * parameter stands for the pair.
+     */
+    private const array FRESHNESS_KEYS_READ_INTO_ONE_DECLARATION = ['staleAfter', 'staleBehavior'];
+    private const string RESOLVED_FRESHNESS_FIELD = 'staleDeclaration';
+
     public function testTheSchemaAndTheTrackerItemDeclareTheSameFields(): void
     {
-        $fieldNamesFromSchema = array_keys(self::trackerItemPropertiesDeclaredBySchema());
+        $fieldNamesFromSchema = self::withTheFreshnessKeysResolved(array_keys(self::trackerItemPropertiesDeclaredBySchema()));
         $fieldNamesFromTrackerItem = array_map(
             static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
             self::trackerItemConstructorParameters(),
@@ -45,6 +52,23 @@ final class TrackerItemMatchesSchemaTest extends TestCase
 
         self::assertSame(TrackerPayload::MAXIMUM_SYMBOL_LENGTH, $trackerItemProperties['label']['maxLength'] ?? null);
         self::assertSame(TrackerPayload::MAXIMUM_BOTTOM_TEXT_LENGTH, $trackerItemProperties['bottomText']['maxLength'] ?? null);
+    }
+
+    /**
+     * @param list<string> $fieldNamesFromSchema
+     *
+     * @return list<string>
+     */
+    private static function withTheFreshnessKeysResolved(array $fieldNamesFromSchema): array
+    {
+        foreach (self::FRESHNESS_KEYS_READ_INTO_ONE_DECLARATION as $freshnessKey) {
+            self::assertContains($freshnessKey, $fieldNamesFromSchema);
+        }
+
+        $resolvedFieldNames = array_values(array_diff($fieldNamesFromSchema, self::FRESHNESS_KEYS_READ_INTO_ONE_DECLARATION));
+        $resolvedFieldNames[] = self::RESOLVED_FRESHNESS_FIELD;
+
+        return $resolvedFieldNames;
     }
 
     /**

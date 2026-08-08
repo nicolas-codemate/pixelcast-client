@@ -229,6 +229,19 @@ the evening. One push escapes the window: a consumer stopped while it was open
 and started again after it closed catches up the single cycle it missed at that
 restart, before settling back on the declared hours.
 
+The same three keys — `activeWindow`, `staleAfter` and `staleBehavior` — also
+exist on a tracker item, where each overrides the value of the group. A single
+provider covers markets that do not open together: a Euronext ETF trades from
+09:00 to 17:30 in Paris while a US-listed one trades from 15:30 to 22:00 Paris
+time, and a provider cannot be declared twice. An item outside its own window is
+left out of the cycle, which spares the quota it would have cost — Boursorama
+bills one call per asset, Twelve Data one credit per requested symbol. Declare
+the group window as the envelope of the item windows: the group is only
+scheduled during its own hours, and a cycle waking with no active item pushes
+nothing and logs `Tracker sync skipped, the provider returned no tracker` every
+time. The healthcheck follows the same rule and leaves a group alone while none
+of its items is open.
+
 Every pushed payload carries a `staleAfter`, the silence in seconds the device
 tolerates before it treats the app as stale, and a `staleBehavior` when the
 group declares one. Without a `staleAfter` key the value is three times the

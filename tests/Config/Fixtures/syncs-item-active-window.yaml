@@ -1,0 +1,26 @@
+# Sample configuration used by SyncHealthCheckerTest: a group whose two assets follow markets that
+# do not open together, the group window being the envelope of the two item windows.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '08:00'
+            to: '22:00'
+            timezone: Europe/Paris
+        items:
+            - symbol: 1rTDCAM
+              currency: eur
+              activeWindow:
+                  days: [mon, tue, wed, thu, fri]
+                  from: '09:00'
+                  to: '17:30'
+                  timezone: Europe/Paris
+            - symbol: 1rTCW8
+              currency: eur
+              activeWindow:
+                  days: [mon, tue, wed, thu, fri]
+                  from: '15:30'
+                  to: '22:00'
+                  timezone: Europe/Paris

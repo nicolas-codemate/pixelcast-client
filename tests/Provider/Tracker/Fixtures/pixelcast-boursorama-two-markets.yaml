@@ -1,0 +1,31 @@
+# Sample configuration used by BoursoramaTrackerProviderTest: two ETFs quoted on markets that do
+# not open together, to exercise the per-item window and the freshness an item inherits or overrides.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        staleBehavior: hide
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '22:00'
+            timezone: Europe/Paris
+        items:
+            - symbol: 1rTDCAM
+              currency: eur
+              icon: etf
+              activeWindow:
+                  days: [mon, tue, wed, thu, fri]
+                  from: '09:00'
+                  to: '17:30'
+                  timezone: Europe/Paris
+            - symbol: 1rTCW8
+              currency: eur
+              icon: etf
+              activeWindow:
+                  days: [mon, tue, wed, thu, fri]
+                  from: '15:30'
+                  to: '22:00'
+                  timezone: Europe/Paris
+              staleAfter: 5400
+              staleBehavior: dim

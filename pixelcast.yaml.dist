@@ -148,6 +148,13 @@ syncs:
         # label: text shown on the top row instead of the text derived from symbol, optional.
         # labelColor: hex color of the label, optional. Without it the label follows the trend color.
         # bottomText: text shown under the price, optional.
+        # activeWindow: hours this asset alone is fetched during, same shape as the group key above.
+        #   It overrides the group window, which lets one group hold assets quoted on markets with
+        #   different opening hours. Outside them the asset is skipped and no request is spent on it.
+        #   Declare the group window as the envelope of the item windows, otherwise the group wakes
+        #   with nothing to push.
+        # staleAfter: silence tolerated for this asset alone, in seconds. It overrides the group key.
+        # staleBehavior: what the device does with this asset once stale. It overrides the group key.
         items:
             - symbol: 1rTDCAM
               currency: eur
@@ -155,3 +162,10 @@ syncs:
               label: Amundi PEA Monde
               labelColor: '#4CAF50'
               bottomText: MSCI World
+              activeWindow:
+                  days: [mon, tue, wed, thu, fri]
+                  from: '09:00'
+                  to: '17:30'
+                  timezone: Europe/Paris
+              staleAfter: 2700
+              staleBehavior: dim

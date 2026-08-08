@@ -185,4 +185,178 @@ final class TrackerSyncConfigTest extends TestCase
 
         $syncGroupClass::fromOptions($options);
     }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemWindowSpanningMidnightNamesTheOptionOfThatItem(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage(\sprintf('syncs.%s.items[0].activeWindow.to', $expectedSyncType));
+
+        $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
+            'items' => [
+                ['symbol' => 'BTC', 'currency' => 'eur', 'activeWindow' => ['from' => '22:00', 'to' => '06:00', 'timezone' => 'Europe/Paris']],
+            ],
+        ]));
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemWithoutFreshnessKeysFollowsTheDeclarationOfItsGroup(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
+            'staleAfter' => 1200,
+            'staleBehavior' => 'hide',
+        ]));
+
+        self::assertSame(1200, $trackerSync->items[0]->staleDeclaration->staleAfterInSeconds);
+        self::assertSame(StaleBehavior::Hide, $trackerSync->items[0]->staleDeclaration->staleBehavior);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemDeclaringItsOwnSilenceKeepsTheBehaviourOfItsGroup(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
+            'staleAfter' => 1200,
+            'staleBehavior' => 'hide',
+            'items' => [['symbol' => 'BTC', 'currency' => 'eur', 'staleAfter' => 0]],
+        ]));
+
+        self::assertSame(0, $trackerSync->items[0]->staleDeclaration->staleAfterInSeconds);
+        self::assertSame(StaleBehavior::Hide, $trackerSync->items[0]->staleDeclaration->staleBehavior);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemDeclaringItsOwnBehaviourKeepsTheSilenceOfItsGroup(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
+            'staleAfter' => 1200,
+            'staleBehavior' => 'hide',
+            'items' => [['symbol' => 'BTC', 'currency' => 'eur', 'staleBehavior' => 'badge']],
+        ]));
+
+        self::assertSame(1200, $trackerSync->items[0]->staleDeclaration->staleAfterInSeconds);
+        self::assertSame(StaleBehavior::Badge, $trackerSync->items[0]->staleDeclaration->staleBehavior);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testOnlyTheItemsWhoseOwnWindowIsOpenAreFetched(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::twoMarketsOptions());
+
+        $itemsAtTheEuropeanOpening = $trackerSync->activeItemsAt(self::parisInstant('2026-08-03 10:00:00'));
+        self::assertCount(1, $itemsAtTheEuropeanOpening);
+        self::assertSame('EURONEXT', $itemsAtTheEuropeanOpening[0]->symbol);
+
+        self::assertCount(2, $trackerSync->activeItemsAt(self::parisInstant('2026-08-03 16:00:00')));
+        self::assertSame([], $trackerSync->activeItemsAt(self::parisInstant('2026-08-03 08:30:00')));
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAGroupIsDispatchableFromTheLaterOfItsOwnOpeningAndTheEarliestItemStillOpen(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $activity = $syncGroupClass::fromOptions(self::twoMarketsOptions())->activityAt(self::parisInstant('2026-08-03 16:00:00'));
+
+        self::assertTrue($activity->isActive);
+        self::assertSame(25200, $activity->secondsSinceBecameActive);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAGroupWhoseItemsAreAllClosedIsNotDispatchableEvenInsideItsOwnWindow(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $activity = $syncGroupClass::fromOptions(self::twoMarketsOptions())->activityAt(self::parisInstant('2026-08-03 08:30:00'));
+
+        self::assertFalse($activity->isActive);
+        self::assertNull($activity->secondsSinceBecameActive);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testWithoutAGroupWindowTheItemWindowsAloneSayWhenTheGroupBecameDispatchable(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $options = self::twoMarketsOptions();
+        unset($options['activeWindow']);
+
+        $activity = $syncGroupClass::fromOptions($options)->activityAt(self::parisInstant('2026-08-03 16:00:00'));
+
+        self::assertTrue($activity->isActive);
+        self::assertSame(25200, $activity->secondsSinceBecameActive);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testWithoutAnyWindowAtAllTheGroupHasAlwaysBeenDispatchable(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $activity = $syncGroupClass::fromOptions(self::validOptions())->activityAt(self::parisInstant('2026-08-08 03:00:00'));
+
+        self::assertTrue($activity->isActive);
+        self::assertNull($activity->secondsSinceBecameActive);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testItemsWithoutAWindowFollowTheGroupWindow(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
+            'activeWindow' => self::windowOptions('08:00', '18:00'),
+        ]));
+
+        self::assertSame(28800, $trackerSync->activityAt(self::parisInstant('2026-08-03 16:00:00'))->secondsSinceBecameActive);
+        self::assertFalse($trackerSync->activityAt(self::parisInstant('2026-08-03 19:00:00'))->isActive);
+    }
+
+    /**
+     * The two markets of the brief: a Euronext ETF and a US-listed one, under a group window
+     * covering both.
+     *
+     * @return array<string, mixed>
+     */
+    private static function twoMarketsOptions(): array
+    {
+        return array_merge(self::validOptions(), [
+            'activeWindow' => self::windowOptions('08:00', '18:00'),
+            'items' => [
+                ['symbol' => 'EURONEXT', 'currency' => 'eur', 'activeWindow' => self::windowOptions('09:00', '17:30')],
+                ['symbol' => 'NASDAQ', 'currency' => 'usd', 'activeWindow' => self::windowOptions('15:30', '22:00')],
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function windowOptions(string $from, string $to): array
+    {
+        return ['days' => ['mon', 'tue', 'wed', 'thu', 'fri'], 'from' => $from, 'to' => $to, 'timezone' => 'Europe/Paris'];
+    }
+
+    private static function parisInstant(string $instant): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable($instant, new \DateTimeZone('Europe/Paris'));
+    }
 }

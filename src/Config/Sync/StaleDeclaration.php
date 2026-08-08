@@ -46,4 +46,25 @@ final readonly class StaleDeclaration
             SyncOptionReader::optionalEnum($options, self::STALE_BEHAVIOR_OPTION_KEY, $parentPath, $acceptedBehaviors),
         );
     }
+
+    /**
+     * @param array<string, mixed> $options the options of the tracker item carrying the declaration
+     * @param list<StaleBehavior> $acceptedBehaviors the behaviours this sync group accepts
+     */
+    public static function inheritedFrom(array $options, string $itemPath, self $groupDeclaration, array $acceptedBehaviors): self
+    {
+        $declaredStaleAfterInSeconds = SyncOptionReader::optionalInt(
+            $options,
+            self::STALE_AFTER_OPTION_KEY,
+            $itemPath,
+            minimum: self::MINIMUM_STALE_AFTER_IN_SECONDS,
+            maximum: self::MAXIMUM_STALE_AFTER_IN_SECONDS,
+        );
+
+        return new self(
+            $declaredStaleAfterInSeconds ?? $groupDeclaration->staleAfterInSeconds,
+            SyncOptionReader::optionalEnum($options, self::STALE_BEHAVIOR_OPTION_KEY, $itemPath, $acceptedBehaviors)
+                ?? $groupDeclaration->staleBehavior,
+        );
+    }
 }

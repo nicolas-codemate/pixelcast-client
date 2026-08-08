@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -257,6 +258,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         return new TwelveDataTrackerProvider(
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
+            new MockClock(),
             $logger ?? new NullLogger(),
             $apiKey,
         );
