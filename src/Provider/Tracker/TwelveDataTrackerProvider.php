@@ -6,6 +6,7 @@ namespace App\Provider\Tracker;
 
 use App\Client\Color;
 use App\Client\Tracker\TrackerPayload;
+use App\Config\Sync\StaleDeclaration;
 use App\Config\Sync\TrackerItem;
 use App\Config\Sync\TwelveDataSyncConfig;
 use App\Config\SyncsConfigLoader;
@@ -49,7 +50,9 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
             return [];
         }
 
-        $items = $this->configLoader->load()->syncGroupOfType(TwelveDataSyncConfig::class)->items;
+        $twelveDataSyncGroup = $this->configLoader->load()->syncGroupOfType(TwelveDataSyncConfig::class);
+        $items = $twelveDataSyncGroup->items;
+        $staleDeclaration = $twelveDataSyncGroup->staleDeclaration;
 
         $decodedResponse = $this->requestTimeSeries($items);
         if (null === $decodedResponse) {
@@ -87,7 +90,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
                 continue;
             }
 
-            $trackerPayload = $this->buildTrackerPayload($item, $series);
+            $trackerPayload = $this->buildTrackerPayload($item, $series, $staleDeclaration);
             if (null !== $trackerPayload) {
                 $trackerPayloads[] = $trackerPayload;
             }
@@ -151,7 +154,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
     /**
      * @param array<array-key, mixed> $series
      */
-    private function buildTrackerPayload(TrackerItem $item, array $series): ?TrackerPayload
+    private function buildTrackerPayload(TrackerItem $item, array $series, StaleDeclaration $staleDeclaration): ?TrackerPayload
     {
         $closingPrices = self::readClosingPrices($series);
         $closingPriceCount = \count($closingPrices);
@@ -183,6 +186,8 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
                 sparklineColor: $trendColor,
                 sparklinePeriod: self::SPARKLINE_PERIOD,
                 bottomText: $item->bottomText,
+                staleAfterInSeconds: $staleDeclaration->staleAfterInSeconds,
+                staleBehavior: $staleDeclaration->staleBehavior,
             );
         } catch (\InvalidArgumentException $validationError) {
             $this->logger->warning('Twelve Data series could not be turned into a tracker', [

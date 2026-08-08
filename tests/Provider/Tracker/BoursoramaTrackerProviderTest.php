@@ -50,6 +50,16 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertSame('#FF0000', $secondWorldEtfPayload->sparklineColor?->hexCode);
     }
 
+    public function testEachPayloadDeclaresTheSilenceDerivedFromTheGroupInterval(): void
+    {
+        $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
+
+        $trackerPayloads = $provider->fetchTrackers();
+
+        self::assertSame(2700, $trackerPayloads[0]->staleAfterInSeconds);
+        self::assertNull($trackerPayloads[0]->staleBehavior);
+    }
+
     public function testEachConfiguredItemTriggersItsOwnRequest(): void
     {
         $firstResponse = self::fixtureResponse('boursorama-ticks-dcam.json');

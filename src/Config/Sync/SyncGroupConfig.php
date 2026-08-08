@@ -10,6 +10,8 @@ interface SyncGroupConfig
 
     public SyncInterval $interval { get; }
 
+    public StaleDeclaration $staleDeclaration { get; }
+
     /**
      * The key under `syncs:` in pixelcast.yaml, and the value accepted by `app:sync <type>`.
      */

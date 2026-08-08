@@ -42,6 +42,14 @@ final class SyncIntervalTest extends TestCase
         self::assertSame($expectedLengthInSeconds, $interval->lengthInSeconds);
     }
 
+    #[DataProvider('provideAcceptedIntervals')]
+    public function testTheSilenceToleratedIsThreeIntervals(string $rawInterval, int $expectedLengthInSeconds): void
+    {
+        $interval = SyncInterval::fromOptions(['interval' => $rawInterval], self::PARENT_PATH);
+
+        self::assertSame($expectedLengthInSeconds * 3, $interval->toleratedSilenceInSeconds());
+    }
+
     /**
      * @return iterable<string, array{string, string}>
      */

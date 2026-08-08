@@ -1,0 +1,10 @@
+# Sample configuration used by SyncsConfigLoaderTest: dim belongs to the tracker layout, not to the weather app.
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
+        staleBehavior: dim

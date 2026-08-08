@@ -9,11 +9,6 @@ use App\Config\SyncsConfigLoader;
 
 final readonly class SyncHealthChecker
 {
-    // A cycle may be missed twice before the failure is called lasting: the forecast cache expires
-    // before a cycle elapses and the device client does not retry, so each cycle is a fresh attempt,
-    // and the hourly process recycle replays the run it missed.
-    private const int ALLOWED_MISSED_CYCLES = 2;
-
     public function __construct(
         private SyncsConfigLoader $configLoader,
         private LastSuccessfulSyncStore $lastSuccessfulSyncStore,
@@ -33,7 +28,7 @@ final readonly class SyncHealthChecker
             $freshnessPerSyncGroup[] = new SyncGroupFreshness(
                 $syncType,
                 $this->lastSuccessfulSyncStore->ageInSecondsOf($syncType),
-                $syncGroup->interval->lengthInSeconds * (self::ALLOWED_MISSED_CYCLES + 1),
+                $syncGroup->interval->toleratedSilenceInSeconds(),
             );
         }
 

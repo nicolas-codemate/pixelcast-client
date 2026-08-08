@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace App\Config\Sync;
 
+use App\Client\StaleBehavior;
 use App\Config\WeatherLocale;
 use App\Config\WeatherUnits;
 use App\Message\SyncWeatherMessage;
 
 final readonly class WeatherSyncConfig implements SyncGroupConfig
 {
+    /**
+     * `dim` and `badge` are drawn by the tracker layout only, so the weather endpoint rejects them.
+     */
+    private const array ACCEPTED_STALE_BEHAVIORS = [StaleBehavior::Hide, StaleBehavior::None];
+
     public function __construct(
         public bool $enabled,
         public SyncInterval $interval,
+        public StaleDeclaration $staleDeclaration,
         public float $latitude,
         public float $longitude,
         public WeatherUnits $units,
@@ -29,9 +36,12 @@ final readonly class WeatherSyncConfig implements SyncGroupConfig
     {
         $optionsPath = 'syncs.'.self::syncType();
 
+        $interval = SyncInterval::fromOptions($options, $optionsPath);
+
         return new self(
             enabled: SyncOptionReader::requireBool($options, 'enabled', $optionsPath),
-            interval: SyncInterval::fromOptions($options, $optionsPath),
+            interval: $interval,
+            staleDeclaration: StaleDeclaration::fromOptions($options, $optionsPath, $interval, self::ACCEPTED_STALE_BEHAVIORS),
             latitude: SyncOptionReader::requireFloat($options, 'latitude', $optionsPath),
             longitude: SyncOptionReader::requireFloat($options, 'longitude', $optionsPath),
             units: SyncOptionReader::requireEnum($options, 'units', $optionsPath, WeatherUnits::class),

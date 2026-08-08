@@ -12,6 +12,7 @@ use App\Client\Exception\PixelcastClientException;
 use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClient;
+use App\Client\StaleBehavior;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\CurrentWeather;
 use App\Client\Weather\ForecastDay;
@@ -211,6 +212,8 @@ final class PixelcastClientTest extends TestCase
         return new WeatherPayload(
             new CurrentWeather(WeatherIcon::Rain, 9, -2, 14, 80),
             [new ForecastDay('LUN', WeatherIcon::Cloudy, 4, 12)],
+            staleAfterInSeconds: 5400,
+            staleBehavior: StaleBehavior::Hide,
         );
     }
 
@@ -227,6 +230,8 @@ final class PixelcastClientTest extends TestCase
             symbolColor: Color::fromHexCode('#FF8800'),
             sparklineColor: Color::fromHexCode('#00D4FF'),
             bottomText: 'Bitcoin',
+            staleAfterInSeconds: 2700,
+            staleBehavior: StaleBehavior::Dim,
         );
     }
 

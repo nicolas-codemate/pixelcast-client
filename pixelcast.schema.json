@@ -80,6 +80,27 @@
                         "fr",
                         "en"
                     ]
+                },
+                "staleAfter": {
+                    "description": "Silence tolerated by the device before the app is considered stale, in seconds. 0 = never. Without it the value is three times the interval, the same rule the healthcheck applies.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 604800
+                },
+                "staleBehavior": {
+                    "description": "What the device does with the app once stale. \"hide\" falls back to the clock until the next push, \"none\" keeps showing the last forecast. Without it the firmware default applies.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "hide",
+                        "none",
+                        null
+                    ]
                 }
             }
         },
@@ -109,6 +130,29 @@
                     "items": {
                         "$ref": "#/definitions/trackerItem"
                     }
+                },
+                "staleAfter": {
+                    "description": "Silence tolerated by the device before the app is considered stale, in seconds. 0 = never. Without it the value is three times the interval, the same rule the healthcheck applies.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 604800
+                },
+                "staleBehavior": {
+                    "description": "What the device does with the app once stale. \"hide\" leaves the rotation until the next push, \"dim\" stays visible dimmed with a STALE badge, \"badge\" stays at full colour with the badge, \"none\" shows no sign. Without it the firmware default applies.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "hide",
+                        "dim",
+                        "badge",
+                        "none",
+                        null
+                    ]
                 }
             }
         },

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Client\Weather;
 
+use App\Client\StaleBehavior;
 use App\Client\Weather\CurrentWeather;
 use App\Client\Weather\ForecastDay;
 use App\Client\Weather\HourlyWeatherPoint;
@@ -65,6 +66,34 @@ final class WeatherPayloadTest extends TestCase
             ],
             $payload->toArray(),
         );
+    }
+
+    public function testToArrayCarriesTheFreshnessKeysWhenTheGroupDeclaredThem(): void
+    {
+        $payload = new WeatherPayload(
+            new CurrentWeather(icon: WeatherIcon::Rain, temperature: 9),
+            [],
+            [],
+            5400,
+            StaleBehavior::Hide,
+        );
+
+        self::assertSame(
+            [
+                'current' => ['icon' => 'w_rain', 'temp' => 9],
+                'staleAfter' => 5400,
+                'staleBehavior' => 'hide',
+            ],
+            $payload->toArray(),
+        );
+    }
+
+    public function testToArrayOmitsTheFreshnessKeysWhenTheGroupDeclaredNeither(): void
+    {
+        $payload = new WeatherPayload(new CurrentWeather(icon: WeatherIcon::Rain, temperature: 9));
+
+        self::assertArrayNotHasKey('staleAfter', $payload->toArray());
+        self::assertArrayNotHasKey('staleBehavior', $payload->toArray());
     }
 
     public function testConstructorRejectsAThirteenthHourlyPoint(): void

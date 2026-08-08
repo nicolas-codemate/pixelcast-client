@@ -1,0 +1,20 @@
+# Sample configuration used by SyncsConfigLoaderTest: a group overriding both freshness keys.
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
+        staleAfter: 7200
+        staleBehavior: none
+
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        staleAfter: 0
+        staleBehavior: hide
+        items:
+            - symbol: 1rTDCAM
+              currency: eur

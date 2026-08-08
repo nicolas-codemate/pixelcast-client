@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Config;
 
+use App\Client\StaleBehavior;
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Config\Sync\TwelveDataSyncConfig;
 use App\Config\Sync\WeatherSyncConfig;
@@ -41,6 +43,28 @@ final class SyncsConfigLoaderTest extends TestCase
         $twelveDataSync = $config->syncGroupOfType(TwelveDataSyncConfig::class);
         self::assertFalse($twelveDataSync->enabled);
         self::assertNull($twelveDataSync->items[0]->icon);
+    }
+
+    public function testAGroupWithoutFreshnessKeysDerivesItsSilenceFromItsInterval(): void
+    {
+        $config = self::loaderFor('syncs-valid.yaml')->load();
+
+        $weatherSync = $config->syncGroupOfType(WeatherSyncConfig::class);
+        self::assertSame(5400, $weatherSync->staleDeclaration->staleAfterInSeconds);
+        self::assertNull($weatherSync->staleDeclaration->staleBehavior);
+    }
+
+    public function testAGroupDeclaringBothFreshnessKeysKeepsThem(): void
+    {
+        $config = self::loaderFor('syncs-stale-overrides.yaml')->load();
+
+        $weatherSync = $config->syncGroupOfType(WeatherSyncConfig::class);
+        self::assertSame(7200, $weatherSync->staleDeclaration->staleAfterInSeconds);
+        self::assertSame(StaleBehavior::None, $weatherSync->staleDeclaration->staleBehavior);
+
+        $boursoramaSync = $config->syncGroupOfType(BoursoramaSyncConfig::class);
+        self::assertSame(0, $boursoramaSync->staleDeclaration->staleAfterInSeconds);
+        self::assertSame(StaleBehavior::Hide, $boursoramaSync->staleDeclaration->staleBehavior);
     }
 
     public function testOnlyTheEnabledGroupsAreKept(): void
@@ -104,6 +128,7 @@ final class SyncsConfigLoaderTest extends TestCase
         yield 'tracker item without a symbol' => ['syncs-incomplete-item.yaml', 'syncs.coingecko.items[0].symbol'];
         yield 'interval the scheduler cannot parse' => ['syncs-bad-interval.yaml', 'syncs.weather.interval'];
         yield 'API key written in the file' => ['syncs-secret-in-file.yaml', 'api_key'];
+        yield 'dim declared on the weather group' => ['syncs-weather-dim-behavior.yaml', 'syncs.weather.staleBehavior'];
     }
 
     #[DataProvider('provideRejectedFileCases')]

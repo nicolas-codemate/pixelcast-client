@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Config\Sync;
 
+use App\Client\StaleBehavior;
 use App\Message\SyncTrackerMessage;
 
 /**
@@ -18,6 +19,7 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
     final public function __construct(
         public bool $enabled,
         public SyncInterval $interval,
+        public StaleDeclaration $staleDeclaration,
         public array $items,
     ) {
     }
@@ -31,9 +33,12 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
             $items[] = TrackerItem::fromOptions($itemOptions, \sprintf('%s.items[%d]', $optionsPath, $index));
         }
 
+        $interval = SyncInterval::fromOptions($options, $optionsPath);
+
         return new static(
             enabled: SyncOptionReader::requireBool($options, 'enabled', $optionsPath),
-            interval: SyncInterval::fromOptions($options, $optionsPath),
+            interval: $interval,
+            staleDeclaration: StaleDeclaration::fromOptions($options, $optionsPath, $interval, StaleBehavior::cases()),
             items: $items,
         );
     }

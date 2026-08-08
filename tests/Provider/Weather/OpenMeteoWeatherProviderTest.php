@@ -85,6 +85,15 @@ final class OpenMeteoWeatherProviderTest extends TestCase
         );
     }
 
+    public function testThePayloadDeclaresTheSilenceDerivedFromTheGroupInterval(): void
+    {
+        $payload = $this->buildProvider(new MockHttpClient(self::fixtureResponse(), self::OPEN_METEO_BASE_URI))->fetchWeather();
+
+        self::assertNotNull($payload);
+        self::assertSame(5400, $payload->staleAfterInSeconds);
+        self::assertNull($payload->staleBehavior);
+    }
+
     public function testHourlyPrecipitationIsConvertedToTenthsOfMillimetreAndCappedAtTheDeviceLimit(): void
     {
         $payload = $this->buildProvider(new MockHttpClient(self::fixtureResponse(), self::OPEN_METEO_BASE_URI))->fetchWeather();

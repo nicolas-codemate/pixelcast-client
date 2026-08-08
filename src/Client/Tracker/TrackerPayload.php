@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Client\Tracker;
 
 use App\Client\Color;
+use App\Client\StaleBehavior;
 
 final readonly class TrackerPayload
 {
@@ -31,6 +32,8 @@ final readonly class TrackerPayload
         public ?string $sparklinePeriod = null,
         public ?string $bottomText = null,
         public ?int $displayDurationMilliseconds = null,
+        public ?int $staleAfterInSeconds = null,
+        public ?StaleBehavior $staleBehavior = null,
     ) {
         if ('' === $this->name) {
             throw new \InvalidArgumentException('A tracker needs a non-empty name.');
@@ -49,7 +52,7 @@ final readonly class TrackerPayload
     /**
      * The name is absent on purpose: it travels as a query parameter, the only form DELETE /tracker accepts.
      *
-     * @return array{symbol?: string, icon?: string, currency?: string, value?: float, change?: float, sparkline?: list<float>, symbolColor?: string, sparklineColor?: string, sparklinePeriod?: string, bottomText?: string, duration?: int}
+     * @return array{symbol?: string, icon?: string, currency?: string, value?: float, change?: float, sparkline?: list<float>, symbolColor?: string, sparklineColor?: string, sparklinePeriod?: string, bottomText?: string, duration?: int, staleAfter?: int, staleBehavior?: string}
      */
     public function toArray(): array
     {
@@ -97,6 +100,14 @@ final readonly class TrackerPayload
 
         if (null !== $this->displayDurationMilliseconds) {
             $payload['duration'] = $this->displayDurationMilliseconds;
+        }
+
+        if (null !== $this->staleAfterInSeconds) {
+            $payload['staleAfter'] = $this->staleAfterInSeconds;
+        }
+
+        if (null !== $this->staleBehavior) {
+            $payload['staleBehavior'] = $this->staleBehavior->value;
         }
 
         return $payload;

@@ -88,6 +88,29 @@ final class SyncOptionReader
     }
 
     /**
+     * @param array<string, mixed> $options
+     */
+    public static function optionalInt(array $options, string $key, string $parentPath, int $minimum, int $maximum): ?int
+    {
+        if (!\array_key_exists($key, $options) || null === $options[$key]) {
+            return null;
+        }
+
+        $optionPath = self::optionPath($parentPath, $key);
+        $value = $options[$key];
+
+        if (!\is_int($value)) {
+            throw PixelCastConfigException::invalidValue($optionPath, 'expected an integer');
+        }
+
+        if ($value < $minimum || $value > $maximum) {
+            throw PixelCastConfigException::invalidValue($optionPath, \sprintf('expected an integer between %d and %d, got %d', $minimum, $maximum, $value));
+        }
+
+        return $value;
+    }
+
+    /**
      * @template TBackedEnum of \BackedEnum
      *
      * @param array<string, mixed> $options
@@ -104,6 +127,31 @@ final class SyncOptionReader
         }
 
         return $matchedCase;
+    }
+
+    /**
+     * @template TBackedEnum of \BackedEnum
+     *
+     * @param array<string, mixed> $options
+     * @param list<TBackedEnum> $acceptedCases the cases this option accepts, which may be narrower than the whole enum
+     *
+     * @return TBackedEnum|null
+     */
+    public static function optionalEnum(array $options, string $key, string $parentPath, array $acceptedCases): ?\BackedEnum
+    {
+        $rawValue = self::optionalString($options, $key, $parentPath);
+
+        if (null === $rawValue) {
+            return null;
+        }
+
+        foreach ($acceptedCases as $acceptedCase) {
+            if ($acceptedCase->value === $rawValue) {
+                return $acceptedCase;
+            }
+        }
+
+        throw PixelCastConfigException::invalidValue(self::optionPath($parentPath, $key), \sprintf('expected one of: %s', implode(', ', array_column($acceptedCases, 'value'))));
     }
 
     /**
