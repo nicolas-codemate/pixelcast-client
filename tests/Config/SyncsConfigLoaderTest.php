@@ -78,6 +78,16 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertNull($config->syncGroupOfType(WeatherSyncConfig::class)->activeWindow);
     }
 
+    public function testAnItemDeclaringItsOwnActiveWindowKeepsItNextToTheGroupWindow(): void
+    {
+        $config = self::loaderFor('syncs-item-active-window.yaml')->load();
+
+        $boursoramaSync = $config->syncGroupOfType(BoursoramaSyncConfig::class);
+        self::assertSame('mon,tue,wed,thu,fri 08:00-22:00 Europe/Paris', (string) $boursoramaSync->activeWindow);
+        self::assertSame('mon,tue,wed,thu,fri 09:00-17:30 Europe/Paris', (string) $boursoramaSync->items[0]->activeWindow);
+        self::assertSame('mon,tue,wed,thu,fri 15:30-22:00 Europe/Paris', (string) $boursoramaSync->items[1]->activeWindow);
+    }
+
     public function testOnlyTheEnabledGroupsAreKept(): void
     {
         $config = self::loaderFor('syncs-valid.yaml')->load();
@@ -143,6 +153,7 @@ final class SyncsConfigLoaderTest extends TestCase
         yield 'window spanning midnight' => ['syncs-window-crossing-midnight.yaml', 'syncs.boursorama.activeWindow.to'];
         yield 'window declaring a day that does not exist' => ['syncs-window-bad-day.yaml', 'syncs.boursorama.activeWindow.days'];
         yield 'window declaring an unknown timezone' => ['syncs-window-bad-timezone.yaml', 'syncs.boursorama.activeWindow.timezone'];
+        yield 'item window spanning midnight' => ['syncs-item-window-crossing-midnight.yaml', 'syncs.boursorama.items[0].activeWindow.to'];
     }
 
     #[DataProvider('provideRejectedFileCases')]

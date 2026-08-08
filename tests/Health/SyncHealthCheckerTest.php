@@ -117,6 +117,42 @@ final class SyncHealthCheckerTest extends TestCase
         self::assertTrue($boursorama->isStale());
     }
 
+    public function testAGroupWhoseAssetsAreAllOutsideTheirOwnWindowIsNotStale(): void
+    {
+        $this->scenario->useMarketClockAt('2026-08-10 08:30:00');
+
+        $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-item-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
+
+        self::assertFalse($boursorama->insideActiveWindow);
+        self::assertNull($boursorama->secondsSinceWindowOpened);
+        self::assertFalse($boursorama->isStale());
+    }
+
+    public function testAGroupIsJudgedAgainFromTheMomentItsFirstAssetReopened(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::FRIDAY_CLOSING);
+        $this->scenario->store->recordSuccess('boursorama');
+        $this->scenario->clock->modify('2026-08-10 09:05:00');
+
+        $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-item-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
+
+        self::assertTrue($boursorama->insideActiveWindow);
+        self::assertSame(300, $boursorama->secondsSinceWindowOpened);
+        self::assertFalse($boursorama->isStale());
+    }
+
+    public function testAGroupIsStaleAgainOnceItsFirstAssetHasBeenOpenLongEnough(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::FRIDAY_CLOSING);
+        $this->scenario->store->recordSuccess('boursorama');
+        $this->scenario->clock->modify('2026-08-10 10:00:00');
+
+        $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-item-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
+
+        self::assertSame(3600, $boursorama->secondsSinceWindowOpened);
+        self::assertTrue($boursorama->isStale());
+    }
+
     /**
      * @param list<SyncGroupFreshness> $freshnessPerSyncGroup
      */

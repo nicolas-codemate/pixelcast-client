@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -243,6 +244,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
             $midnightPriceProvider ?? CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
+            new MockClock(),
             $logger ?? new NullLogger(),
             $apiKey,
         );

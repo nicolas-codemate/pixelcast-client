@@ -25,4 +25,9 @@ interface SyncGroupConfig
     public static function fromOptions(array $options): self;
 
     public function syncMessage(): object;
+
+    /**
+     * Whether the group has anything to push at this instant, and since when it has had.
+     */
+    public function activityAt(\DateTimeImmutable $instant): SyncGroupActivity;
 }

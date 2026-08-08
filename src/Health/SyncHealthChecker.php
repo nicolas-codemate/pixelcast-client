@@ -28,15 +28,14 @@ final readonly class SyncHealthChecker
         $freshnessPerSyncGroup = [];
 
         foreach ($this->configLoader->load()->enabledSyncGroups() as $syncType => $syncGroup) {
-            $activeWindow = $syncGroup->activeWindow;
-            $insideActiveWindow = null === $activeWindow || $activeWindow->contains($now);
+            $activity = $syncGroup->activityAt($now);
 
             $freshnessPerSyncGroup[] = new SyncGroupFreshness(
                 $syncType,
                 $this->lastSuccessfulSyncStore->ageInSecondsOf($syncType),
                 $syncGroup->interval->toleratedSilenceInSeconds(),
-                $insideActiveWindow,
-                $insideActiveWindow ? $activeWindow?->secondsSinceOpening($now) : null,
+                $activity->isActive,
+                $activity->secondsSinceBecameActive,
             );
         }
 

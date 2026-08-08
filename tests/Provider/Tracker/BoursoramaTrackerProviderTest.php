@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Provider\Tracker;
 
+use App\Client\StaleBehavior;
 use App\Provider\Tracker\BoursoramaTrackerProvider;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
@@ -11,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -21,6 +23,10 @@ final class BoursoramaTrackerProviderTest extends TestCase
     private const string TWO_ITEMS_CONFIG_FILE = 'pixelcast-boursorama.yaml';
     private const string PLAIN_CODE_CONFIG_FILE = 'pixelcast-boursorama-plain-code.yaml';
     private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-boursorama-labelled-item.yaml';
+    private const string TWO_MARKETS_CONFIG_FILE = 'pixelcast-boursorama-two-markets.yaml';
+    private const string MARKET_TIMEZONE = 'Europe/Paris';
+    private const string INSTANT_INSIDE_EVERY_WINDOW = '2026-08-03 16:00:00';
+    private const string INSTANT_BEFORE_THE_AMERICAN_OPENING = '2026-08-03 10:00:00';
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
@@ -166,6 +172,48 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertSame(1, $logger->records[0]['context']['bar_count'] ?? null);
     }
 
+    public function testAnAssetWhoseOwnWindowIsClosedCostsNoRequest(): void
+    {
+        $httpClient = $this->fixtureClient('boursorama-ticks-dcam.json');
+
+        $trackerPayloads = $this->buildProvider(
+            $httpClient,
+            configFileName: self::TWO_MARKETS_CONFIG_FILE,
+            instant: self::INSTANT_BEFORE_THE_AMERICAN_OPENING,
+        )->fetchTrackers();
+
+        self::assertSame(1, $httpClient->getRequestsCount());
+        self::assertCount(1, $trackerPayloads);
+        self::assertSame('DCAM', $trackerPayloads[0]->symbol);
+    }
+
+    public function testEveryAssetIsFetchedOnceTheirTwoWindowsOverlap(): void
+    {
+        $httpClient = $this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
+
+        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::TWO_MARKETS_CONFIG_FILE)->fetchTrackers();
+
+        self::assertSame(2, $httpClient->getRequestsCount());
+        self::assertCount(2, $trackerPayloads);
+        self::assertSame('DCAM', $trackerPayloads[0]->symbol);
+        self::assertSame('CW8', $trackerPayloads[1]->symbol);
+    }
+
+    public function testAnAssetFollowsTheFreshnessOfItsGroupUnlessItDeclaresItsOwn(): void
+    {
+        $provider = $this->buildProvider(
+            $this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'),
+            configFileName: self::TWO_MARKETS_CONFIG_FILE,
+        );
+
+        [$inheritingPayload, $overridingPayload] = $provider->fetchTrackers();
+
+        self::assertSame(2700, $inheritingPayload->staleAfterInSeconds);
+        self::assertSame(StaleBehavior::Hide, $inheritingPayload->staleBehavior);
+        self::assertSame(5400, $overridingPayload->staleAfterInSeconds);
+        self::assertSame(StaleBehavior::Dim, $overridingPayload->staleBehavior);
+    }
+
     public function testATransportErrorOnOneAssetLeavesTheOthersUntouched(): void
     {
         $logger = new RecordingLoggerStub();
@@ -188,10 +236,12 @@ final class BoursoramaTrackerProviderTest extends TestCase
         MockHttpClient $httpClient,
         ?LoggerInterface $logger = null,
         string $configFileName = self::TWO_ITEMS_CONFIG_FILE,
+        string $instant = self::INSTANT_INSIDE_EVERY_WINDOW,
     ): BoursoramaTrackerProvider {
         return new BoursoramaTrackerProvider(
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
+            new MockClock($instant, self::MARKET_TIMEZONE),
             $logger ?? new NullLogger(),
         );
     }

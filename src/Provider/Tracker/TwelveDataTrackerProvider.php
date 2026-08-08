@@ -6,10 +6,10 @@ namespace App\Provider\Tracker;
 
 use App\Client\Color;
 use App\Client\Tracker\TrackerPayload;
-use App\Config\Sync\StaleDeclaration;
 use App\Config\Sync\TrackerItem;
 use App\Config\Sync\TwelveDataSyncConfig;
 use App\Config\SyncsConfigLoader;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
@@ -30,6 +30,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         #[Target('twelvedata.client')]
         private HttpClientInterface $twelveDataClient,
         private SyncsConfigLoader $configLoader,
+        private ClockInterface $clock,
         private LoggerInterface $logger,
         private ?string $apiKey = null,
     ) {
@@ -51,8 +52,11 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         }
 
         $twelveDataSyncGroup = $this->configLoader->load()->syncGroupOfType(TwelveDataSyncConfig::class);
-        $items = $twelveDataSyncGroup->items;
-        $staleDeclaration = $twelveDataSyncGroup->staleDeclaration;
+        $items = $twelveDataSyncGroup->activeItemsAt($this->clock->now());
+
+        if ([] === $items) {
+            return [];
+        }
 
         $decodedResponse = $this->requestTimeSeries($items);
         if (null === $decodedResponse) {
@@ -90,7 +94,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
                 continue;
             }
 
-            $trackerPayload = $this->buildTrackerPayload($item, $series, $staleDeclaration);
+            $trackerPayload = $this->buildTrackerPayload($item, $series);
             if (null !== $trackerPayload) {
                 $trackerPayloads[] = $trackerPayload;
             }
@@ -154,7 +158,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
     /**
      * @param array<array-key, mixed> $series
      */
-    private function buildTrackerPayload(TrackerItem $item, array $series, StaleDeclaration $staleDeclaration): ?TrackerPayload
+    private function buildTrackerPayload(TrackerItem $item, array $series): ?TrackerPayload
     {
         $closingPrices = self::readClosingPrices($series);
         $closingPriceCount = \count($closingPrices);
@@ -186,8 +190,8 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
                 sparklineColor: $trendColor,
                 sparklinePeriod: self::SPARKLINE_PERIOD,
                 bottomText: $item->bottomText,
-                staleAfterInSeconds: $staleDeclaration->staleAfterInSeconds,
-                staleBehavior: $staleDeclaration->staleBehavior,
+                staleAfterInSeconds: $item->staleDeclaration->staleAfterInSeconds,
+                staleBehavior: $item->staleDeclaration->staleBehavior,
             );
         } catch (\InvalidArgumentException $validationError) {
             $this->logger->warning('Twelve Data series could not be turned into a tracker', [

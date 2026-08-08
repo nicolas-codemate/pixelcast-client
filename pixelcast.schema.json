@@ -254,6 +254,26 @@
                     ],
                     "minLength": 1,
                     "maxLength": 31
+                },
+                "staleAfter": {
+                    "$ref": "#/definitions/staleAfter"
+                },
+                "staleBehavior": {
+                    "description": "What the device does with this asset once stale. \"hide\" leaves the rotation until the next push, \"dim\" stays visible dimmed with a STALE badge, \"badge\" stays at full colour with the badge, \"none\" shows no sign. Without it the value of the group applies.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "hide",
+                        "dim",
+                        "badge",
+                        "none",
+                        null
+                    ]
+                },
+                "activeWindow": {
+                    "$ref": "#/definitions/activeWindow"
                 }
             }
         }

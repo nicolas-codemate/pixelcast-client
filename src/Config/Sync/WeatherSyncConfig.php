@@ -55,4 +55,15 @@ final readonly class WeatherSyncConfig implements SyncGroupConfig
     {
         return new SyncWeatherMessage();
     }
+
+    public function activityAt(\DateTimeImmutable $instant): SyncGroupActivity
+    {
+        $activeWindow = $this->activeWindow;
+
+        if (null !== $activeWindow && !$activeWindow->contains($instant)) {
+            return SyncGroupActivity::inactive();
+        }
+
+        return SyncGroupActivity::activeSince($activeWindow?->secondsSinceOpening($instant));
+    }
 }
