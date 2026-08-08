@@ -53,6 +53,11 @@ final class WeatherSyncConfigTest extends TestCase
         self::assertNull($weatherSync->staleDeclaration->staleBehavior);
     }
 
+    public function testWithoutAnActiveWindowTheGroupRunsAroundTheClock(): void
+    {
+        self::assertNull(WeatherSyncConfig::fromOptions(self::validOptions())->activeWindow);
+    }
+
     public function testTheWeatherGroupRefusesABehaviourOnlyTheTrackerLayoutDraws(): void
     {
         $this->expectException(PixelCastConfigException::class);

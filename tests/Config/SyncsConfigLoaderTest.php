@@ -67,6 +67,17 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertSame(StaleBehavior::Hide, $boursoramaSync->staleDeclaration->staleBehavior);
     }
 
+    public function testAGroupDeclaringAnActiveWindowKeepsItsDaysItsBoundsAndItsTimezone(): void
+    {
+        $config = self::loaderFor('syncs-active-window.yaml')->load();
+
+        $boursoramaSync = $config->syncGroupOfType(BoursoramaSyncConfig::class);
+        self::assertNotNull($boursoramaSync->activeWindow);
+        self::assertSame('mon,tue,wed,thu,fri 09:00-17:45 Europe/Paris', (string) $boursoramaSync->activeWindow);
+
+        self::assertNull($config->syncGroupOfType(WeatherSyncConfig::class)->activeWindow);
+    }
+
     public function testOnlyTheEnabledGroupsAreKept(): void
     {
         $config = self::loaderFor('syncs-valid.yaml')->load();
@@ -129,6 +140,9 @@ final class SyncsConfigLoaderTest extends TestCase
         yield 'interval the scheduler cannot parse' => ['syncs-bad-interval.yaml', 'syncs.weather.interval'];
         yield 'API key written in the file' => ['syncs-secret-in-file.yaml', 'api_key'];
         yield 'dim declared on the weather group' => ['syncs-weather-dim-behavior.yaml', 'syncs.weather.staleBehavior'];
+        yield 'window spanning midnight' => ['syncs-window-crossing-midnight.yaml', 'syncs.boursorama.activeWindow.to'];
+        yield 'window declaring a day that does not exist' => ['syncs-window-bad-day.yaml', 'syncs.boursorama.activeWindow.days'];
+        yield 'window declaring an unknown timezone' => ['syncs-window-bad-timezone.yaml', 'syncs.boursorama.activeWindow.timezone'];
     }
 
     #[DataProvider('provideRejectedFileCases')]

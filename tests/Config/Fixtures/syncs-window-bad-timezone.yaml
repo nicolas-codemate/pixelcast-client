@@ -1,0 +1,12 @@
+# Sample configuration used by SyncsConfigLoaderTest: a window declaring an unknown timezone.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        activeWindow:
+            from: '09:00'
+            to: '17:45'
+            timezone: Europe/Atlantis
+        items:
+            - symbol: 1rTDCAM
+              currency: eur

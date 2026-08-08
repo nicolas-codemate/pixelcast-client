@@ -101,6 +101,9 @@
                         "none",
                         null
                     ]
+                },
+                "activeWindow": {
+                    "$ref": "#/definitions/activeWindow"
                 }
             }
         },
@@ -153,6 +156,54 @@
                         "none",
                         null
                     ]
+                },
+                "activeWindow": {
+                    "$ref": "#/definitions/activeWindow"
+                }
+            }
+        },
+        "activeWindow": {
+            "description": "Hours during which the group is scheduled and watched by the healthcheck. Without it the group runs around the clock.",
+            "type": "object",
+            "required": [
+                "from",
+                "to",
+                "timezone"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "days": {
+                    "description": "Days the window is open. Without it every day is open.",
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                        ]
+                    }
+                },
+                "from": {
+                    "description": "Time the window opens, as HH:MM. Inclusive.",
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "to": {
+                    "description": "Time the window closes, as HH:MM. Inclusive, and strictly after \"from\": a window spanning midnight is not supported.",
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "timezone": {
+                    "description": "Timezone the two times are read in, e.g. \"Europe/Paris\". A market opens at a local hour, not at the hour of the container clock.",
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },

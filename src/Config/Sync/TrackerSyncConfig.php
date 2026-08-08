@@ -20,6 +20,7 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
         public bool $enabled,
         public SyncInterval $interval,
         public StaleDeclaration $staleDeclaration,
+        public ?ActiveWindow $activeWindow,
         public array $items,
     ) {
     }
@@ -39,6 +40,7 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
             enabled: SyncOptionReader::requireBool($options, 'enabled', $optionsPath),
             interval: $interval,
             staleDeclaration: StaleDeclaration::fromOptions($options, $optionsPath, $interval, StaleBehavior::cases()),
+            activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath),
             items: $items,
         );
     }

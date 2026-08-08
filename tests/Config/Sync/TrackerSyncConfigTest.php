@@ -101,6 +101,43 @@ final class TrackerSyncConfigTest extends TestCase
      * @param class-string<TrackerSyncConfig> $syncGroupClass
      */
     #[DataProvider('provideTrackerSyncGroups')]
+    public function testWithoutAnActiveWindowTheGroupRunsAroundTheClock(string $syncGroupClass, string $expectedSyncType): void
+    {
+        self::assertNull($syncGroupClass::fromOptions(self::validOptions())->activeWindow);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAGroupDeclaringAnActiveWindowKeepsIt(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
+            'activeWindow' => ['days' => ['mon'], 'from' => '09:00', 'to' => '17:45', 'timezone' => 'Europe/Paris'],
+        ]));
+
+        self::assertNotNull($trackerSync->activeWindow);
+        self::assertSame('mon 09:00-17:45 Europe/Paris', (string) $trackerSync->activeWindow);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnActiveWindowSpanningMidnightNamesTheOption(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage(\sprintf('syncs.%s.activeWindow.to', $expectedSyncType));
+
+        $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
+            'activeWindow' => ['from' => '22:00', 'to' => '06:00', 'timezone' => 'Europe/Paris'],
+        ]));
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
     public function testATrackerGroupAcceptsTheFourBehavioursItsLayoutDraws(string $syncGroupClass, string $expectedSyncType): void
     {
         $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'dim']));
