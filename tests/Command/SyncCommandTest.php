@@ -6,14 +6,20 @@ namespace App\Tests\Command;
 
 use App\Command\SyncCommand;
 use App\Message\SyncOutcome;
+use App\Message\SyncTrackerMessage;
+use App\Schedule;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\CapturingMessageBusStub;
 use App\Tests\Stub\StaticSyncMessageRegistryStub;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 final class SyncCommandTest extends TestCase
 {
+    private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
+
     private CapturingMessageBusStub $messageBus;
 
     public function testEmptyRegistryWarnsAndDispatchesNothing(): void
@@ -184,6 +190,21 @@ final class SyncCommandTest extends TestCase
         self::assertStringContainsString('weather: pushed to the device', $tester->getDisplay());
         self::assertStringContainsString('trackers: failed, see the logs', $tester->getDisplay());
         self::assertStringContainsString('Nothing reached the device for: trackers', $tester->getDisplay());
+    }
+
+    public function testAGroupOutsideItsActiveWindowCanStillBeDispatchedByHand(): void
+    {
+        $this->messageBus = new CapturingMessageBusStub([SyncOutcome::Pushed]);
+        $schedule = new Schedule(
+            new ArrayAdapter(),
+            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/syncs-active-window.yaml'),
+        );
+        $tester = new CommandTester(new SyncCommand($this->messageBus, $schedule));
+
+        $exitCode = $tester->execute(['type' => 'boursorama']);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertEquals([new SyncTrackerMessage('boursorama')], $this->messageBus->dispatchedMessages);
     }
 
     /**

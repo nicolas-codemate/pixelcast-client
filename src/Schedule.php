@@ -6,6 +6,7 @@ namespace App;
 
 use App\Config\Sync\SyncGroupConfig;
 use App\Config\SyncsConfigLoader;
+use App\Scheduler\ActiveWindowTrigger;
 use App\Scheduler\SyncMessageRegistry;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
@@ -37,9 +38,24 @@ final readonly class Schedule implements ScheduleProviderInterface, SyncMessageR
             ->processOnlyLastMissedRun(true);
 
         foreach ($this->configLoader->load()->enabledSyncGroups() as $syncGroup) {
-            $schedule->add(RecurringMessage::every($syncGroup->interval->expression, $syncGroup->syncMessage()));
+            $schedule->add(self::recurringMessageOf($syncGroup));
         }
 
         return $schedule;
+    }
+
+    private static function recurringMessageOf(SyncGroupConfig $syncGroup): RecurringMessage
+    {
+        $syncMessage = $syncGroup->syncMessage();
+        $recurringMessage = RecurringMessage::every($syncGroup->interval->expression, $syncMessage);
+
+        if (null === $syncGroup->activeWindow) {
+            return $recurringMessage;
+        }
+
+        return RecurringMessage::trigger(
+            new ActiveWindowTrigger($recurringMessage->getTrigger(), $syncGroup->activeWindow),
+            $syncMessage,
+        );
     }
 }
