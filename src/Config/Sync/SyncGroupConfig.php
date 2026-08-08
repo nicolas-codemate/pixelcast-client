@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Config\Sync;
 
+use App\Message\SyncMessage;
+
 interface SyncGroupConfig
 {
     public bool $enabled { get; }
@@ -24,7 +26,7 @@ interface SyncGroupConfig
      */
     public static function fromOptions(array $options): self;
 
-    public function syncMessage(): object;
+    public function syncMessage(): SyncMessage;
 
     /**
      * Whether the group has anything to push at this instant, and since when it has had.

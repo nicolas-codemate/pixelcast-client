@@ -12,7 +12,6 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
-use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -24,12 +23,13 @@ final class TwelveDataTrackerProviderTest extends TestCase
     private const string SINGLE_ITEM_CONFIG_FILE = 'pixelcast-twelvedata-single-item.yaml';
     private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-twelvedata-labelled-item.yaml';
     private const int MAXIMUM_CURRENCY_LENGTH = 7;
+    private const string SYNC_INSTANT = '2026-08-03 16:00:00';
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::syncInstant());
 
         self::assertCount(2, $trackerPayloads);
 
@@ -59,7 +59,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::syncInstant());
 
         self::assertSame(2700, $trackerPayloads[0]->staleAfterInSeconds);
         self::assertNull($trackerPayloads[0]->staleBehavior);
@@ -69,7 +69,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
 
-        [, $worldEtfPayload] = $provider->fetchTrackers();
+        [, $worldEtfPayload] = $provider->fetchTrackers(self::syncInstant());
 
         self::assertSame('IWDA', $worldEtfPayload->symbol);
         self::assertSame('IWDA.AS', $worldEtfPayload->name);
@@ -79,7 +79,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::syncInstant());
 
         self::assertCount(2, $trackerPayloads);
         foreach ($trackerPayloads as $trackerPayload) {
@@ -92,7 +92,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
 
-        [$applePayload, $worldEtfPayload] = $provider->fetchTrackers();
+        [$applePayload, $worldEtfPayload] = $provider->fetchTrackers(self::syncInstant());
 
         self::assertCount(24, $applePayload->sparklinePoints);
         self::assertSame(172.0, $applePayload->sparklinePoints[0]);
@@ -108,7 +108,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         $response = self::fixtureResponse('twelvedata-time-series.json');
         $httpClient = new MockHttpClient($response, self::TWELVEDATA_BASE_URI);
 
-        $this->buildProvider($httpClient)->fetchTrackers();
+        $this->buildProvider($httpClient)->fetchTrackers(self::syncInstant());
 
         self::assertSame(1, $httpClient->getRequestsCount());
         self::assertSame('GET', $response->getRequestMethod());
@@ -125,7 +125,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     {
         $response = self::fixtureResponse('twelvedata-time-series.json');
 
-        $this->buildProvider(new MockHttpClient($response, self::TWELVEDATA_BASE_URI), apiKey: 'demo-key')->fetchTrackers();
+        $this->buildProvider(new MockHttpClient($response, self::TWELVEDATA_BASE_URI), apiKey: 'demo-key')->fetchTrackers(self::syncInstant());
 
         self::assertContains('Authorization: apikey demo-key', self::requestHeaders($response));
         self::assertStringNotContainsString('demo-key', $response->getRequestUrl());
@@ -136,7 +136,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger, apiKey: null)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger, apiKey: null)->fetchTrackers(self::syncInstant());
 
         self::assertSame([], $trackerPayloads);
         self::assertSame(0, $httpClient->getRequestsCount());
@@ -149,7 +149,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     {
         $httpClient = new MockHttpClient(self::fixtureResponse('twelvedata-time-series-single-symbol.json'), self::TWELVEDATA_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::SINGLE_ITEM_CONFIG_FILE)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::SINGLE_ITEM_CONFIG_FILE)->fetchTrackers(self::syncInstant());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('AAPL', $trackerPayloads[0]->symbol);
@@ -161,7 +161,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     {
         $httpClient = new MockHttpClient(self::fixtureResponse('twelvedata-time-series-single-symbol.json'), self::TWELVEDATA_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::LABELLED_ITEM_CONFIG_FILE)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::LABELLED_ITEM_CONFIG_FILE)->fetchTrackers(self::syncInstant());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('Nasdaq', $trackerPayloads[0]->bottomText);
@@ -174,7 +174,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = new MockHttpClient(self::fixtureResponse('twelvedata-time-series-request-error.json'), self::TWELVEDATA_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::syncInstant());
 
         self::assertSame([], $trackerPayloads);
         self::assertSame(LogLevel::WARNING, $logger->records[0]['level'] ?? null);
@@ -187,7 +187,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = new MockHttpClient(self::fixtureResponse('twelvedata-time-series-symbol-error.json'), self::TWELVEDATA_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::syncInstant());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('AAPL', $trackerPayloads[0]->symbol);
@@ -201,7 +201,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = new MockHttpClient(self::fixtureResponse('twelvedata-time-series-apple-only.json'), self::TWELVEDATA_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::syncInstant());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('AAPL', $trackerPayloads[0]->symbol);
@@ -215,7 +215,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = new MockHttpClient(self::fixtureResponse('twelvedata-time-series-malformed.json'), self::TWELVEDATA_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::syncInstant());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('IWDA', $trackerPayloads[0]->symbol);
@@ -229,7 +229,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = new MockHttpClient(new MockResponse('', ['error' => 'connection refused']), self::TWELVEDATA_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::syncInstant());
 
         self::assertSame([], $trackerPayloads);
         self::assertSame(LogLevel::WARNING, $logger->records[0]['level'] ?? null);
@@ -241,7 +241,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     {
         $httpClient = new MockHttpClient(self::fixtureResponse('twelvedata-time-series-without-currency.json'), self::TWELVEDATA_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient)->fetchTrackers(self::syncInstant());
 
         self::assertSame(
             ['USD', 'EUR'],
@@ -258,10 +258,14 @@ final class TwelveDataTrackerProviderTest extends TestCase
         return new TwelveDataTrackerProvider(
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
-            new MockClock(),
             $logger ?? new NullLogger(),
             $apiKey,
         );
+    }
+
+    private static function syncInstant(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable(self::SYNC_INSTANT);
     }
 
     private static function fixtureResponse(string $fixtureFileName): MockResponse

@@ -9,7 +9,6 @@ use App\Client\Tracker\TrackerPayload;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Config\Sync\TrackerItem;
 use App\Config\SyncsConfigLoader;
-use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
@@ -29,7 +28,6 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
         private HttpClientInterface $coinGeckoClient,
         private SyncsConfigLoader $configLoader,
         private CoinGeckoMidnightPriceProvider $midnightPriceProvider,
-        private ClockInterface $clock,
         private LoggerInterface $logger,
         private ?string $apiKey = null,
     ) {
@@ -40,12 +38,12 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
         return CoinGeckoSyncConfig::syncType();
     }
 
-    public function fetchTrackers(): array
+    public function fetchTrackers(?\DateTimeImmutable $activeWindowInstant): array
     {
         $coinGeckoSyncGroup = $this->configLoader->load()->syncGroupOfType(CoinGeckoSyncConfig::class);
 
         $trackerPayloads = [];
-        foreach (self::itemsByCurrency($coinGeckoSyncGroup->activeItemsAt($this->clock->now())) as $currency => $itemsForCurrency) {
+        foreach (self::itemsByCurrency($coinGeckoSyncGroup->itemsToFetchAt($activeWindowInstant)) as $currency => $itemsForCurrency) {
             $rawMarkets = $this->requestMarkets(self::coinIdsOf($itemsForCurrency), $currency);
             if (null === $rawMarkets) {
                 continue;

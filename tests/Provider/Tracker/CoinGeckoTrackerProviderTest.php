@@ -14,7 +14,6 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
-use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -25,12 +24,13 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     private const string SINGLE_CURRENCY_CONFIG_FILE = 'pixelcast.yaml';
     private const string MIXED_CURRENCIES_CONFIG_FILE = 'pixelcast-mixed-currencies.yaml';
     private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-coingecko-labelled-item.yaml';
+    private const string SYNC_INSTANT = '2026-08-03 16:00:00';
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI));
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::syncInstant());
 
         self::assertCount(2, $trackerPayloads);
 
@@ -62,7 +62,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI));
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::syncInstant());
 
         self::assertSame(2700, $trackerPayloads[0]->staleAfterInSeconds);
         self::assertNull($trackerPayloads[0]->staleBehavior);
@@ -78,7 +78,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
 
         $trackerPayloads = $this
             ->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets-bitcoin-only.json'), self::COINGECKO_BASE_URI), $logger, midnightPriceProvider: $midnightPriceProvider)
-            ->fetchTrackers();
+            ->fetchTrackers(self::syncInstant());
 
         self::assertSame([], $trackerPayloads);
         self::assertContains('CoinGecko tracker skipped for lack of a midnight price', array_column($logger->records, 'message'));
@@ -88,7 +88,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets-bitcoin-only.json'), self::COINGECKO_BASE_URI));
 
-        [$bitcoinPayload] = $provider->fetchTrackers();
+        [$bitcoinPayload] = $provider->fetchTrackers(self::syncInstant());
 
         self::assertNull($bitcoinPayload->bottomText);
     }
@@ -100,7 +100,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
             configFileName: self::LABELLED_ITEM_CONFIG_FILE,
         );
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::syncInstant());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('Bitcoin', $trackerPayloads[0]->symbol);
@@ -114,7 +114,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI));
 
-        [$bitcoinPayload, $ethereumPayload] = $provider->fetchTrackers();
+        [$bitcoinPayload, $ethereumPayload] = $provider->fetchTrackers(self::syncInstant());
 
         self::assertCount(24, $bitcoinPayload->sparklinePoints);
         self::assertSame(44000.0, $bitcoinPayload->sparklinePoints[0]);
@@ -129,7 +129,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     {
         $response = self::fixtureResponse('coingecko-markets.json');
 
-        $this->buildProvider(new MockHttpClient($response, self::COINGECKO_BASE_URI))->fetchTrackers();
+        $this->buildProvider(new MockHttpClient($response, self::COINGECKO_BASE_URI))->fetchTrackers(self::syncInstant());
 
         self::assertSame('GET', $response->getRequestMethod());
         self::assertStringStartsWith(self::COINGECKO_BASE_URI.'coins/markets?', $response->getRequestUrl());
@@ -144,7 +144,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     {
         $httpClient = new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI);
 
-        $this->buildProvider($httpClient)->fetchTrackers();
+        $this->buildProvider($httpClient)->fetchTrackers(self::syncInstant());
 
         self::assertSame(1, $httpClient->getRequestsCount());
     }
@@ -155,7 +155,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         $ethereumResponse = self::fixtureResponse('coingecko-markets-ethereum-only.json');
         $httpClient = new MockHttpClient([$bitcoinResponse, $ethereumResponse], self::COINGECKO_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::MIXED_CURRENCIES_CONFIG_FILE)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::MIXED_CURRENCIES_CONFIG_FILE)->fetchTrackers(self::syncInstant());
 
         self::assertSame(2, $httpClient->getRequestsCount());
         self::assertSame('eur', self::queryParameters($bitcoinResponse)['vs_currency'] ?? null);
@@ -173,7 +173,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     {
         $response = self::fixtureResponse('coingecko-markets.json');
 
-        $this->buildProvider(new MockHttpClient($response, self::COINGECKO_BASE_URI), apiKey: 'demo-key')->fetchTrackers();
+        $this->buildProvider(new MockHttpClient($response, self::COINGECKO_BASE_URI), apiKey: 'demo-key')->fetchTrackers(self::syncInstant());
 
         self::assertContains('x-cg-demo-api-key: demo-key', self::requestHeaders($response));
     }
@@ -182,7 +182,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     {
         $response = self::fixtureResponse('coingecko-markets.json');
 
-        $this->buildProvider(new MockHttpClient($response, self::COINGECKO_BASE_URI))->fetchTrackers();
+        $this->buildProvider(new MockHttpClient($response, self::COINGECKO_BASE_URI))->fetchTrackers(self::syncInstant());
 
         foreach (self::requestHeaders($response) as $header) {
             self::assertStringStartsNotWith('x-cg-demo-api-key:', $header);
@@ -197,7 +197,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
             self::COINGECKO_BASE_URI,
         );
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger, self::MIXED_CURRENCIES_CONFIG_FILE)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger, self::MIXED_CURRENCIES_CONFIG_FILE)->fetchTrackers(self::syncInstant());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('ETH', $trackerPayloads[0]->symbol);
@@ -210,7 +210,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = new MockHttpClient(self::fixtureResponse('coingecko-markets-bitcoin-only.json'), self::COINGECKO_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::syncInstant());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('BTC', $trackerPayloads[0]->symbol);
@@ -224,7 +224,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = new MockHttpClient(self::fixtureResponse('coingecko-markets-malformed.json'), self::COINGECKO_BASE_URI);
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::syncInstant());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('ETH', $trackerPayloads[0]->symbol);
@@ -244,10 +244,14 @@ final class CoinGeckoTrackerProviderTest extends TestCase
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
             $midnightPriceProvider ?? CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
-            new MockClock(),
             $logger ?? new NullLogger(),
             $apiKey,
         );
+    }
+
+    private static function syncInstant(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable(self::SYNC_INSTANT);
     }
 
     private static function fixtureResponse(string $fixtureFileName): MockResponse

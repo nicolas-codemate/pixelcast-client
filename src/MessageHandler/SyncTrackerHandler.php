@@ -9,6 +9,7 @@ use App\Health\LastSuccessfulSyncStore;
 use App\Message\SyncOutcome;
 use App\Message\SyncTrackerMessage;
 use App\Provider\Tracker\TrackerProviderInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -25,6 +26,7 @@ final readonly class SyncTrackerHandler
         private PixelcastClientInterface $pixelcastClient,
         private LoggerInterface $logger,
         private LastSuccessfulSyncStore $lastSuccessfulSyncStore,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -40,8 +42,10 @@ final readonly class SyncTrackerHandler
             return SyncOutcome::Failed;
         }
 
+        $activeWindowInstant = $message->honoursActiveWindows ? $this->clock->now() : null;
+
         try {
-            $trackerPayloads = $trackerProvider->fetchTrackers();
+            $trackerPayloads = $trackerProvider->fetchTrackers($activeWindowInstant);
         } catch (\Throwable $syncFailure) {
             // Never rethrow: the scheduler consumer must keep running and let the next cycle retry.
             $this->logger->error('Tracker sync failed', [

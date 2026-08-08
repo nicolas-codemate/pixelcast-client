@@ -6,6 +6,7 @@ namespace App;
 
 use App\Config\Sync\SyncGroupConfig;
 use App\Config\SyncsConfigLoader;
+use App\Message\SyncMessage;
 use App\Scheduler\ActiveWindowTrigger;
 use App\Scheduler\SyncMessageRegistry;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
@@ -26,7 +27,7 @@ final readonly class Schedule implements ScheduleProviderInterface, SyncMessageR
     public function syncMessages(): array
     {
         return array_map(
-            static fn (SyncGroupConfig $syncGroup): object => $syncGroup->syncMessage(),
+            static fn (SyncGroupConfig $syncGroup): SyncMessage => $syncGroup->syncMessage(),
             $this->configLoader->load()->enabledSyncGroups(),
         );
     }

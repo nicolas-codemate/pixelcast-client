@@ -9,7 +9,6 @@ use App\Client\Tracker\TrackerPayload;
 use App\Config\Sync\TrackerItem;
 use App\Config\Sync\TwelveDataSyncConfig;
 use App\Config\SyncsConfigLoader;
-use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
@@ -30,7 +29,6 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         #[Target('twelvedata.client')]
         private HttpClientInterface $twelveDataClient,
         private SyncsConfigLoader $configLoader,
-        private ClockInterface $clock,
         private LoggerInterface $logger,
         private ?string $apiKey = null,
     ) {
@@ -41,7 +39,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         return TwelveDataSyncConfig::syncType();
     }
 
-    public function fetchTrackers(): array
+    public function fetchTrackers(?\DateTimeImmutable $activeWindowInstant): array
     {
         if (null === $this->apiKey || '' === $this->apiKey) {
             $this->logger->warning('Twelve Data needs an API key', [
@@ -52,7 +50,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         }
 
         $twelveDataSyncGroup = $this->configLoader->load()->syncGroupOfType(TwelveDataSyncConfig::class);
-        $items = $twelveDataSyncGroup->activeItemsAt($this->clock->now());
+        $items = $twelveDataSyncGroup->itemsToFetchAt($activeWindowInstant);
 
         if ([] === $items) {
             return [];

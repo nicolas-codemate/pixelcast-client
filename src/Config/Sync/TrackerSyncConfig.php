@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Config\Sync;
 
 use App\Client\StaleBehavior;
+use App\Message\SyncMessage;
 use App\Message\SyncTrackerMessage;
 
 /**
@@ -46,7 +47,7 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
         );
     }
 
-    public function syncMessage(): object
+    public function syncMessage(): SyncMessage
     {
         return new SyncTrackerMessage(static::syncType());
     }
@@ -54,11 +55,16 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
     /**
      * The items worth fetching at this instant: those following the group, and those whose own
      * window is open. The provider quota is spent per item, so filtering here is what saves it.
+     * A null instant asks for every item, whatever its window.
      *
      * @return list<TrackerItem>
      */
-    public function activeItemsAt(\DateTimeImmutable $instant): array
+    public function itemsToFetchAt(?\DateTimeImmutable $instant): array
     {
+        if (null === $instant) {
+            return $this->items;
+        }
+
         return array_values(array_filter(
             $this->items,
             static fn (TrackerItem $item): bool => null === $item->activeWindow || $item->activeWindow->contains($instant),
@@ -73,7 +79,7 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
             return SyncGroupActivity::inactive();
         }
 
-        $activeItems = $this->activeItemsAt($instant);
+        $activeItems = $this->itemsToFetchAt($instant);
         if ([] === $activeItems) {
             return SyncGroupActivity::inactive();
         }
