@@ -12,7 +12,6 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
-use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -32,7 +31,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::insideEveryWindow());
 
         self::assertCount(2, $trackerPayloads);
 
@@ -60,7 +59,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::insideEveryWindow());
 
         self::assertSame(2700, $trackerPayloads[0]->staleAfterInSeconds);
         self::assertNull($trackerPayloads[0]->staleBehavior);
@@ -72,7 +71,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
         $secondResponse = self::fixtureResponse('boursorama-ticks-cw8.json');
         $httpClient = new MockHttpClient([$firstResponse, $secondResponse], self::BOURSORAMA_BASE_URI);
 
-        $this->buildProvider($httpClient)->fetchTrackers();
+        $this->buildProvider($httpClient)->fetchTrackers(self::insideEveryWindow());
 
         self::assertSame(2, $httpClient->getRequestsCount());
         self::assertSame('GET', $firstResponse->getRequestMethod());
@@ -93,7 +92,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
         $response = self::fixtureResponse('boursorama-ticks-dcam.json');
         $httpClient = new MockHttpClient([$response, self::fixtureResponse('boursorama-ticks-cw8.json')], self::BOURSORAMA_BASE_URI);
 
-        $this->buildProvider($httpClient)->fetchTrackers();
+        $this->buildProvider($httpClient)->fetchTrackers(self::insideEveryWindow());
 
         $requestHeaders = self::requestHeaders($response);
         self::assertContains('X-Requested-With: XMLHttpRequest', $requestHeaders);
@@ -107,7 +106,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
             configFileName: self::PLAIN_CODE_CONFIG_FILE,
         );
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::insideEveryWindow());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('DCAM', $trackerPayloads[0]->symbol);
@@ -121,7 +120,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
             configFileName: self::LABELLED_ITEM_CONFIG_FILE,
         );
 
-        $trackerPayloads = $provider->fetchTrackers();
+        $trackerPayloads = $provider->fetchTrackers(self::insideEveryWindow());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('Amundi PEA Monde', $trackerPayloads[0]->symbol);
@@ -135,7 +134,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
     {
         $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
 
-        [$worldEtfPayload] = $provider->fetchTrackers();
+        [$worldEtfPayload] = $provider->fetchTrackers(self::insideEveryWindow());
 
         self::assertCount(24, $worldEtfPayload->sparklinePoints);
         self::assertSame(6.0, $worldEtfPayload->sparklinePoints[0]);
@@ -148,7 +147,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = $this->fixtureClient('boursorama-ticks-empty.json', 'boursorama-ticks-cw8.json');
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::insideEveryWindow());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('CW8', $trackerPayloads[0]->symbol);
@@ -162,7 +161,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
         $logger = new RecordingLoggerStub();
         $httpClient = $this->fixtureClient('boursorama-ticks-single-bar.json', 'boursorama-ticks-cw8.json');
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::insideEveryWindow());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('CW8', $trackerPayloads[0]->symbol);
@@ -176,22 +175,31 @@ final class BoursoramaTrackerProviderTest extends TestCase
     {
         $httpClient = $this->fixtureClient('boursorama-ticks-dcam.json');
 
-        $trackerPayloads = $this->buildProvider(
-            $httpClient,
-            configFileName: self::TWO_MARKETS_CONFIG_FILE,
-            instant: self::INSTANT_BEFORE_THE_AMERICAN_OPENING,
-        )->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::TWO_MARKETS_CONFIG_FILE)
+            ->fetchTrackers(self::marketInstant(self::INSTANT_BEFORE_THE_AMERICAN_OPENING));
 
         self::assertSame(1, $httpClient->getRequestsCount());
         self::assertCount(1, $trackerPayloads);
         self::assertSame('DCAM', $trackerPayloads[0]->symbol);
     }
 
+    public function testWithoutAnInstantToJudgeTheWindowsEveryAssetIsFetched(): void
+    {
+        $httpClient = $this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
+
+        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::TWO_MARKETS_CONFIG_FILE)->fetchTrackers(null);
+
+        self::assertSame(2, $httpClient->getRequestsCount());
+        self::assertCount(2, $trackerPayloads);
+        self::assertSame('DCAM', $trackerPayloads[0]->symbol);
+        self::assertSame('CW8', $trackerPayloads[1]->symbol);
+    }
+
     public function testEveryAssetIsFetchedOnceTheirTwoWindowsOverlap(): void
     {
         $httpClient = $this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
 
-        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::TWO_MARKETS_CONFIG_FILE)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::TWO_MARKETS_CONFIG_FILE)->fetchTrackers(self::insideEveryWindow());
 
         self::assertSame(2, $httpClient->getRequestsCount());
         self::assertCount(2, $trackerPayloads);
@@ -206,7 +214,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
             configFileName: self::TWO_MARKETS_CONFIG_FILE,
         );
 
-        [$inheritingPayload, $overridingPayload] = $provider->fetchTrackers();
+        [$inheritingPayload, $overridingPayload] = $provider->fetchTrackers(self::insideEveryWindow());
 
         self::assertSame(2700, $inheritingPayload->staleAfterInSeconds);
         self::assertSame(StaleBehavior::Hide, $inheritingPayload->staleBehavior);
@@ -222,7 +230,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
             self::BOURSORAMA_BASE_URI,
         );
 
-        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers();
+        $trackerPayloads = $this->buildProvider($httpClient, $logger)->fetchTrackers(self::insideEveryWindow());
 
         self::assertCount(1, $trackerPayloads);
         self::assertSame('CW8', $trackerPayloads[0]->symbol);
@@ -236,14 +244,22 @@ final class BoursoramaTrackerProviderTest extends TestCase
         MockHttpClient $httpClient,
         ?LoggerInterface $logger = null,
         string $configFileName = self::TWO_ITEMS_CONFIG_FILE,
-        string $instant = self::INSTANT_INSIDE_EVERY_WINDOW,
     ): BoursoramaTrackerProvider {
         return new BoursoramaTrackerProvider(
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
-            new MockClock($instant, self::MARKET_TIMEZONE),
             $logger ?? new NullLogger(),
         );
+    }
+
+    private static function insideEveryWindow(): \DateTimeImmutable
+    {
+        return self::marketInstant(self::INSTANT_INSIDE_EVERY_WINDOW);
+    }
+
+    private static function marketInstant(string $instant): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable($instant, new \DateTimeZone(self::MARKET_TIMEZONE));
     }
 
     private function fixtureClient(string ...$fixtureFileNames): MockHttpClient

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Message\SyncMessage;
 use App\Message\SyncOutcome;
 use App\Scheduler\SyncMessageRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -40,7 +41,10 @@ final class SyncCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $syncMessages = $this->syncMessageRegistry->syncMessages();
+        $syncMessages = array_map(
+            static fn (SyncMessage $syncMessage): SyncMessage => $syncMessage->dispatchedByHand(),
+            $this->syncMessageRegistry->syncMessages(),
+        );
 
         /** @var bool $dispatchAll */
         $dispatchAll = $input->getOption('all');
@@ -110,7 +114,7 @@ final class SyncCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function dispatchAndReadOutcome(object $message): ?SyncOutcome
+    private function dispatchAndReadOutcome(SyncMessage $message): ?SyncOutcome
     {
         $handlerResult = $this->messageBus->dispatch($message)->last(HandledStamp::class)?->getResult();
 

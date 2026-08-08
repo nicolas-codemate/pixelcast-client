@@ -7,6 +7,7 @@ namespace App\Config\Sync;
 use App\Client\StaleBehavior;
 use App\Config\WeatherLocale;
 use App\Config\WeatherUnits;
+use App\Message\SyncMessage;
 use App\Message\SyncWeatherMessage;
 
 final readonly class WeatherSyncConfig implements SyncGroupConfig
@@ -51,7 +52,7 @@ final readonly class WeatherSyncConfig implements SyncGroupConfig
         );
     }
 
-    public function syncMessage(): object
+    public function syncMessage(): SyncMessage
     {
         return new SyncWeatherMessage();
     }

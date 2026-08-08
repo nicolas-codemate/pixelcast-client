@@ -10,6 +10,11 @@ use App\Provider\Tracker\TrackerProviderInterface;
 final class StaticTrackerProviderStub implements TrackerProviderInterface
 {
     /**
+     * @var list<\DateTimeImmutable|null> the instant of every call, null standing for a fetch of every item
+     */
+    public array $activeWindowInstants = [];
+
+    /**
      * @param list<TrackerPayload> $trackerPayloads
      */
     public function __construct(
@@ -24,8 +29,10 @@ final class StaticTrackerProviderStub implements TrackerProviderInterface
         return $this->syncType;
     }
 
-    public function fetchTrackers(): array
+    public function fetchTrackers(?\DateTimeImmutable $activeWindowInstant): array
     {
+        $this->activeWindowInstants[] = $activeWindowInstant;
+
         if (null !== $this->failure) {
             throw $this->failure;
         }

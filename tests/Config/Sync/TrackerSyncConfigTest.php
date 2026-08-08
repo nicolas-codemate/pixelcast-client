@@ -257,12 +257,23 @@ final class TrackerSyncConfigTest extends TestCase
     {
         $trackerSync = $syncGroupClass::fromOptions(self::twoMarketsOptions());
 
-        $itemsAtTheEuropeanOpening = $trackerSync->activeItemsAt(self::parisInstant('2026-08-03 10:00:00'));
+        $itemsAtTheEuropeanOpening = $trackerSync->itemsToFetchAt(self::parisInstant('2026-08-03 10:00:00'));
         self::assertCount(1, $itemsAtTheEuropeanOpening);
         self::assertSame('EURONEXT', $itemsAtTheEuropeanOpening[0]->symbol);
 
-        self::assertCount(2, $trackerSync->activeItemsAt(self::parisInstant('2026-08-03 16:00:00')));
-        self::assertSame([], $trackerSync->activeItemsAt(self::parisInstant('2026-08-03 08:30:00')));
+        self::assertCount(2, $trackerSync->itemsToFetchAt(self::parisInstant('2026-08-03 16:00:00')));
+        self::assertSame([], $trackerSync->itemsToFetchAt(self::parisInstant('2026-08-03 08:30:00')));
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testWithoutAnInstantToJudgeTheWindowsEveryItemIsFetched(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::twoMarketsOptions());
+
+        self::assertSame($trackerSync->items, $trackerSync->itemsToFetchAt(null));
     }
 
     /**

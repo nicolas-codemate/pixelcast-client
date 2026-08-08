@@ -7,9 +7,11 @@ namespace App\Tests\Command;
 use App\Command\SyncCommand;
 use App\Message\SyncOutcome;
 use App\Message\SyncTrackerMessage;
+use App\Message\SyncWeatherMessage;
 use App\Schedule;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\CapturingMessageBusStub;
+use App\Tests\Stub\PlainSyncMessageStub;
 use App\Tests\Stub\StaticSyncMessageRegistryStub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -19,6 +21,8 @@ use Symfony\Component\Console\Tester\CommandTester;
 final class SyncCommandTest extends TestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
+    private const string GROUP_WINDOW_CONFIG_FILE = 'syncs-active-window.yaml';
+    private const string ITEM_WINDOW_CONFIG_FILE = 'syncs-item-active-window.yaml';
 
     private CapturingMessageBusStub $messageBus;
 
@@ -68,8 +72,8 @@ final class SyncCommandTest extends TestCase
 
     public function testDirectTypeDispatchesOnlyThatMessage(): void
     {
-        $weatherMessage = new \stdClass();
-        $trackersMessage = new \stdClass();
+        $weatherMessage = new PlainSyncMessageStub();
+        $trackersMessage = new PlainSyncMessageStub();
         $tester = $this->createTester(['weather' => $weatherMessage, 'trackers' => $trackersMessage]);
 
         $exitCode = $tester->execute(['type' => 'weather']);
@@ -80,7 +84,7 @@ final class SyncCommandTest extends TestCase
 
     public function testUnknownTypeIsRejectedAndListsAvailableTypes(): void
     {
-        $tester = $this->createTester(['weather' => new \stdClass(), 'trackers' => new \stdClass()]);
+        $tester = $this->createTester(['weather' => new PlainSyncMessageStub(), 'trackers' => new PlainSyncMessageStub()]);
 
         $exitCode = $tester->execute(['type' => 'nope']);
 
@@ -91,8 +95,8 @@ final class SyncCommandTest extends TestCase
 
     public function testAllDispatchesEveryMessageInRegistryOrder(): void
     {
-        $weatherMessage = new \stdClass();
-        $trackersMessage = new \stdClass();
+        $weatherMessage = new PlainSyncMessageStub();
+        $trackersMessage = new PlainSyncMessageStub();
         $tester = $this->createTester(['weather' => $weatherMessage, 'trackers' => $trackersMessage]);
 
         $exitCode = $tester->execute(['--all' => true]);
@@ -103,7 +107,7 @@ final class SyncCommandTest extends TestCase
 
     public function testAllCombinedWithATypeIsRejected(): void
     {
-        $tester = $this->createTester(['weather' => new \stdClass(), 'trackers' => new \stdClass()]);
+        $tester = $this->createTester(['weather' => new PlainSyncMessageStub(), 'trackers' => new PlainSyncMessageStub()]);
 
         $exitCode = $tester->execute(['type' => 'weather', '--all' => true]);
 
@@ -114,8 +118,8 @@ final class SyncCommandTest extends TestCase
 
     public function testInteractiveChoiceDispatchesOnlyTheSelectedMessage(): void
     {
-        $weatherMessage = new \stdClass();
-        $trackersMessage = new \stdClass();
+        $weatherMessage = new PlainSyncMessageStub();
+        $trackersMessage = new PlainSyncMessageStub();
         $tester = $this->createTester(['weather' => $weatherMessage, 'trackers' => $trackersMessage]);
         $tester->setInputs(['trackers']);
 
@@ -127,7 +131,7 @@ final class SyncCommandTest extends TestCase
 
     public function testMissingTypeInNonInteractiveModeIsRejected(): void
     {
-        $tester = $this->createTester(['weather' => new \stdClass(), 'trackers' => new \stdClass()]);
+        $tester = $this->createTester(['weather' => new PlainSyncMessageStub(), 'trackers' => new PlainSyncMessageStub()]);
 
         $exitCode = $tester->execute([], ['interactive' => false]);
 
@@ -138,7 +142,7 @@ final class SyncCommandTest extends TestCase
 
     public function testDispatchWithoutHandledStampReportsAnUnobservableResult(): void
     {
-        $tester = $this->createTester(['weather' => new \stdClass()]);
+        $tester = $this->createTester(['weather' => new PlainSyncMessageStub()]);
 
         $exitCode = $tester->execute(['type' => 'weather']);
 
@@ -148,7 +152,7 @@ final class SyncCommandTest extends TestCase
 
     public function testPushedOutcomeIsReportedAndSucceeds(): void
     {
-        $tester = $this->createTester(['weather' => new \stdClass()], [SyncOutcome::Pushed]);
+        $tester = $this->createTester(['weather' => new PlainSyncMessageStub()], [SyncOutcome::Pushed]);
 
         $exitCode = $tester->execute(['type' => 'weather']);
 
@@ -158,7 +162,7 @@ final class SyncCommandTest extends TestCase
 
     public function testSkippedOutcomeIsReportedAndFails(): void
     {
-        $tester = $this->createTester(['weather' => new \stdClass()], [SyncOutcome::Skipped]);
+        $tester = $this->createTester(['weather' => new PlainSyncMessageStub()], [SyncOutcome::Skipped]);
 
         $exitCode = $tester->execute(['type' => 'weather']);
 
@@ -169,7 +173,7 @@ final class SyncCommandTest extends TestCase
 
     public function testFailedOutcomeIsReportedAndFails(): void
     {
-        $tester = $this->createTester(['weather' => new \stdClass()], [SyncOutcome::Failed]);
+        $tester = $this->createTester(['weather' => new PlainSyncMessageStub()], [SyncOutcome::Failed]);
 
         $exitCode = $tester->execute(['type' => 'weather']);
 
@@ -180,7 +184,7 @@ final class SyncCommandTest extends TestCase
     public function testAllReportsEveryOutcomeAndFailsOnTheFailingTypeOnly(): void
     {
         $tester = $this->createTester(
-            ['weather' => new \stdClass(), 'trackers' => new \stdClass()],
+            ['weather' => new PlainSyncMessageStub(), 'trackers' => new PlainSyncMessageStub()],
             [SyncOutcome::Pushed, SyncOutcome::Failed],
         );
 
@@ -194,21 +198,45 @@ final class SyncCommandTest extends TestCase
 
     public function testAGroupOutsideItsActiveWindowCanStillBeDispatchedByHand(): void
     {
-        $this->messageBus = new CapturingMessageBusStub([SyncOutcome::Pushed]);
-        $schedule = new Schedule(
-            new ArrayAdapter(),
-            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/syncs-active-window.yaml'),
-        );
-        $tester = new CommandTester(new SyncCommand($this->messageBus, $schedule));
+        $tester = $this->createTesterForConfigFile(self::GROUP_WINDOW_CONFIG_FILE, [SyncOutcome::Pushed]);
 
         $exitCode = $tester->execute(['type' => 'boursorama']);
 
         self::assertSame(Command::SUCCESS, $exitCode);
-        self::assertEquals([new SyncTrackerMessage('boursorama')], $this->messageBus->dispatchedMessages);
+        self::assertEquals(
+            [new SyncTrackerMessage('boursorama', honoursActiveWindows: false)],
+            $this->messageBus->dispatchedMessages,
+        );
+    }
+
+    public function testAnItemOutsideItsOwnActiveWindowIsStillDispatchedByHand(): void
+    {
+        $tester = $this->createTesterForConfigFile(self::ITEM_WINDOW_CONFIG_FILE, [SyncOutcome::Pushed]);
+
+        $exitCode = $tester->execute(['type' => 'boursorama']);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertEquals(
+            [new SyncTrackerMessage('boursorama', honoursActiveWindows: false)],
+            $this->messageBus->dispatchedMessages,
+        );
+    }
+
+    public function testAllDispatchesEveryGroupAsAManualRunToo(): void
+    {
+        $tester = $this->createTesterForConfigFile(self::GROUP_WINDOW_CONFIG_FILE, [SyncOutcome::Pushed, SyncOutcome::Pushed]);
+
+        $exitCode = $tester->execute(['--all' => true]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertEquals(
+            [new SyncWeatherMessage(), new SyncTrackerMessage('boursorama', honoursActiveWindows: false)],
+            $this->messageBus->dispatchedMessages,
+        );
     }
 
     /**
-     * @param array<string, object> $syncMessages
+     * @param array<string, PlainSyncMessageStub> $syncMessages
      * @param list<SyncOutcome>|null $outcomesInDispatchOrder
      */
     private function createTester(array $syncMessages, ?array $outcomesInDispatchOrder = null): CommandTester
@@ -218,5 +246,19 @@ final class SyncCommandTest extends TestCase
         return new CommandTester(
             new SyncCommand($this->messageBus, new StaticSyncMessageRegistryStub($syncMessages)),
         );
+    }
+
+    /**
+     * @param list<SyncOutcome>|null $outcomesInDispatchOrder
+     */
+    private function createTesterForConfigFile(string $configFileName, ?array $outcomesInDispatchOrder = null): CommandTester
+    {
+        $this->messageBus = new CapturingMessageBusStub($outcomesInDispatchOrder);
+        $schedule = new Schedule(
+            new ArrayAdapter(),
+            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
+        );
+
+        return new CommandTester(new SyncCommand($this->messageBus, $schedule));
     }
 }

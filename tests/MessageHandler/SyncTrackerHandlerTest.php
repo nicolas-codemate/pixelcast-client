@@ -185,6 +185,28 @@ final class SyncTrackerHandlerTest extends TestCase
         self::assertNull($lastSuccessfulSyncStore->ageInSecondsOf(self::COINGECKO_SYNC_TYPE));
     }
 
+    public function testAScheduledCycleAsksTheProviderForTheItemsOpenAtThisInstant(): void
+    {
+        $trackerProvider = new StaticTrackerProviderStub(self::COINGECKO_SYNC_TYPE, [self::buildTrackerPayload('BTC')]);
+        $handler = self::buildHandler([$trackerProvider], self::buildStore());
+
+        $handler(new SyncTrackerMessage(self::COINGECKO_SYNC_TYPE));
+
+        self::assertCount(1, $trackerProvider->activeWindowInstants);
+        self::assertSame(self::PUSH_INSTANT, $trackerProvider->activeWindowInstants[0]?->format('Y-m-d H:i:s'));
+    }
+
+    public function testACycleDispatchedByHandAsksTheProviderForEveryItem(): void
+    {
+        $trackerProvider = new StaticTrackerProviderStub(self::COINGECKO_SYNC_TYPE, [self::buildTrackerPayload('BTC')]);
+        $handler = self::buildHandler([$trackerProvider], self::buildStore());
+
+        $outcome = $handler(new SyncTrackerMessage(self::COINGECKO_SYNC_TYPE)->dispatchedByHand());
+
+        self::assertSame(SyncOutcome::Pushed, $outcome);
+        self::assertSame([null], $trackerProvider->activeWindowInstants);
+    }
+
     /**
      * @param list<StaticTrackerProviderStub> $trackerProviders
      */
@@ -194,7 +216,13 @@ final class SyncTrackerHandlerTest extends TestCase
         RecordingPixelcastClientStub $client = new RecordingPixelcastClientStub(),
         RecordingLoggerStub $logger = new RecordingLoggerStub(),
     ): SyncTrackerHandler {
-        return new SyncTrackerHandler($trackerProviders, $client, $logger, $lastSuccessfulSyncStore);
+        return new SyncTrackerHandler(
+            $trackerProviders,
+            $client,
+            $logger,
+            $lastSuccessfulSyncStore,
+            new MockClock(self::PUSH_INSTANT),
+        );
     }
 
     private static function buildStore(): LastSuccessfulSyncStore

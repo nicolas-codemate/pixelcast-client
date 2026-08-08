@@ -9,7 +9,6 @@ use App\Client\Tracker\TrackerPayload;
 use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\TrackerItem;
 use App\Config\SyncsConfigLoader;
-use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
@@ -30,7 +29,6 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         #[Target('boursorama.client')]
         private HttpClientInterface $boursoramaClient,
         private SyncsConfigLoader $configLoader,
-        private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
     }
@@ -40,12 +38,12 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         return BoursoramaSyncConfig::syncType();
     }
 
-    public function fetchTrackers(): array
+    public function fetchTrackers(?\DateTimeImmutable $activeWindowInstant): array
     {
         $boursoramaSyncGroup = $this->configLoader->load()->syncGroupOfType(BoursoramaSyncConfig::class);
 
         $trackerPayloads = [];
-        foreach ($boursoramaSyncGroup->activeItemsAt($this->clock->now()) as $item) {
+        foreach ($boursoramaSyncGroup->itemsToFetchAt($activeWindowInstant) as $item) {
             $decodedResponse = $this->requestQuoteTab($item->symbol);
             if (null === $decodedResponse) {
                 continue;

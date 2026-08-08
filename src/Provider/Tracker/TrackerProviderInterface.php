@@ -15,9 +15,12 @@ interface TrackerProviderInterface
     public function syncType(): string;
 
     /**
+     * @param \DateTimeImmutable|null $activeWindowInstant the instant the item windows are judged at, or
+     *                                                     null to fetch every item whatever its window
+     *
      * @return list<TrackerPayload>
      *
      * @throws PixelCastConfigException when pixelcast.yaml is missing or invalid
      */
-    public function fetchTrackers(): array;
+    public function fetchTrackers(?\DateTimeImmutable $activeWindowInstant): array;
 }

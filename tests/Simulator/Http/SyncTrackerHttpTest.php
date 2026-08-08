@@ -168,6 +168,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
             $this->buildPixelcastClient(),
             new NullLogger(),
             $lastSuccessfulSyncStore,
+            new MockClock(),
         );
     }
 
@@ -208,7 +209,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     private static function expectedWireBodies(TrackerProviderInterface $trackerProvider): array
     {
         $wireBodies = [];
-        foreach ($trackerProvider->fetchTrackers() as $trackerPayload) {
+        foreach ($trackerProvider->fetchTrackers(null) as $trackerPayload) {
             $encodedBody = json_encode($trackerPayload->toArray(), \JSON_THROW_ON_ERROR);
             /** @var array<string, mixed> $decodedBody */
             $decodedBody = json_decode($encodedBody, true, flags: \JSON_THROW_ON_ERROR);
@@ -224,7 +225,6 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
             $coinGeckoClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast.yaml'),
             CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
-            new MockClock(),
             new NullLogger(),
         );
     }
@@ -234,7 +234,6 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         return new TwelveDataTrackerProvider(
             $twelveDataClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast-twelvedata-three-categories.yaml'),
-            new MockClock(),
             new NullLogger(),
             'demo-key',
         );
@@ -245,7 +244,6 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         return new BoursoramaTrackerProvider(
             $boursoramaClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast-boursorama.yaml'),
-            new MockClock(),
             new NullLogger(),
         );
     }

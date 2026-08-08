@@ -235,7 +235,9 @@ provider covers markets that do not open together: a Euronext ETF trades from
 09:00 to 17:30 in Paris while a US-listed one trades from 15:30 to 22:00 Paris
 time, and a provider cannot be declared twice. An item outside its own window is
 left out of the cycle, which spares the quota it would have cost — Boursorama
-bills one call per asset, Twelve Data one credit per requested symbol. Declare
+bills one call per asset, Twelve Data one credit per requested symbol. Run by
+hand, `app:sync <type>` fetches every item whatever its own window, exactly as
+it ignores the group one. Declare
 the group window as the envelope of the item windows: the group is only
 scheduled during its own hours, and a cycle waking with no active item pushes
 nothing and logs `Tracker sync skipped, the provider returned no tracker` every
