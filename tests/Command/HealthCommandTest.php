@@ -5,33 +5,24 @@ declare(strict_types=1);
 namespace App\Tests\Command;
 
 use App\Command\HealthCommand;
-use App\Health\LastSuccessfulSyncStore;
-use App\Health\SyncHealthChecker;
-use App\Tests\Factory\SyncsConfigLoaderFactory;
+use App\Tests\Factory\SyncHealthScenario;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
-use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 final class HealthCommandTest extends TestCase
 {
-    private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
-    private const string PUSH_INSTANT = '2026-08-03 10:00:00';
-
-    private MockClock $clock;
-    private LastSuccessfulSyncStore $store;
+    private SyncHealthScenario $scenario;
 
     protected function setUp(): void
     {
-        $this->clock = new MockClock(self::PUSH_INSTANT);
-        $this->store = new LastSuccessfulSyncStore(new ArrayAdapter(), $this->clock);
+        $this->scenario = new SyncHealthScenario();
     }
 
     public function testAFreshSyncGroupExitsSuccessfully(): void
     {
-        $this->store->recordSuccess('weather');
-        $this->clock->modify('+12 minutes');
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify('+12 minutes');
 
         $tester = $this->createTester('syncs-valid.yaml');
         $exitCode = $tester->execute([]);
@@ -42,8 +33,8 @@ final class HealthCommandTest extends TestCase
 
     public function testAStaleSyncGroupExitsWithAFailure(): void
     {
-        $this->store->recordSuccess('weather');
-        $this->clock->modify('+91 minutes');
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify('+91 minutes');
 
         $tester = $this->createTester('syncs-valid.yaml');
         $exitCode = $tester->execute([]);
@@ -81,13 +72,35 @@ final class HealthCommandTest extends TestCase
         self::assertStringContainsString('No sync group is enabled', $tester->getDisplay());
     }
 
+    public function testAGroupOutsideItsActiveWindowIsPrintedAndDoesNotFailTheCommand(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::SATURDAY_NOON);
+        $this->scenario->store->recordSuccess('weather');
+
+        $tester = $this->createTester('syncs-active-window.yaml');
+        $exitCode = $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('boursorama: outside its active window, not watched', $tester->getDisplay());
+        self::assertStringNotContainsString('No recent push for', $tester->getDisplay());
+    }
+
+    public function testAGroupJudgedFromItsReopeningSaysSoOnItsLine(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::FRIDAY_CLOSING);
+        $this->scenario->store->recordSuccess('boursorama');
+        $this->scenario->clock->modify('2026-08-10 09:05:00');
+        $this->scenario->store->recordSuccess('weather');
+
+        $tester = $this->createTester('syncs-active-window.yaml');
+        $exitCode = $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('boursorama: last push 3800 min ago, window reopened 5 min ago, stale after 45 min', $tester->getDisplay());
+    }
+
     private function createTester(string $fixtureName): CommandTester
     {
-        $syncHealthChecker = new SyncHealthChecker(
-            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName),
-            $this->store,
-        );
-
-        return new CommandTester(new HealthCommand($syncHealthChecker));
+        return new CommandTester(new HealthCommand($this->scenario->checkerFor($fixtureName)));
     }
 }

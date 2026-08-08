@@ -11,6 +11,10 @@ final readonly class SyncInterval
 {
     private const string OPTION_KEY = 'interval';
     private const int MINIMUM_INTERVAL_IN_SECONDS = 60;
+    // A cycle may be missed twice before the failure is called lasting: the forecast cache expires
+    // before a cycle elapses and the device client does not retry, so each cycle is a fresh attempt,
+    // and the hourly process recycle replays the run it missed.
+    private const int ALLOWED_MISSED_CYCLES = 2;
     private const string MEASUREMENT_REFERENCE_DATE = '2000-01-01 00:00:00 UTC';
     private const string UNUSABLE_INTERVAL_REASON = 'expected an interval the scheduler understands, got "%s"';
 
@@ -49,5 +53,10 @@ final readonly class SyncInterval
         }
 
         return new self($rawInterval, (int) $intervalInSeconds);
+    }
+
+    public function toleratedSilenceInSeconds(): int
+    {
+        return $this->lengthInSeconds * (self::ALLOWED_MISSED_CYCLES + 1);
     }
 }

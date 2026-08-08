@@ -7,6 +7,7 @@ namespace App\Tests;
 use App\Message\SyncTrackerMessage;
 use App\Message\SyncWeatherMessage;
 use App\Schedule;
+use App\Scheduler\ActiveWindowTrigger;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -80,6 +81,41 @@ final class ScheduleTest extends TestCase
 
         self::assertSame([], $schedule->syncMessages());
         self::assertSame([], $schedule->getSchedule()->getRecurringMessages());
+    }
+
+    public function testAGroupWithoutAnActiveWindowKeepsItsPlainPeriodicalTrigger(): void
+    {
+        $schedule = self::createSchedule('syncs-active-window.yaml');
+
+        $weatherRecurringMessage = $schedule->getSchedule()->getRecurringMessages()[0];
+
+        self::assertSame('every 30 minutes', (string) $weatherRecurringMessage->getTrigger());
+        self::assertSame(
+            RecurringMessage::every('30 minutes', $schedule->syncMessages()['weather'])->getId(),
+            $weatherRecurringMessage->getId(),
+        );
+    }
+
+    public function testAGroupWithAnActiveWindowIsScheduledThroughTheWindowTrigger(): void
+    {
+        $schedule = self::createSchedule('syncs-active-window.yaml');
+
+        $boursoramaTrigger = $schedule->getSchedule()->getRecurringMessages()[1]->getTrigger();
+
+        self::assertInstanceOf(ActiveWindowTrigger::class, $boursoramaTrigger);
+        self::assertSame('every 15 minutes, only mon,tue,wed,thu,fri 09:00-17:45 Europe/Paris', (string) $boursoramaTrigger);
+    }
+
+    public function testAWindowedGroupComesBackAtTheFirstCycleAfterTheReopening(): void
+    {
+        $schedule = self::createSchedule('syncs-active-window.yaml');
+        $boursoramaTrigger = $schedule->getSchedule()->getRecurringMessages()[1]->getTrigger();
+
+        $fridayEvening = new \DateTimeImmutable('2026-08-07 17:50:00', new \DateTimeZone('Europe/Paris'));
+        $nextRun = $boursoramaTrigger->getNextRunDate($fridayEvening);
+
+        self::assertNotNull($nextRun);
+        self::assertSame('2026-08-10 09:05:00', $nextRun->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i:s'));
     }
 
     /**

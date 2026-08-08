@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Client\Tracker;
 
 use App\Client\Color;
+use App\Client\StaleBehavior;
 use App\Client\Tracker\TrackerPayload;
 use PHPUnit\Framework\TestCase;
 
@@ -32,6 +33,8 @@ final class TrackerPayloadTest extends TestCase
             sparklinePeriod: '7d',
             bottomText: 'Vol 24h: 42B',
             displayDurationMilliseconds: 10000,
+            staleAfterInSeconds: 2700,
+            staleBehavior: StaleBehavior::Dim,
         );
 
         self::assertSame(
@@ -47,9 +50,26 @@ final class TrackerPayloadTest extends TestCase
                 'sparklinePeriod' => '7d',
                 'bottomText' => 'Vol 24h: 42B',
                 'duration' => 10000,
+                'staleAfter' => 2700,
+                'staleBehavior' => 'dim',
             ],
             $payload->toArray(),
         );
+    }
+
+    public function testToArrayCarriesAStaleAfterOfZeroBecauseItMeansTheAppNeverGoesStale(): void
+    {
+        $payload = new TrackerPayload(name: 'BTC', staleAfterInSeconds: 0);
+
+        self::assertSame(['staleAfter' => 0], $payload->toArray());
+    }
+
+    public function testToArrayOmitsTheFreshnessKeysWhenTheGroupDeclaredNeither(): void
+    {
+        $payload = new TrackerPayload(name: 'BTC', symbol: 'BTC');
+
+        self::assertArrayNotHasKey('staleAfter', $payload->toArray());
+        self::assertArrayNotHasKey('staleBehavior', $payload->toArray());
     }
 
     public function testToArrayOmitsTheSparklineKeyWhenThereIsNoPoint(): void

@@ -57,6 +57,16 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         self::assertSame('Volume : 9.8B', $ethereumPayload->bottomText);
     }
 
+    public function testEachPayloadDeclaresTheSilenceDerivedFromTheGroupInterval(): void
+    {
+        $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI));
+
+        $trackerPayloads = $provider->fetchTrackers();
+
+        self::assertSame(2700, $trackerPayloads[0]->staleAfterInSeconds);
+        self::assertNull($trackerPayloads[0]->staleBehavior);
+    }
+
     public function testACoinWithoutAMidnightPriceIsSkippedAndLogsAWarning(): void
     {
         $logger = new RecordingLoggerStub();

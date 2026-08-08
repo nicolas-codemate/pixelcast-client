@@ -9,6 +9,7 @@ use App\Client\Weather\ForecastDay;
 use App\Client\Weather\HourlyWeatherPoint;
 use App\Client\Weather\WeatherIcon;
 use App\Client\Weather\WeatherPayload;
+use App\Config\Sync\StaleDeclaration;
 use App\Config\Sync\WeatherSyncConfig;
 use App\Config\SyncsConfigLoader;
 use App\Config\WeatherLocale;
@@ -50,7 +51,7 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
             return null;
         }
 
-        return $this->buildPayload($rawForecast, $weatherSyncGroup->locale);
+        return $this->buildPayload($rawForecast, $weatherSyncGroup->locale, $weatherSyncGroup->staleDeclaration);
     }
 
     /**
@@ -124,7 +125,7 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
     /**
      * @param array<string, mixed> $rawForecast
      */
-    private function buildPayload(array $rawForecast, WeatherLocale $weatherLocale): ?WeatherPayload
+    private function buildPayload(array $rawForecast, WeatherLocale $weatherLocale, StaleDeclaration $staleDeclaration): ?WeatherPayload
     {
         $currentBlock = $rawForecast['current'] ?? null;
         $dailyBlock = $rawForecast['daily'] ?? null;
@@ -150,6 +151,8 @@ final readonly class OpenMeteoWeatherProvider implements WeatherProviderInterfac
             $currentWeather,
             \array_slice($forecastDays, 1),
             $this->buildHourlyWindow($rawForecast['hourly'] ?? null),
+            $staleDeclaration->staleAfterInSeconds,
+            $staleDeclaration->staleBehavior,
         );
     }
 

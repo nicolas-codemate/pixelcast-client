@@ -45,6 +45,27 @@ final class WeatherSyncConfigTest extends TestCase
         self::assertSame(WeatherLocale::French, $weatherSync->locale);
     }
 
+    public function testWithoutFreshnessKeysTheSilenceToleratedIsThreeIntervalsAndTheBehaviourIsLeftToTheFirmware(): void
+    {
+        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions());
+
+        self::assertSame(5400, $weatherSync->staleDeclaration->staleAfterInSeconds);
+        self::assertNull($weatherSync->staleDeclaration->staleBehavior);
+    }
+
+    public function testWithoutAnActiveWindowTheGroupRunsAroundTheClock(): void
+    {
+        self::assertNull(WeatherSyncConfig::fromOptions(self::validOptions())->activeWindow);
+    }
+
+    public function testTheWeatherGroupRefusesABehaviourOnlyTheTrackerLayoutDraws(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('syncs.weather.staleBehavior');
+
+        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'dim']));
+    }
+
     public function testTheGroupIsTriggeredByAWeatherSyncMessage(): void
     {
         $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions());

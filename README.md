@@ -103,10 +103,18 @@ state back to `starting` and drops the count of failed probes, so a container
 that stays broken across a recycle turns `unhealthy` between 95 and 105 minutes
 after the last successful push.
 
+A group outside its `activeWindow` is not judged at all: `app:health` prints
+`boursorama: outside its active window, not watched` and moves on. Inside the
+window the count restarts at the reopening rather than at the last push, so a
+group that closed on Friday at 17:45 gets three full cycles from Monday 09:00
+before it reads as late — 45 minutes for a 15-minute one — instead of being
+declared stale on the sixty-three hours of the weekend. A market group therefore
+never turns the container `unhealthy` for a night or a weekend.
+
 | `docker compose ps` | Meaning |
 |---|---|
 | `Up (healthy)` | every enabled group pushed within its freshness window |
-| `Up (unhealthy)` | an enabled group missed two cycles in a row |
+| `Up (unhealthy)` | an enabled group missed two cycles in a row inside its active window |
 | `Up (health: starting)` | the container has just restarted, the watch has not concluded yet |
 | `Restarting (1)` | the configuration is invalid, the consumer never starts |
 
@@ -207,6 +215,29 @@ price is fetched once a day per asset and currency, then held in the cache until
 the next midnight, which keeps the whole group well inside the free quota of
 10 000 calls a month. An asset whose midnight price cannot be fetched is logged
 and skipped for that cycle, and the screen keeps what it already shows.
+
+Any group may declare an `activeWindow` — `days`, `from`, `to` and a `timezone`
+— and is then scheduled during those hours only: outside them no provider is
+called and the healthcheck does not watch the group. Both bounds are inclusive,
+so a `to: '17:45'` against a 15-minute cycle still fires the 17:45 run, and
+`days` is optional, the seven of the week otherwise. A window spanning midnight
+is refused at startup: `timezone` exists precisely so the window is written in
+the local hours of the market, where it does not cross midnight, rather than in
+the UTC of the container clock. `app:sync <type>` ignores the window and pushes
+the group at any hour, which is what keeps it usable to test a closed market in
+the evening. One push escapes the window: a consumer stopped while it was open
+and started again after it closed catches up the single cycle it missed at that
+restart, before settling back on the declared hours.
+
+Every pushed payload carries a `staleAfter`, the silence in seconds the device
+tolerates before it treats the app as stale, and a `staleBehavior` when the
+group declares one. Without a `staleAfter` key the value is three times the
+interval — the same rule as the healthcheck, so 45 minutes for a 15-minute cycle
+— capped at seven days, and `0` tells the device to never age the app out.
+`staleBehavior` is `hide`, `dim`, `badge` or `none` on a tracker group, and
+`hide` or `none` on the weather group, the two others being drawn by the tracker
+layout alone; without the key the firmware default applies. `pixelcast.yaml.dist`
+carries the exact shape of the three keys.
 
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host

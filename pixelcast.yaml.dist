@@ -27,6 +27,16 @@ syncs:
         # Locale used for the 3-letter forecast day labels (fr or en).
         locale: fr
 
+        # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
+        # 604800 (7 days) at most. Without this key the value is three times the interval, the same
+        # rule the healthcheck applies, so '30 minutes' gives 5400.
+        # staleAfter: 5400
+
+        # What the device does with the app once stale. Here only hide or none: hide falls back to
+        # the clock until the next push, none keeps showing the last forecast. Without this key the
+        # firmware default applies.
+        # staleBehavior: hide
+
     # Crypto assets read from CoinGecko in a single call per currency. Its API key is
     # read from PIXELCAST_COINGECKO_API_KEY, never from this file, which rejects any
     # key it does not declare.
@@ -36,6 +46,16 @@ syncs:
 
         # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
         interval: '5 minutes'
+
+        # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
+        # 604800 (7 days) at most. Without this key the value is three times the interval, the same
+        # rule the healthcheck applies, so '5 minutes' gives 900.
+        # staleAfter: 900
+
+        # What the device does with the app once stale: hide leaves the rotation until the next push,
+        # dim stays visible dimmed with a STALE badge, badge stays at full colour with the badge,
+        # none shows no sign. Without this key the firmware default applies.
+        # staleBehavior: dim
 
         # Assets tracked in this group.
         # symbol: identifier of the asset for this provider, a coin id for CoinGecko.
@@ -58,6 +78,16 @@ syncs:
 
         # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
         interval: '15 minutes'
+
+        # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
+        # 604800 (7 days) at most. Without this key the value is three times the interval, the same
+        # rule the healthcheck applies, so '15 minutes' gives 2700.
+        # staleAfter: 2700
+
+        # What the device does with the app once stale: hide leaves the rotation until the next push,
+        # dim stays visible dimmed with a STALE badge, badge stays at full colour with the badge,
+        # none shows no sign. Without this key the firmware default applies.
+        # staleBehavior: dim
 
         # Assets tracked in this group.
         # symbol: identifier of the asset for this provider, a ticker for Twelve Data.
@@ -86,6 +116,29 @@ syncs:
 
         # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
         interval: '15 minutes'
+
+        # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
+        # 604800 (7 days) at most. Without this key the value is three times the interval, the same
+        # rule the healthcheck applies, so '15 minutes' gives 2700.
+        # staleAfter: 2700
+
+        # What the device does with the app once stale: hide leaves the rotation until the next push,
+        # dim stays visible dimmed with a STALE badge, badge stays at full colour with the badge,
+        # none shows no sign. Without this key the firmware default applies.
+        # staleBehavior: hide
+
+        # Hours during which the group is scheduled: outside them nothing is fetched and the
+        # healthcheck does not watch the group. Without this key the group runs around the clock.
+        # days: days the window is open, among mon, tue, wed, thu, fri, sat, sun. Without it, every day.
+        # from and to: HH:MM, both inclusive. A window spanning midnight is refused, so declare it
+        #   in the timezone of the market, where it does not cross midnight.
+        # timezone: the timezone from and to are read in. A market opens at a local hour, not at the
+        #   hour of the container clock, which runs in UTC.
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '17:45'
+            timezone: Europe/Paris
 
         # Assets tracked in this group.
         # symbol: Boursorama code of the asset, not its ISIN. The code of an ISIN is found on

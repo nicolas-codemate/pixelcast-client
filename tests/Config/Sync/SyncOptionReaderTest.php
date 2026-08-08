@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Config\Sync;
 
+use App\Client\StaleBehavior;
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sync\SyncOptionReader;
 use App\Config\WeatherUnits;
@@ -44,6 +45,44 @@ final class SyncOptionReaderTest extends TestCase
         self::assertNull(SyncOptionReader::optionalColor([], 'labelColor', self::PARENT_PATH));
         self::assertNull(SyncOptionReader::optionalColor(['labelColor' => null], 'labelColor', self::PARENT_PATH));
         self::assertSame('#4CAF50', SyncOptionReader::optionalColor(['labelColor' => '#4caf50'], 'labelColor', self::PARENT_PATH)?->hexCode);
+    }
+
+    public function testAnOptionalIntegerIsNullWhenAbsentOrNull(): void
+    {
+        self::assertNull(SyncOptionReader::optionalInt([], 'staleAfter', self::PARENT_PATH, minimum: 0, maximum: 604800));
+        self::assertNull(SyncOptionReader::optionalInt(['staleAfter' => null], 'staleAfter', self::PARENT_PATH, minimum: 0, maximum: 604800));
+        self::assertSame(5400, SyncOptionReader::optionalInt(['staleAfter' => 5400], 'staleAfter', self::PARENT_PATH, minimum: 0, maximum: 604800));
+    }
+
+    public function testAnIntegerOutsideItsBoundsListsThem(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('expected an integer between 0 and 604800, got 604801');
+
+        SyncOptionReader::optionalInt(['staleAfter' => 604801], 'staleAfter', self::PARENT_PATH, minimum: 0, maximum: 604800);
+    }
+
+    public function testAnIntegerWrittenAsAStringIsRejected(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('expected an integer');
+
+        SyncOptionReader::optionalInt(['staleAfter' => '5400'], 'staleAfter', self::PARENT_PATH, minimum: 0, maximum: 604800);
+    }
+
+    public function testAnOptionalEnumCaseIsNullWhenAbsentOrNull(): void
+    {
+        self::assertNull(SyncOptionReader::optionalEnum([], 'staleBehavior', self::PARENT_PATH, StaleBehavior::cases()));
+        self::assertNull(SyncOptionReader::optionalEnum(['staleBehavior' => null], 'staleBehavior', self::PARENT_PATH, StaleBehavior::cases()));
+        self::assertSame(StaleBehavior::Dim, SyncOptionReader::optionalEnum(['staleBehavior' => 'dim'], 'staleBehavior', self::PARENT_PATH, StaleBehavior::cases()));
+    }
+
+    public function testAnOptionalEnumCaseOutsideTheAcceptedNarrowerListIsRejected(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('expected one of: hide, none');
+
+        SyncOptionReader::optionalEnum(['staleBehavior' => 'dim'], 'staleBehavior', self::PARENT_PATH, [StaleBehavior::Hide, StaleBehavior::None]);
     }
 
     public function testAnEnumCaseIsRead(): void

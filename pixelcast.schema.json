@@ -80,6 +80,24 @@
                         "fr",
                         "en"
                     ]
+                },
+                "staleAfter": {
+                    "$ref": "#/definitions/staleAfter"
+                },
+                "staleBehavior": {
+                    "description": "What the device does with the app once stale. \"hide\" falls back to the clock until the next push, \"none\" keeps showing the last forecast. Without it the firmware default applies.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "hide",
+                        "none",
+                        null
+                    ]
+                },
+                "activeWindow": {
+                    "$ref": "#/definitions/activeWindow"
                 }
             }
         },
@@ -109,6 +127,80 @@
                     "items": {
                         "$ref": "#/definitions/trackerItem"
                     }
+                },
+                "staleAfter": {
+                    "$ref": "#/definitions/staleAfter"
+                },
+                "staleBehavior": {
+                    "description": "What the device does with the app once stale. \"hide\" leaves the rotation until the next push, \"dim\" stays visible dimmed with a STALE badge, \"badge\" stays at full colour with the badge, \"none\" shows no sign. Without it the firmware default applies.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "hide",
+                        "dim",
+                        "badge",
+                        "none",
+                        null
+                    ]
+                },
+                "activeWindow": {
+                    "$ref": "#/definitions/activeWindow"
+                }
+            }
+        },
+        "staleAfter": {
+            "description": "Silence tolerated by the device before the app is considered stale, in seconds. 0 = never. Without it the value is three times the interval, the same rule the healthcheck applies.",
+            "type": [
+                "integer",
+                "null"
+            ],
+            "minimum": 0,
+            "maximum": 604800
+        },
+        "activeWindow": {
+            "description": "Hours during which the group is scheduled and watched by the healthcheck. Without it the group runs around the clock.",
+            "type": "object",
+            "required": [
+                "from",
+                "to",
+                "timezone"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "days": {
+                    "description": "Days the window is open. Without it every day is open.",
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                        ]
+                    }
+                },
+                "from": {
+                    "description": "Time the window opens, as HH:MM. Inclusive.",
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "to": {
+                    "description": "Time the window closes, as HH:MM. Inclusive, and strictly after \"from\": a window spanning midnight is not supported.",
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "timezone": {
+                    "description": "Timezone the two times are read in, e.g. \"Europe/Paris\". A market opens at a local hour, not at the hour of the container clock.",
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },

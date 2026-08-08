@@ -4,31 +4,23 @@ declare(strict_types=1);
 
 namespace App\Tests\Health;
 
-use App\Health\LastSuccessfulSyncStore;
-use App\Health\SyncHealthChecker;
-use App\Tests\Factory\SyncsConfigLoaderFactory;
+use App\Health\SyncGroupFreshness;
+use App\Tests\Factory\SyncHealthScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
-use Symfony\Component\Clock\MockClock;
 
 final class SyncHealthCheckerTest extends TestCase
 {
-    private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
-    private const string PUSH_INSTANT = '2026-08-03 10:00:00';
-
-    private MockClock $clock;
-    private LastSuccessfulSyncStore $store;
+    private SyncHealthScenario $scenario;
 
     protected function setUp(): void
     {
-        $this->clock = new MockClock(self::PUSH_INSTANT);
-        $this->store = new LastSuccessfulSyncStore(new ArrayAdapter(), $this->clock);
+        $this->scenario = new SyncHealthScenario();
     }
 
     public function testAGroupThatNeverPushedIsStale(): void
     {
-        $freshnessPerSyncGroup = $this->createChecker('syncs-valid.yaml')->checkEnabledSyncGroups();
+        $freshnessPerSyncGroup = $this->scenario->checkerFor('syncs-valid.yaml')->checkEnabledSyncGroups();
 
         self::assertCount(1, $freshnessPerSyncGroup);
         self::assertSame('weather', $freshnessPerSyncGroup[0]->syncType);
@@ -50,10 +42,10 @@ final class SyncHealthCheckerTest extends TestCase
     #[DataProvider('provideElapsedMinutesSinceTheLastPush')]
     public function testStalenessFollowsTheAgeOfTheLastPush(int $elapsedMinutes, bool $expectedToBeStale): void
     {
-        $this->store->recordSuccess('weather');
-        $this->clock->modify(\sprintf('+%d minutes', $elapsedMinutes));
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify(\sprintf('+%d minutes', $elapsedMinutes));
 
-        $freshnessPerSyncGroup = $this->createChecker('syncs-valid.yaml')->checkEnabledSyncGroups();
+        $freshnessPerSyncGroup = $this->scenario->checkerFor('syncs-valid.yaml')->checkEnabledSyncGroups();
 
         self::assertSame($elapsedMinutes * 60, $freshnessPerSyncGroup[0]->ageInSeconds);
         self::assertSame($expectedToBeStale, $freshnessPerSyncGroup[0]->isStale());
@@ -61,7 +53,7 @@ final class SyncHealthCheckerTest extends TestCase
 
     public function testEachGroupCarriesItsOwnThreshold(): void
     {
-        $freshnessPerSyncGroup = $this->createChecker('syncs-trackers-enabled.yaml')->checkEnabledSyncGroups();
+        $freshnessPerSyncGroup = $this->scenario->checkerFor('syncs-trackers-enabled.yaml')->checkEnabledSyncGroups();
 
         self::assertSame('weather', $freshnessPerSyncGroup[0]->syncType);
         self::assertSame(5400, $freshnessPerSyncGroup[0]->staleAfterInSeconds);
@@ -71,18 +63,71 @@ final class SyncHealthCheckerTest extends TestCase
 
     public function testADisabledGroupIsNotWatched(): void
     {
-        $this->store->recordSuccess('weather');
+        $this->scenario->store->recordSuccess('weather');
 
-        $freshnessPerSyncGroup = $this->createChecker('syncs-all-disabled.yaml')->checkEnabledSyncGroups();
+        $freshnessPerSyncGroup = $this->scenario->checkerFor('syncs-all-disabled.yaml')->checkEnabledSyncGroups();
 
         self::assertSame([], $freshnessPerSyncGroup);
     }
 
-    private function createChecker(string $fixtureName): SyncHealthChecker
+    public function testAGroupOutsideItsActiveWindowIsNotStale(): void
     {
-        return new SyncHealthChecker(
-            SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName),
-            $this->store,
-        );
+        $this->scenario->useMarketClockAt(SyncHealthScenario::SATURDAY_NOON);
+
+        $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
+
+        self::assertFalse($boursorama->insideActiveWindow);
+        self::assertNull($boursorama->secondsSinceWindowOpened);
+        self::assertFalse($boursorama->isStale());
+    }
+
+    public function testAGroupInsideItsActiveWindowIsStillJudged(): void
+    {
+        $this->scenario->useMarketClockAt('2026-08-03 12:00:00');
+
+        $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
+
+        self::assertTrue($boursorama->insideActiveWindow);
+        self::assertNull($boursorama->ageInSeconds);
+        self::assertTrue($boursorama->isStale());
+    }
+
+    public function testAGroupIsNotStaleRightAfterItsWindowReopened(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::FRIDAY_CLOSING);
+        $this->scenario->store->recordSuccess('boursorama');
+        $this->scenario->clock->modify('2026-08-10 09:05:00');
+
+        $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
+
+        self::assertSame(300, $boursorama->secondsSinceWindowOpened);
+        self::assertSame(228000, $boursorama->ageInSeconds);
+        self::assertFalse($boursorama->isStale());
+    }
+
+    public function testAGroupIsStaleAgainOnceItsWindowHasBeenOpenLongEnough(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::FRIDAY_CLOSING);
+        $this->scenario->store->recordSuccess('boursorama');
+        $this->scenario->clock->modify('2026-08-10 10:00:00');
+
+        $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
+
+        self::assertSame(3600, $boursorama->secondsSinceWindowOpened);
+        self::assertTrue($boursorama->isStale());
+    }
+
+    /**
+     * @param list<SyncGroupFreshness> $freshnessPerSyncGroup
+     */
+    private static function freshnessOf(array $freshnessPerSyncGroup, string $syncType): SyncGroupFreshness
+    {
+        foreach ($freshnessPerSyncGroup as $freshness) {
+            if ($syncType === $freshness->syncType) {
+                return $freshness;
+            }
+        }
+
+        self::fail(\sprintf('No freshness was reported for the sync group "%s".', $syncType));
     }
 }

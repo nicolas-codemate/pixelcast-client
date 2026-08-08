@@ -54,6 +54,16 @@ final class TwelveDataTrackerProviderTest extends TestCase
         self::assertSame('#FF0000', $worldEtfPayload->sparklineColor?->hexCode);
     }
 
+    public function testEachPayloadDeclaresTheSilenceDerivedFromTheGroupInterval(): void
+    {
+        $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
+
+        $trackerPayloads = $provider->fetchTrackers();
+
+        self::assertSame(2700, $trackerPayloads[0]->staleAfterInSeconds);
+        self::assertNull($trackerPayloads[0]->staleBehavior);
+    }
+
     public function testEuropeanEtfSymbolIsShortenedToFitTheDeviceLimit(): void
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
