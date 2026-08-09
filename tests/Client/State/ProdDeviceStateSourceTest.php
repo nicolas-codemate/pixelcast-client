@@ -28,7 +28,7 @@ final class ProdDeviceStateSourceTest extends TestCase
     public function testNoRequestIsSentBeforeTheStateIsRead(): void
     {
         $fetcher = new StubHttpJsonFetcher();
-        $this->buildSource($fetcher);
+        $sourceLeftUnread = $this->buildSource($fetcher);
 
         self::assertSame([], $fetcher->callCounts);
     }
