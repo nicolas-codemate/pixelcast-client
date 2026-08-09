@@ -16,9 +16,10 @@ use Symfony\Contracts\Cache\CacheInterface;
 
 /**
  * What the schedule does when the consumer stops while the window is open and starts again while it
- * is closed: the catch-up run of `processOnlyLastMissedRun()` is dispatched at the restart, so a
- * windowed group is pushed once outside its hours. The behaviour is accepted and stated in the
- * README rather than worked around, the flag being schedule-wide.
+ * is closed: `processOnlyLastMissedRun()` absorbs the cycles missed in between rather than
+ * dispatching one of them at the restart, so a windowed group is never pushed outside its hours.
+ * The cycle missed while the consumer was down is lost, which is the point of the flag: a quote
+ * three days old is worth nothing.
  */
 final class WindowedGroupRestartTest extends TestCase
 {
@@ -26,7 +27,7 @@ final class WindowedGroupRestartTest extends TestCase
     private const string SCHEDULE_NAME = 'default';
     private const string MARKET_TIMEZONE = 'Europe/Paris';
 
-    public function testARestartOutsideTheWindowDispatchesTheMissedRunOnce(): void
+    public function testARestartOutsideTheWindowPushesNothingBeforeTheReopening(): void
     {
         $scheduleState = new ArrayAdapter();
         $clock = new MockClock('2026-08-07 16:50:00', self::MARKET_TIMEZONE);
@@ -40,8 +41,13 @@ final class WindowedGroupRestartTest extends TestCase
         $clock->modify('2026-08-10 08:00:00');
         $restartedConsumer = self::createMessageGenerator($scheduleState, $clock);
 
-        self::assertCount(1, self::trackerMessagesOf($restartedConsumer), 'the run missed on Friday is caught up at the restart, before the reopening');
-        self::assertSame([], self::trackerMessagesOf($restartedConsumer), 'the catch-up happens once, the group then waits for the reopening');
+        self::assertSame([], self::trackerMessagesOf($restartedConsumer), 'the runs missed on Friday are absorbed, nothing is pushed while the market is closed');
+
+        $clock->modify('2026-08-10 09:00:00');
+        self::assertSame([], self::trackerMessagesOf($restartedConsumer), 'the reopening alone pushes nothing, the group waits for its first cycle');
+
+        $clock->modify('2026-08-10 09:16:00');
+        self::assertCount(1, self::trackerMessagesOf($restartedConsumer), 'the cycle resumes on the first run following the reopening');
     }
 
     /**

@@ -22,6 +22,9 @@
 
 /phpstan-baseline.neon
 
+# Dumped by the framework on every dev container build
+/config/reference.php
+
 ###> pixelcast config ###
 /pixelcast.yaml
 /deploy/pixelcast.yaml
