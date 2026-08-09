@@ -10,6 +10,8 @@ use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\PixelcastClientException;
 use App\Client\Exception\ResourceNotFoundException;
+use App\Client\Gauge\GaugePayload;
+use App\Client\Gauge\GaugeRow;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClient;
 use App\Client\StaleBehavior;
@@ -32,6 +34,7 @@ final class PixelcastClientTest extends TestCase
     private const string TEST_DEVICE_BASE_URL = 'http://device.test/api';
     private const string EXPECTED_WEATHER_URL = 'http://device.test/api/weather';
     private const string EXPECTED_TRACKER_URL = 'http://device.test/api/tracker?name=BTC';
+    private const string EXPECTED_GAUGE_URL = 'http://device.test/api/gauge?name=claude';
     private const string EXPECTED_NOTIFY_URL = 'http://device.test/api/notify';
     private const string EXPECTED_DISMISS_URL = 'http://device.test/api/notify/dismiss';
 
@@ -111,6 +114,21 @@ final class PixelcastClientTest extends TestCase
         self::assertSame('DELETE', $response->getRequestMethod());
         self::assertSame(self::EXPECTED_TRACKER_URL, $response->getRequestUrl());
         self::assertNull($response->getRequestOptions()['body'] ?? null);
+    }
+
+    public function testPushGaugeSendsTheNameAsQueryParameterAndTheRestAsBody(): void
+    {
+        $response = new MockResponse('{"success":true}');
+        $gauge = self::buildGaugePayload();
+
+        $this->buildClient($response)->pushGauge($gauge);
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_GAUGE_URL, $response->getRequestUrl());
+        $sentBody = self::decodedRequestBody($response);
+
+        self::assertSame($gauge->toArray(), $sentBody);
+        self::assertArrayNotHasKey('name', $sentBody);
     }
 
     public function testPushNotificationSendsTheSerializedPayload(): void
@@ -230,6 +248,30 @@ final class PixelcastClientTest extends TestCase
             symbolColor: Color::fromHexCode('#FF8800'),
             sparklineColor: Color::fromHexCode('#00D4FF'),
             bottomText: 'Bitcoin',
+            staleAfterInSeconds: 2700,
+            staleBehavior: StaleBehavior::Dim,
+        );
+    }
+
+    private static function buildGaugePayload(): GaugePayload
+    {
+        return GaugePayload::create(
+            name: 'claude',
+            rows: [
+                GaugeRow::create(
+                    label: '5h',
+                    percent: 41,
+                    info: '14:50',
+                    value: '41%',
+                    note: 'x1.2^',
+                    barColor: Color::fromHexCode('#4CAF50'),
+                    noteColor: Color::fromHexCode('#FFC107'),
+                ),
+                GaugeRow::create(label: 'credits', percent: 1, value: '1%'),
+            ],
+            title: 'Claude',
+            iconName: 'claude',
+            displayDurationMilliseconds: 10000,
             staleAfterInSeconds: 2700,
             staleBehavior: StaleBehavior::Dim,
         );

@@ -8,6 +8,7 @@ use App\Client\Exception\DeviceBusyException;
 use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\ResourceNotFoundException;
+use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
@@ -20,6 +21,7 @@ final readonly class PixelcastClient implements PixelcastClientInterface
 {
     private const string WEATHER_SPEC_PATH = '/weather';
     private const string TRACKER_SPEC_PATH = '/tracker';
+    private const string GAUGE_SPEC_PATH = '/gauge';
     private const string NOTIFICATION_SPEC_PATH = '/notify';
     private const string NOTIFICATION_DISMISS_SPEC_PATH = '/notify/dismiss';
 
@@ -43,6 +45,11 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     public function deleteTracker(string $trackerName): void
     {
         $this->sendValidated('DELETE', self::TRACKER_SPEC_PATH, queryParameters: ['name' => $trackerName]);
+    }
+
+    public function pushGauge(GaugePayload $gauge): void
+    {
+        $this->sendValidated('POST', self::GAUGE_SPEC_PATH, queryParameters: ['name' => $gauge->name], body: $gauge->toArray());
     }
 
     public function pushNotification(NotificationPayload $notification): void

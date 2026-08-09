@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Scenario\Validation;
 
+use App\Client\Color;
+use App\Client\Gauge\GaugePayload;
+use App\Client\Gauge\GaugeRow;
+use App\Client\StaleBehavior;
 use App\Scenario\ScenarioCatalog;
 use App\Scenario\ScenarioDefinition;
 use App\Scenario\Validation\OutboundOpenApiValidatorFactory;
 use App\Scenario\Validation\OutboundPayloadValidator;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class OutboundPayloadValidatorTest extends KernelTestCase
@@ -17,6 +22,16 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
 
     private OutboundPayloadValidator $validator;
     private ScenarioCatalog $catalog;
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function gaugeBodyOutsideTheSpecProvider(): iterable
+    {
+        yield 'percent above the ceiling' => [['rows' => [['label' => '5h', 'percent' => 101]]]];
+        yield 'one row over the limit' => [['rows' => array_fill(0, 10, ['label' => '5h', 'percent' => 41])]];
+        yield 'malformed color' => [['rows' => [['label' => '5h', 'percent' => 41, 'color' => 'green']]]];
+    }
 
     protected function setUp(): void
     {
@@ -101,6 +116,56 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
             'current' => ['icon' => 'w_rain', 'temp' => 9],
             'forecast' => $forecast,
         ]);
+
+        self::assertFalse($result->valid);
+        self::assertNotNull($result->errorMessage);
+    }
+
+    public function testGaugeScenarioPayloadValidatesAgainstSpec(): void
+    {
+        $gauge = $this->catalog->findById('gauge-claude', true);
+        self::assertNotNull($gauge);
+
+        $result = $this->validator->validate($gauge);
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
+    public function testValidateRequestAcceptsAGaugePayload(): void
+    {
+        $payload = GaugePayload::create(
+            name: 'claude',
+            rows: [
+                GaugeRow::create(
+                    label: '5h',
+                    percent: 41,
+                    info: '14:50',
+                    value: '41%',
+                    note: 'x1.2^',
+                    barColor: Color::fromHexCode('#4CAF50'),
+                    noteColor: Color::fromHexCode('#FFC107'),
+                ),
+            ],
+            title: 'Claude',
+            iconName: 'claude',
+            staleAfterInSeconds: 2700,
+            staleBehavior: StaleBehavior::Dim,
+        );
+
+        $result = $this->validator->validateRequest('POST', '/gauge', ['name' => 'claude'], $payload->toArray());
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     */
+    #[DataProvider('gaugeBodyOutsideTheSpecProvider')]
+    public function testValidateRequestRejectsAGaugeBodyOutsideTheSpec(array $body): void
+    {
+        $result = $this->validator->validateRequest('POST', '/gauge', ['name' => 'claude'], $body);
 
         self::assertFalse($result->valid);
         self::assertNotNull($result->errorMessage);
