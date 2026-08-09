@@ -6,13 +6,17 @@ namespace App\Tests\Simulator\Http;
 
 use App\Client\Color;
 use App\Client\Exception\ResourceNotFoundException;
+use App\Client\Gauge\GaugePayload;
+use App\Client\Gauge\GaugeRow;
 use App\Client\Notification\NotificationPayload;
+use App\Client\StaleBehavior;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\CurrentWeather;
 use App\Client\Weather\ForecastDay;
 use App\Client\Weather\WeatherIcon;
 use App\Client\Weather\WeatherPayload;
 use App\Simulator\State\PersistedStateReader;
+use Symfony\Component\HttpFoundation\Response;
 
 final class PixelcastClientHttpTest extends SimulatorHttpTestCase
 {
@@ -69,6 +73,63 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         self::assertSame(['BTC'], self::storedTrackerNames($inspection), $this->server->serverOutput());
     }
 
+    public function testPushedGaugeIsStoredUnderItsName(): void
+    {
+        $gauge = self::buildGaugePayload([
+            GaugeRow::create(
+                label: '5h',
+                percent: 41,
+                info: '14:50',
+                value: '41%',
+                note: 'x1.2^',
+                barColor: Color::fromHexCode('#4CAF50'),
+                noteColor: Color::fromHexCode('#FFC107'),
+            ),
+            GaugeRow::create(label: 'credits', percent: 1, value: '1%', barColor: Color::fromHexCode('#4CAF50')),
+        ]);
+
+        $this->buildPixelcastClient()->pushGauge($gauge);
+
+        $inspection = $this->inspect();
+        $this->assertLoggedRequest($inspection, 0, 1, 'POST', '/api/gauge', $gauge->toArray());
+        self::assertSame(['claude'], self::storedGaugeNames($inspection), $this->server->serverOutput());
+    }
+
+    public function testASecondGaugePushReplacesTheStoredRowsWhole(): void
+    {
+        $client = $this->buildPixelcastClient();
+        $client->pushGauge(self::buildGaugePayload([
+            GaugeRow::create(label: '5h', percent: 41),
+            GaugeRow::create(label: '7j', percent: 28),
+        ]));
+
+        $replacement = self::buildGaugePayload([GaugeRow::create(label: 'credits', percent: 1)]);
+        $client->pushGauge($replacement);
+
+        $inspection = $this->inspect();
+        $this->assertLoggedRequest($inspection, 1, 2, 'POST', '/api/gauge', $replacement->toArray());
+        self::assertSame(
+            [['label' => 'credits', 'percent' => 1]],
+            self::storedGauges($inspection)['claude']['rows'] ?? null,
+            $this->server->serverOutput(),
+        );
+    }
+
+    public function testGaugeListReportsTheStoredGauge(): void
+    {
+        $this->buildPixelcastClient()->pushGauge(self::buildGaugePayload([GaugeRow::create(label: '5h', percent: 41)]));
+
+        $listResponse = $this->server->get('/api/gauges');
+
+        self::assertSame(Response::HTTP_OK, $listResponse->statusCode, $this->explain($listResponse));
+        $decodedList = $listResponse->decodedBody();
+        self::assertSame(1, $decodedList['count'] ?? null);
+        self::assertSame(
+            [['name' => 'claude', 'title' => 'Claude', 'rowCount' => 1]],
+            $decodedList['gauges'] ?? null,
+        );
+    }
+
     public function testPushedNotificationIsQueuedThenDismissed(): void
     {
         $notification = new NotificationPayload(
@@ -110,5 +171,43 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         $trackerState = self::domainState($inspectPayload, 'trackers');
 
         return array_keys(PersistedStateReader::payloadMap($trackerState['trackers'] ?? null));
+    }
+
+    /**
+     * @param array<string, mixed> $inspectPayload
+     *
+     * @return list<string>
+     */
+    private static function storedGaugeNames(array $inspectPayload): array
+    {
+        return array_keys(self::storedGauges($inspectPayload));
+    }
+
+    /**
+     * @param array<string, mixed> $inspectPayload
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private static function storedGauges(array $inspectPayload): array
+    {
+        $gaugeState = self::domainState($inspectPayload, 'gauges');
+
+        return PersistedStateReader::payloadMap($gaugeState['gauges'] ?? null);
+    }
+
+    /**
+     * @param list<GaugeRow> $rows
+     */
+    private static function buildGaugePayload(array $rows): GaugePayload
+    {
+        return GaugePayload::create(
+            name: 'claude',
+            rows: $rows,
+            title: 'Claude',
+            iconName: 'claude',
+            displayDurationMilliseconds: 10000,
+            staleAfterInSeconds: 2700,
+            staleBehavior: StaleBehavior::Dim,
+        );
     }
 }
