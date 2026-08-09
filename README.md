@@ -225,9 +225,10 @@ is refused at startup: `timezone` exists precisely so the window is written in
 the local hours of the market, where it does not cross midnight, rather than in
 the UTC of the container clock. `app:sync <type>` ignores the window and pushes
 the group at any hour, which is what keeps it usable to test a closed market in
-the evening. One push escapes the window: a consumer stopped while it was open
-and started again after it closed catches up the single cycle it missed at that
-restart, before settling back on the declared hours.
+the evening. A consumer stopped while the window was open and started again
+after it closed pushes nothing at that restart: the cycles missed in between are
+dropped and the group waits for its first run following the reopening. A quote
+read hours after the close is worth nothing, so it is not caught up.
 
 The same three keys — `activeWindow`, `staleAfter` and `staleBehavior` — also
 exist on a tracker item, where each overrides the value of the group. A single
