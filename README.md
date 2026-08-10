@@ -262,6 +262,19 @@ with a session the CLI created. The command still supports the browser flow
 `<code>#<state>`); it is kept for the day those scopes are grantable, and until then
 it authorises a session the usage endpoint refuses.
 
+Two other routes were tried and are closed, so that the question does not come back:
+
+- **The device-code grant**, which the host having no browser makes the obvious choice,
+  is refused to this client — `unauthorized_client`, where an invented client id gets
+  `invalid_client`. The client is real; the grant is simply not allowed it.
+- **`claude setup-token`**, the long-lived token meant for headless machines, is refused
+  by this endpoint too: `OAuth token does not meet scope requirement user:profile`. It
+  carries fewer scopes than a browser approval, not more — it is scoped to model requests,
+  and reading a quota is not one.
+
+Every statusline tool that reports these counters reads the CLI's credentials file the
+same way. It is not a shortcut around a supported path; it is the only path there is.
+
 **After the import, do not run `claude` on that host again.** The poller now owns
 the token family and rotates it; the CLI would rotate the same family, and whichever
 renews first leaves the other holding a token the server has retired. Nothing is
