@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Stub;
 
+use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClientInterface;
 use App\Client\Tracker\TrackerPayload;
@@ -25,6 +26,11 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
      * @var list<string>
      */
     public array $deletedTrackerNames = [];
+
+    /**
+     * @var list<GaugePayload>
+     */
+    public array $pushedGauges = [];
 
     /**
      * @var list<NotificationPayload>
@@ -65,6 +71,13 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         $this->failIfConfigured();
 
         $this->deletedTrackerNames[] = $trackerName;
+    }
+
+    public function pushGauge(GaugePayload $gauge): void
+    {
+        $this->failIfConfigured();
+
+        $this->pushedGauges[] = $gauge;
     }
 
     public function pushNotification(NotificationPayload $notification): void

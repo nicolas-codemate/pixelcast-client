@@ -17,6 +17,7 @@ final class SyncGroupRegistry
         CoinGeckoSyncConfig::class,
         TwelveDataSyncConfig::class,
         BoursoramaSyncConfig::class,
+        ClaudeSyncConfig::class,
     ];
 
     /**

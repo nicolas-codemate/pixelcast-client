@@ -13,7 +13,8 @@ use App\Message\SyncWeatherMessage;
 final readonly class WeatherSyncConfig implements SyncGroupConfig
 {
     /**
-     * `dim` and `badge` are drawn by the tracker layout only, so the weather endpoint rejects them.
+     * `dim` and `badge` are drawn by the tracker and gauge layouts, never by the weather one, so
+     * the weather endpoint rejects them.
      */
     private const array ACCEPTED_STALE_BEHAVIORS = [StaleBehavior::Hide, StaleBehavior::None];
 

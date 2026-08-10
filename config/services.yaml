@@ -9,6 +9,12 @@
 parameters:
     app.simulator.default_state_file: '%kernel.project_dir%/var/simulator/state-%kernel.environment%.json'
     app.simulator.state_file: '%env(default:app.simulator.default_state_file:PIXELCAST_SIMULATOR_STATE_FILE)%'
+    # Deliberately outside var/: prod persists only var/share, so a pair written under var/
+    # would live in the container's own write layer and vanish on the next `up -d` after a
+    # pull, costing a browser re-login. This path is the directory the prod compose file
+    # bind-mounts, so the default lands in the mount even when the env var is left unset.
+    app.claude.default_credentials_file: '%kernel.project_dir%/claude/credentials.json'
+    app.claude.credentials_file: '%env(default:app.claude.default_credentials_file:PIXELCAST_CLAUDE_CREDENTIALS_FILE)%'
 
 services:
     # default configuration for services in *this* file
@@ -65,6 +71,12 @@ services:
     App\Client\PixelcastClientInterface: '@App\Client\PixelcastClient'
 
     App\Provider\Weather\WeatherProviderInterface: '@App\Provider\Weather\OpenMeteoWeatherProvider'
+
+    App\Provider\Claude\ClaudeUsageProviderInterface: '@App\Provider\Claude\ClaudeUsageProvider'
+
+    App\Claude\ClaudeCredentialsStore:
+        arguments:
+            $credentialsFilePath: '%app.claude.credentials_file%'
 
     App\Provider\Tracker\CoinGeckoTrackerProvider:
         arguments:

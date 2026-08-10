@@ -8,6 +8,7 @@ use App\Client\Exception\DeviceBusyException;
 use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\ResourceNotFoundException;
+use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
@@ -29,6 +30,8 @@ interface PixelcastClientInterface
      * @throws ResourceNotFoundException no tracker carries this name
      */
     public function deleteTracker(string $trackerName): void;
+
+    public function pushGauge(GaugePayload $gauge): void;
 
     public function pushNotification(NotificationPayload $notification): void;
 

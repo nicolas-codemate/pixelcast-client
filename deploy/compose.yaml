@@ -12,6 +12,13 @@ services:
       - ./pixelcast.env
     volumes:
       - ./pixelcast.yaml:/app/pixelcast.yaml:ro
+      # A directory, and read-write, not the credentials file itself. That file is
+      # replaced by rename(), which swaps the inode; a single-file bind mount stays
+      # pinned to the inode it was created with, so the host would go on seeing the
+      # pair from before the first rotation while the container wrote a new one it
+      # alone could read. The container is the only writer, and it has to be able to
+      # rename inside that directory and flush it.
+      - ./claude:/app/claude
       # Only the app cache pool, which carries the scheduler state, is kept.
       # Persisting all of var/ would also freeze the compiled container, which
       # prod reuses unchecked, so a pulled image would run new code against it.

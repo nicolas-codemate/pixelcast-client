@@ -34,6 +34,32 @@ framework:
                     # the daily quota no longer has, and each retry bills one credit per symbol.
                     http_codes: [0, 500, 502, 503, 504, 507, 510]
 
+            claude_oauth.client:
+                # Trailing slash required: without it, resolving a relative path against the
+                # base URI drops its last segment and the /oauth prefix with it.
+                base_uri: 'https://platform.claude.com/v1/oauth/'
+                timeout: 5
+                retry_failed:
+                    max_retries: 2
+                    # Every 4xx is left out on purpose, 429 first of all: this endpoint rate-limits
+                    # the exchange itself and sends no Retry-After, so a retry extends the lockout
+                    # instead of recovering from it. Retrying a refresh grant that came back
+                    # invalid_grant is worse still - the second attempt sends a token the server
+                    # has already burned.
+                    http_codes: [0, 500, 502, 503, 504, 507, 510]
+
+            claude_usage.client:
+                # Trailing slash required: without it, resolving a relative path against the
+                # base URI drops its last segment and the /oauth prefix with it.
+                base_uri: 'https://api.anthropic.com/api/oauth/'
+                timeout: 5
+                retry_failed:
+                    max_retries: 2
+                    # Every 4xx is left out on purpose, 401/403/429 first of all: this is an
+                    # undocumented internal endpoint, and hammering it once it has refused a call
+                    # is the surest way to lose access to it.
+                    http_codes: [0, 500, 502, 503, 504, 507, 510]
+
             boursorama.client:
                 base_uri: 'https://www.boursorama.com/'
                 timeout: 5

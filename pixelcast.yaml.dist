@@ -169,3 +169,31 @@ syncs:
                   timezone: Europe/Paris
               staleAfter: 2700
               staleBehavior: dim
+
+    # The four Claude Code subscription counters, drawn as one gauge: the rolling 5 hour
+    # window, the rolling 7 day window, the Fable-scoped weekly window, and the extra-usage
+    # credit balance. This source needs no API key, but it is an internal endpoint under no
+    # commitment and can change without notice.
+    #
+    # The OAuth pair the device owns is read from the file named by
+    # PIXELCAST_CLAUDE_CREDENTIALS_FILE, never from this file, which rejects any key it does
+    # not declare. Write that file once with `app:claude:login`, then flip enabled to true:
+    # a group enabled before the login exists reports unhealthy on every cycle.
+    claude:
+        # A disabled group is never scheduled and cannot be dispatched by hand.
+        enabled: false
+
+        # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
+        # Reading the counters consumes no quota, so a short interval costs nothing.
+        interval: '15 minutes'
+
+        # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
+        # 604800 (7 days) at most. Without this key the value is three times the interval, the same
+        # rule the healthcheck applies, so '15 minutes' gives 2700.
+        # staleAfter: 2700
+
+        # What the device does with the app once stale: hide leaves the rotation until the next push,
+        # dim stays visible dimmed with a STALE badge, badge stays at full colour with the badge,
+        # none shows no sign. Without this key the firmware default applies, which the gauge sets
+        # to dim: the last known counters stay readable behind a STALE badge.
+        # staleBehavior: dim
