@@ -79,7 +79,10 @@ things you own:
 - `claude/`, an empty directory you create yourself — where the `claude` group
   keeps the credentials of its session, and the only mount the container writes
   into. Only that group needs it, and `mkdir claude` before the first
-  `docker compose up -d` is all there is to it
+  `docker compose up -d` is all there is to it. Create it **before** starting the
+  container, not after: the container runs as root and creates it `0700` if it gets
+  there first, and you would then need `sudo` to put anything in it — including the
+  file the bootstrap below copies through
 
 ```
 docker login ghcr.io
@@ -241,41 +244,48 @@ before it has a session reports a failure at every cycle. Authorise the host
 first, then flip `enabled` to `true` and restart the consumer:
 
 ```
-claude                                   # on the host, once: log in with the CLI
-docker compose exec php bin/console app:claude:login --import=/root/.claude/.credentials.json
+claude                                             # on the host, once: log in with the CLI
+cp ~/.claude/.credentials.json claude/from-cli.json
+docker compose exec php bin/console app:claude:login --from=/app/claude/from-cli.json
+rm claude/from-cli.json
 ```
 
-The session has to be created by the Claude Code CLI itself, and the second command
-adopts what it wrote. This is not a shortcut around a browser flow — it is the only
-thing that works. The authorization server grants the scopes that open the usage
-endpoint, `user:sessions:claude_code` among them, to the CLI's own approval and to
-nothing else: an approval obtained any other way comes back carrying `user:profile`
-and `user:file_upload`, and the endpoint answers
+The session has to be created by the Claude Code CLI itself, and the command adopts
+what it wrote. The copy through `claude/` is what carries the file across: the CLI
+runs on the host, the command runs in the container, and the only path both of them
+see is that bind mount. Delete the copy once the pair is written — the container has
+its own file from then on, and two copies of the same session is one too many.
 
-```
-403 oauth_not_allowed_for_organization
-```
+Run on a machine where the CLI's file *is* visible to the container, the command
+finds it on its own: with no `--from` it reads `$HOME/.claude/.credentials.json`.
 
-which reads like an account problem and is not one — the same account gets a 200
-with a session the CLI created. The command still supports the browser flow
-(`app:claude:login` with no `--import`, which prints a URL and takes a pasted
-`<code>#<state>`); it is kept for the day those scopes are grantable, and until then
-it authorises a session the usage endpoint refuses.
+Adopting is not a shortcut around a login of our own — it is the only thing that works.
+The authorization server grants the scopes that open the usage endpoint,
+`user:sessions:claude_code` among them, to the approval of the Claude Code CLI and to
+nothing else. Three routes were tried against the live server, and all three are closed:
 
-Two other routes were tried and are closed, so that the question does not come back:
+- **A PKCE authorization-code flow of our own**, browser and paste-back included, is
+  approved and does return a session — carrying `user:profile` and `user:file_upload`
+  and nothing more, which the usage endpoint answers with
 
+  ```
+  403 oauth_not_allowed_for_organization
+  ```
+
+  which reads like an account problem and is not one: the same account gets a 200 with
+  a session the CLI created.
 - **The device-code grant**, which the host having no browser makes the obvious choice,
   is refused to this client — `unauthorized_client`, where an invented client id gets
   `invalid_client`. The client is real; the grant is simply not allowed it.
 - **`claude setup-token`**, the long-lived token meant for headless machines, is refused
-  by this endpoint too: `OAuth token does not meet scope requirement user:profile`. It
-  carries fewer scopes than a browser approval, not more — it is scoped to model requests,
-  and reading a quota is not one.
+  by this endpoint too: `403 OAuth token does not meet scope requirement user:profile`.
+  It carries fewer scopes than a browser approval, not more — it is scoped to model
+  requests, and reading a quota is not one.
 
 Every statusline tool that reports these counters reads the CLI's credentials file the
 same way. It is not a shortcut around a supported path; it is the only path there is.
 
-**After the import, do not run `claude` on that host again.** The poller now owns
+**After the login, do not run `claude` on that host again.** The poller now owns
 the token family and rotates it; the CLI would rotate the same family, and whichever
 renews first leaves the other holding a token the server has retired. Nothing is
 printed that carries a token.

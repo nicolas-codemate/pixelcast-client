@@ -74,8 +74,6 @@ services:
 
     App\Provider\Claude\ClaudeUsageProviderInterface: '@App\Provider\Claude\ClaudeUsageProvider'
 
-    App\Claude\ClaudeAuthorizationRequestFactory: '@App\Claude\RandomClaudeAuthorizationRequestFactory'
-
     App\Claude\ClaudeCredentialsStore:
         arguments:
             $credentialsFilePath: '%app.claude.credentials_file%'

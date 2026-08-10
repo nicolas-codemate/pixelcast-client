@@ -51,16 +51,6 @@ final class ClaudeOAuthException extends \RuntimeException
         return new self(\sprintf('The Claude token response carries no usable "%s".', $fieldName));
     }
 
-    public static function unreadableApprovalResult(): self
-    {
-        return new self('The pasted line is not of the form "<code>#<state>". Copy the line the approval page displays, whole.');
-    }
-
-    public static function approvalStateMismatch(): self
-    {
-        return new self('The approval answered with a state this run did not generate. Start "app:claude:login" again rather than exchanging that code.');
-    }
-
     /**
      * Raised without calling anything: the pair on disk carries the mark a previous cycle left.
      */

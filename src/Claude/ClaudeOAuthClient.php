@@ -21,8 +21,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * REFRESH_MARGIN of its expiry, never once per run, and a failed exchange is never tried again
  * inside the same run: it throws, and the caller decides what to do with the cycle.
  *
- * This class throws on every failure. Keeping it loud is what lets the bootstrap command report a
- * precise reason; the provider that consumes it is the layer that degrades to null.
+ * This class throws on every failure, naming the reason; the provider that consumes it is the layer
+ * that degrades to null.
  */
 final readonly class ClaudeOAuthClient
 {
@@ -33,7 +33,6 @@ final readonly class ClaudeOAuthClient
 
     private const string TOKEN_PATH = 'token';
     private const string REFRESH_GRANT_TYPE = 'refresh_token';
-    private const string AUTHORIZATION_CODE_GRANT_TYPE = 'authorization_code';
     private const string REFRESH_MARGIN = 'PT5M';
 
     public function __construct(
@@ -65,27 +64,6 @@ final readonly class ClaudeOAuthClient
         }
 
         return $this->refresh($storedCredentials)->accessToken;
-    }
-
-    /**
-     * Turns the code an approved authorization hands back into the very first pair of a session.
-     *
-     * Nothing is persisted here, unlike refresh(): the file the pair belongs in may still hold a
-     * live session, and deciding to replace it is the bootstrap command's call, not this one's.
-     *
-     * @throws ClaudeOAuthException
-     */
-    public function exchangeAuthorizationCode(ClaudeAuthorizationRequest $authorizationRequest, string $authorizationCode): ClaudeCredentials
-    {
-        $decodedResponse = $this->postToken(self::AUTHORIZATION_CODE_GRANT_TYPE, [
-            'code' => $authorizationCode,
-            'client_id' => self::CLIENT_ID,
-            'redirect_uri' => ClaudeAuthorizationRequest::REDIRECT_URI,
-            'code_verifier' => $authorizationRequest->codeVerifier,
-            'state' => $authorizationRequest->state,
-        ]);
-
-        return ClaudeCredentials::fromTokenResponse($decodedResponse, $this->clock->now());
     }
 
     /**
@@ -181,22 +159,11 @@ final readonly class ClaudeOAuthClient
      */
     private function exchangeRefreshToken(string $refreshToken): array
     {
-        return $this->postToken(self::REFRESH_GRANT_TYPE, [
+        $parameters = [
+            'grant_type' => self::REFRESH_GRANT_TYPE,
             'refresh_token' => $refreshToken,
             'client_id' => self::CLIENT_ID,
-        ]);
-    }
-
-    /**
-     * @param array<string, string> $grantParameters
-     *
-     * @return array<array-key, mixed>
-     *
-     * @throws ClaudeOAuthException
-     */
-    private function postToken(string $grantType, array $grantParameters): array
-    {
-        $parameters = ['grant_type' => $grantType, ...$grantParameters];
+        ];
 
         try {
             // JSON, never a form body: the endpoint rejects application/x-www-form-urlencoded at
@@ -205,9 +172,9 @@ final readonly class ClaudeOAuthClient
             $statusCode = $response->getStatusCode();
             $rawBody = $response->getContent(throw: false);
         } catch (HttpClientExceptionInterface $transportFailure) {
-            $this->logger->warning('The Claude token endpoint could not be reached', ['grant_type' => $grantType]);
+            $this->logger->warning('The Claude token endpoint could not be reached', ['grant_type' => self::REFRESH_GRANT_TYPE]);
 
-            throw ClaudeOAuthException::transportFailure($grantType, $transportFailure);
+            throw ClaudeOAuthException::transportFailure(self::REFRESH_GRANT_TYPE, $transportFailure);
         }
 
         $decodedResponse = self::decodeJsonObject($rawBody);
@@ -217,15 +184,15 @@ final readonly class ClaudeOAuthClient
             $oauthErrorCode = \is_string($errorValue) ? $errorValue : null;
 
             $this->logger->warning('The Claude token endpoint refused the exchange', [
-                'grant_type' => $grantType,
+                'grant_type' => self::REFRESH_GRANT_TYPE,
                 'status' => $statusCode,
                 'error' => $oauthErrorCode,
             ]);
 
-            throw ClaudeOAuthException::exchangeRefused($grantType, $statusCode, $oauthErrorCode);
+            throw ClaudeOAuthException::exchangeRefused(self::REFRESH_GRANT_TYPE, $statusCode, $oauthErrorCode);
         }
 
-        return $decodedResponse ?? throw ClaudeOAuthException::unreadableResponse($grantType);
+        return $decodedResponse ?? throw ClaudeOAuthException::unreadableResponse(self::REFRESH_GRANT_TYPE);
     }
 
     /**
