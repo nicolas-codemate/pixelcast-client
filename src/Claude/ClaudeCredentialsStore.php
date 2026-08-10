@@ -18,8 +18,13 @@ use App\Claude\Exception\ClaudeCredentialsException;
  *                    "expiresAt": "2026-08-09T21:40:00+00:00",
  *                    "scopes": ["user:profile"],
  *                    "obtainedAt": "2026-08-09T13:40:00+00:00"},
- *       "previous": null
+ *       "previous": null,
+ *       "unusableSince": null
  *     }
+ *
+ * `unusableSince` is set when the server refused both slots, and cleared by the next successful
+ * rotation or login. It is what stops a dead session from spending two token exchanges every
+ * cycle forever.
  *
  * `version` turns a future shape change into a migration instead of a crash; an unknown value is
  * refused rather than half-read, and so is any malformed slot. Timestamps are RFC 3339 in UTC
@@ -38,6 +43,7 @@ final readonly class ClaudeCredentialsStore
     private const int SUPPORTED_VERSION = 1;
     private const string CURRENT_SLOT = 'current';
     private const string PREVIOUS_SLOT = 'previous';
+    private const string UNUSABLE_SINCE_FIELD = 'unusableSince';
     private const int CREDENTIALS_FILE_MODE = 0o600;
     private const int CREDENTIALS_DIRECTORY_MODE = 0o700;
     private const string TEMPORARY_FILE_SUFFIX = '.tmp';
@@ -89,6 +95,7 @@ final readonly class ClaudeCredentialsStore
         return new StoredClaudeCredentials(
             ClaudeCredentials::restoreFromPersistence($persistedCurrent, $this->credentialsFilePath, self::CURRENT_SLOT),
             $this->readPreviousSlot($decodedFile[self::PREVIOUS_SLOT] ?? null),
+            $this->readUnusableSince($decodedFile[self::UNUSABLE_SINCE_FIELD] ?? null),
         );
     }
 
@@ -104,6 +111,7 @@ final readonly class ClaudeCredentialsStore
                 'version' => self::SUPPORTED_VERSION,
                 self::CURRENT_SLOT => $storedCredentials->current->exportForPersistence(),
                 self::PREVIOUS_SLOT => $storedCredentials->previous?->exportForPersistence(),
+                self::UNUSABLE_SINCE_FIELD => $storedCredentials->unusableSince?->format(\DateTimeInterface::RFC3339),
             ],
             \JSON_PRETTY_PRINT | \JSON_THROW_ON_ERROR,
         );
@@ -128,6 +136,28 @@ final readonly class ClaudeCredentialsStore
         }
 
         return ClaudeCredentials::restoreFromPersistence($persistedPrevious, $this->credentialsFilePath, self::PREVIOUS_SLOT);
+    }
+
+    /**
+     * Absent on every file written before the field existed, and on every healthy pair since.
+     *
+     * @throws ClaudeCredentialsException
+     */
+    private function readUnusableSince(mixed $persistedInstant): ?\DateTimeImmutable
+    {
+        if (null === $persistedInstant) {
+            return null;
+        }
+
+        if (!\is_string($persistedInstant)) {
+            throw ClaudeCredentialsException::malformedField($this->credentialsFilePath, self::UNUSABLE_SINCE_FIELD);
+        }
+
+        try {
+            return new \DateTimeImmutable($persistedInstant);
+        } catch (\DateMalformedStringException) {
+            throw ClaudeCredentialsException::malformedField($this->credentialsFilePath, self::UNUSABLE_SINCE_FIELD);
+        }
     }
 
     /**

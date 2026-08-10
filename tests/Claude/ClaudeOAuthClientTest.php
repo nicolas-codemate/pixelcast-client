@@ -129,11 +129,10 @@ final class ClaudeOAuthClientTest extends TestCase
         self::assertSame(self::REPLACED_REFRESH_TOKEN, self::requestBody($success)['refresh_token'] ?? null);
     }
 
-    public function testARefusedGrantWithNothingToFallBackOnNamesTheManualRemedyAndLeavesTheFileAlone(): void
+    public function testARefusedGrantWithNothingToFallBackOnNamesTheManualRemedyAndMarksThePairUnusable(): void
     {
         $store = $this->storeHolding(self::CLOSE_TO_EXPIRY);
         $httpClient = new MockHttpClient([self::jsonResponse(['error' => 'invalid_grant'], 400)], self::OAUTH_BASE_URI);
-        $storedFileBefore = self::readCredentialsFile($this->credentialsFilePath);
 
         try {
             $this->buildOAuthClient($httpClient, $store)->freshAccessToken();
@@ -143,7 +142,64 @@ final class ClaudeOAuthClientTest extends TestCase
         }
 
         self::assertSame(1, $httpClient->getRequestsCount());
-        self::assertSame($storedFileBefore, self::readCredentialsFile($this->credentialsFilePath));
+        self::assertTrue($store->load()->isUnusable());
+    }
+
+    public function testAPairMarkedUnusableIsRefusedWithoutReachingTheNetwork(): void
+    {
+        $store = $this->storeHolding(self::CLOSE_TO_EXPIRY);
+        $httpClient = new MockHttpClient([self::jsonResponse(['error' => 'invalid_grant'], 400)], self::OAUTH_BASE_URI);
+
+        try {
+            $this->buildOAuthClient($httpClient, $store)->freshAccessToken();
+            self::fail('A refused grant should not be swallowed.');
+        } catch (ClaudeOAuthException) {
+        }
+
+        // The whole point: the cycles that follow cost nothing on an endpoint the operator needs
+        // free to run app:claude:login.
+        $secondHttpClient = new MockHttpClient([], self::OAUTH_BASE_URI);
+
+        try {
+            $this->buildOAuthClient($secondHttpClient, $store)->freshAccessToken();
+            self::fail('A pair already found unusable should not be retried.');
+        } catch (ClaudeOAuthException $refusal) {
+            self::assertStringContainsString('app:claude:login', $refusal->getMessage());
+        }
+
+        self::assertSame(0, $secondHttpClient->getRequestsCount());
+    }
+
+    public function testMarkingAPairUnusableKeepsTheTokensItStillHolds(): void
+    {
+        $store = $this->storeHolding(self::CLOSE_TO_EXPIRY);
+        $tokensBefore = [$store->load()->current->accessToken, $store->load()->current->refreshToken];
+        $httpClient = new MockHttpClient([self::jsonResponse(['error' => 'invalid_grant'], 400)], self::OAUTH_BASE_URI);
+
+        try {
+            $this->buildOAuthClient($httpClient, $store)->freshAccessToken();
+        } catch (ClaudeOAuthException) {
+        }
+
+        $storedAfter = $store->load();
+        self::assertSame($tokensBefore, [$storedAfter->current->accessToken, $storedAfter->current->refreshToken]);
+    }
+
+    public function testASuccessfulRotationClearsAnEarlierUnusableMark(): void
+    {
+        $store = $this->storeHolding(self::CLOSE_TO_EXPIRY);
+        $store->save($store->load()->markedUnusableAt(new \DateTimeImmutable(self::NOW)));
+
+        $refreshedStore = $this->storeHolding(self::CLOSE_TO_EXPIRY);
+        $httpClient = new MockHttpClient([self::jsonResponse([
+            'access_token' => 'fresh-access-token',
+            'refresh_token' => 'fresh-refresh-token',
+            'expires_in' => 28800,
+        ])], self::OAUTH_BASE_URI);
+
+        $this->buildOAuthClient($httpClient, $refreshedStore)->freshAccessToken();
+
+        self::assertFalse($refreshedStore->load()->isUnusable());
     }
 
     public function testARateLimitedExchangeEndsTheAttemptWithoutASecondCall(): void

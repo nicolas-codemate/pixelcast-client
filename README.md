@@ -281,6 +281,12 @@ renewal is refused, the group fails every cycle, and `app:claude:login` has to b
 run again on it. That is a normal end of life for a session, not a fault to
 diagnose.
 
+A session the server refuses on both its stored pairs is recorded as such in the
+credentials file, and the cycles that follow stop before reaching the network.
+Nothing is gained by asking again — only a new login revives it — and the token
+endpoint rate-limits the very exchange `app:claude:login` needs, so a poller that
+kept trying would be competing with the repair.
+
 `SyncHealthChecker` watches every enabled group, this one included, so a session
 that has been revoked, has expired, or that Anthropic cannot renew turns the
 container `unhealthy` after three cycles — 45 minutes for the 15-minute interval.

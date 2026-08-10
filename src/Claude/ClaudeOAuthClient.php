@@ -53,6 +53,13 @@ final readonly class ClaudeOAuthClient
     {
         $storedCredentials = $this->credentialsStore->load();
 
+        // Before anything reaches the network: a pair the server has already refused on both slots
+        // stays refused until someone logs in again, and every cycle that asks anyway spends two
+        // exchanges on the endpoint the operator needs free to repair it.
+        if ($storedCredentials->isUnusable()) {
+            throw ClaudeOAuthException::sessionAlreadyLost($storedCredentials->unusableSince);
+        }
+
         if (!$storedCredentials->current->isExpiringWithin(new \DateInterval(self::REFRESH_MARGIN), $this->clock->now())) {
             return $storedCredentials->current->accessToken;
         }
@@ -132,7 +139,7 @@ final readonly class ClaudeOAuthClient
 
         $replacedCredentials = $storedCredentials->previous;
         if (null === $replacedCredentials) {
-            throw ClaudeOAuthException::sessionLost($refreshFailure);
+            $this->abandonSession($storedCredentials, $refreshFailure);
         }
 
         $this->logger->warning('The current Claude refresh token was refused, falling back to the one it replaced');
@@ -140,8 +147,31 @@ final readonly class ClaudeOAuthClient
         try {
             return [$this->exchangeRefreshToken($replacedCredentials->refreshToken), $replacedCredentials->refreshToken];
         } catch (ClaudeOAuthException $fallbackFailure) {
-            throw ClaudeOAuthException::sessionLost($fallbackFailure);
+            $this->abandonSession($storedCredentials, $fallbackFailure);
         }
+    }
+
+    /**
+     * Both slots were refused, so every later cycle would spend two exchanges reaching the same
+     * conclusion. Record it on the pair itself: the next run then fails without touching the
+     * network, and a successful login clears the mark by writing a fresh pair over it.
+     *
+     * Marking is best effort — an unwritable file must not replace the reason the session was lost
+     * with a filesystem complaint.
+     *
+     * @throws ClaudeOAuthException
+     */
+    private function abandonSession(StoredClaudeCredentials $storedCredentials, ClaudeOAuthException $cause): never
+    {
+        try {
+            $this->credentialsStore->save($storedCredentials->markedUnusableAt($this->clock->now()));
+        } catch (ClaudeCredentialsException $markingFailure) {
+            $this->logger->error('Could not record that the Claude session is lost, so the next cycle will try again', [
+                'error' => $markingFailure->getMessage(),
+            ]);
+        }
+
+        throw ClaudeOAuthException::sessionLost($cause);
     }
 
     /**

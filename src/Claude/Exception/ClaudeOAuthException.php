@@ -61,6 +61,20 @@ final class ClaudeOAuthException extends \RuntimeException
         return new self('The approval answered with a state this run did not generate. Start "app:claude:login" again rather than exchanging that code.');
     }
 
+    /**
+     * Raised without calling anything: the pair on disk carries the mark a previous cycle left.
+     */
+    public static function sessionAlreadyLost(?\DateTimeImmutable $unusableSince): self
+    {
+        return new self(
+            \sprintf(
+                'The Claude session was already found unusable on %s and no refresh can revive it. Run "app:claude:login" on the device to authorise a new one.',
+                $unusableSince?->format(\DateTimeInterface::RFC3339) ?? 'an earlier cycle',
+            ),
+            self::INVALID_GRANT_ERROR_CODE,
+        );
+    }
+
     public static function sessionLost(self $previous): self
     {
         return new self(

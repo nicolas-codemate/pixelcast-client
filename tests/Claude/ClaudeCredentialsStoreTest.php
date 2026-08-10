@@ -74,7 +74,48 @@ final class ClaudeCredentialsStoreTest extends TestCase
         self::assertSame('access-second', $reloaded->previous?->accessToken);
 
         $decodedFile = $this->decodedCredentialsFile();
-        self::assertSame(['version', 'current', 'previous'], array_keys($decodedFile));
+        self::assertSame(['version', 'current', 'previous', 'unusableSince'], array_keys($decodedFile));
+    }
+
+    public function testTheUnusableMarkRoundTripsAndLeavesBothPairsReadable(): void
+    {
+        $store = $this->createStore();
+        $markedAt = new \DateTimeImmutable('2026-08-10T14:30:00+00:00');
+        $store->save(new StoredClaudeCredentials(self::credentials('first')));
+        $store->save($store->load()->rotatedTo(self::credentials('second'))->markedUnusableAt($markedAt));
+
+        $reloaded = $store->load();
+
+        self::assertTrue($reloaded->isUnusable());
+        self::assertEquals($markedAt, $reloaded->unusableSince);
+        self::assertSame('access-second', $reloaded->current->accessToken);
+        self::assertSame('access-first', $reloaded->previous?->accessToken);
+    }
+
+    public function testAFileWrittenBeforeTheMarkExistedReadsAsUsable(): void
+    {
+        $store = $this->createStore();
+        $store->save(new StoredClaudeCredentials(self::credentials('first')));
+
+        $decodedFile = $this->decodedCredentialsFile();
+        unset($decodedFile['unusableSince']);
+        file_put_contents($this->credentialsFilePath, json_encode($decodedFile, \JSON_THROW_ON_ERROR));
+
+        self::assertFalse($store->load()->isUnusable());
+    }
+
+    public function testAnUnreadableUnusableMarkIsRefusedRatherThanTakenAsHealthy(): void
+    {
+        $store = $this->createStore();
+        $store->save(new StoredClaudeCredentials(self::credentials('first')));
+
+        $decodedFile = $this->decodedCredentialsFile();
+        $decodedFile['unusableSince'] = 'not an instant';
+        file_put_contents($this->credentialsFilePath, json_encode($decodedFile, \JSON_THROW_ON_ERROR));
+
+        $this->expectException(ClaudeCredentialsException::class);
+
+        $store->load();
     }
 
     public function testTheWrittenFileIsReadableByItsOwnerOnly(): void
