@@ -21,6 +21,7 @@ final readonly class ClaudeCredentials
     private const string EXPIRES_IN_RESPONSE_FIELD = 'expires_in';
     private const string EXPIRES_AT_RESPONSE_FIELD = 'expires_at';
     private const string SCOPE_RESPONSE_FIELD = 'scope';
+    private const string CLAUDE_CODE_ROOT_FIELD = 'claudeAiOauth';
     private const string SCOPE_SEPARATOR = ' ';
     private const string PERSISTED_TIMEZONE = 'UTC';
 
@@ -97,6 +98,46 @@ final readonly class ClaudeCredentials
         );
     }
 
+    /**
+     * Reads the file the Claude Code CLI keeps for itself.
+     *
+     * The authorization server only ever grants the Claude Code scopes to the CLI's own approval
+     * flow — ours comes back with `user:profile` and `user:file_upload` and nothing else, which the
+     * usage endpoint answers with a 403. So the CLI performs the login on the host, once, and this
+     * reads the pair it wrote. From then on the poller owns the token family and rotates it, which
+     * is only true for as long as nobody runs the CLI on that host again.
+     *
+     * @param array<array-key, mixed> $decodedFile
+     *
+     * @throws ClaudeCredentialsException
+     */
+    public static function fromClaudeCodeFile(array $decodedFile, string $filePath, \DateTimeImmutable $now): self
+    {
+        $session = $decodedFile[self::CLAUDE_CODE_ROOT_FIELD] ?? null;
+        if (!\is_array($session)) {
+            throw ClaudeCredentialsException::malformedField($filePath, self::CLAUDE_CODE_ROOT_FIELD);
+        }
+
+        $accessToken = self::readNonEmptyString($session, 'accessToken');
+        $refreshToken = self::readNonEmptyString($session, 'refreshToken');
+        if (null === $accessToken || null === $refreshToken) {
+            throw ClaudeCredentialsException::malformedField($filePath, self::CLAUDE_CODE_ROOT_FIELD);
+        }
+
+        $expiresAt = $session['expiresAt'] ?? null;
+        if (!\is_int($expiresAt)) {
+            throw ClaudeCredentialsException::malformedField($filePath, 'expiresAt');
+        }
+
+        return new self(
+            accessToken: $accessToken,
+            refreshToken: $refreshToken,
+            expiresAt: self::absoluteExpiry($expiresAt),
+            scopes: self::readScopeList($session['scopes'] ?? null),
+            obtainedAt: $now,
+        );
+    }
+
     public function isExpiringWithin(\DateInterval $margin, \DateTimeImmutable $now): bool
     {
         return $this->expiresAt <= $now->add($margin);
@@ -149,11 +190,7 @@ final readonly class ClaudeCredentials
 
         $expiresAt = $decodedResponse[self::EXPIRES_AT_RESPONSE_FIELD] ?? null;
         if (is_numeric($expiresAt)) {
-            $epoch = (int) $expiresAt;
-
-            return new \DateTimeImmutable(
-                '@'.($epoch > self::HIGHEST_PLAUSIBLE_EPOCH_IN_SECONDS ? intdiv($epoch, 1000) : $epoch),
-            );
+            return self::absoluteExpiry((int) $expiresAt);
         }
 
         if (\is_string($expiresAt) && '' !== $expiresAt) {
@@ -165,6 +202,31 @@ final readonly class ClaudeCredentials
         }
 
         throw ClaudeOAuthException::missingTokenResponseField(self::EXPIRES_IN_RESPONSE_FIELD);
+    }
+
+    private static function absoluteExpiry(int $epoch): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable(
+            '@'.($epoch > self::HIGHEST_PLAUSIBLE_EPOCH_IN_SECONDS ? intdiv($epoch, 1000) : $epoch),
+        );
+    }
+
+    /**
+     * The token endpoint sends the scopes space-separated in one string; the CLI's file keeps them
+     * as a list. Same information, two shapes.
+     *
+     * @return list<string>
+     */
+    private static function readScopeList(mixed $scopes): array
+    {
+        if (!\is_array($scopes)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $scopes,
+            static fn (mixed $singleScope): bool => \is_string($singleScope) && '' !== $singleScope,
+        ));
     }
 
     /**

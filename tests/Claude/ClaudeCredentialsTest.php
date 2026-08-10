@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Claude;
 
 use App\Claude\ClaudeCredentials;
+use App\Claude\Exception\ClaudeCredentialsException;
 use App\Claude\Exception\ClaudeOAuthException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -194,6 +195,61 @@ final class ClaudeCredentialsTest extends TestCase
     {
         yield 'empty access token' => ['', self::REFRESH_TOKEN];
         yield 'empty refresh token' => [self::ACCESS_TOKEN, ''];
+    }
+
+    public function testTheClaudeCodeFileIsReadWithItsMillisecondExpiryAndItsScopeList(): void
+    {
+        $credentials = ClaudeCredentials::fromClaudeCodeFile(
+            self::claudeCodeFile(),
+            self::CREDENTIALS_FILE_PATH,
+            self::now(),
+        );
+
+        self::assertSame(self::ACCESS_TOKEN, $credentials->accessToken);
+        self::assertSame(self::REFRESH_TOKEN, $credentials->refreshToken);
+        // 1786392000000 ms is 2026-08-10T20:00:00Z; read as seconds it would land in 1970 and make
+        // every run refresh.
+        self::assertSame('2026-08-10T20:00:00+00:00', $credentials->expiresAt->format(\DateTimeInterface::RFC3339));
+        self::assertSame(['user:profile', 'user:sessions:claude_code'], $credentials->scopes);
+    }
+
+    /**
+     * @param array<string, mixed> $decodedFile
+     */
+    #[DataProvider('provideUnusableClaudeCodeFiles')]
+    public function testAClaudeCodeFileMissingWhatMattersIsRefused(array $decodedFile): void
+    {
+        $this->expectException(ClaudeCredentialsException::class);
+
+        ClaudeCredentials::fromClaudeCodeFile($decodedFile, self::CREDENTIALS_FILE_PATH, self::now());
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function provideUnusableClaudeCodeFiles(): iterable
+    {
+        yield 'no session object' => [['claudeAiOauth' => 'not an object']];
+        yield 'session object absent entirely' => [['somethingElse' => []]];
+        yield 'no access token' => [['claudeAiOauth' => ['refreshToken' => self::REFRESH_TOKEN, 'expiresAt' => 1786392000000]]];
+        yield 'no refresh token' => [['claudeAiOauth' => ['accessToken' => self::ACCESS_TOKEN, 'expiresAt' => 1786392000000]]];
+        yield 'expiry is not a number' => [['claudeAiOauth' => ['accessToken' => self::ACCESS_TOKEN, 'refreshToken' => self::REFRESH_TOKEN, 'expiresAt' => 'soon']]];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function claudeCodeFile(): array
+    {
+        return [
+            'claudeAiOauth' => [
+                'accessToken' => self::ACCESS_TOKEN,
+                'refreshToken' => self::REFRESH_TOKEN,
+                'expiresAt' => 1786392000000,
+                'scopes' => ['user:profile', 'user:sessions:claude_code'],
+                'subscriptionType' => 'max',
+            ],
+        ];
     }
 
     private static function credentialsExpiringAt(string $expiresAt): ClaudeCredentials

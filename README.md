@@ -241,17 +241,31 @@ before it has a session reports a failure at every cycle. Authorise the host
 first, then flip `enabled` to `true` and restart the consumer:
 
 ```
-docker compose exec php bin/console app:claude:login
+claude                                   # on the host, once: log in with the CLI
+docker compose exec php bin/console app:claude:login --import=/root/.claude/.credentials.json
 ```
 
-That command is interactive and is run once, by hand. It prints a URL: open it on
-any machine that has a browser — the host itself needs none — sign in with the
-account the counters should come from, and approve. The page then displays a line
-of the form `<code>#<state>`; copy it whole and paste it back into the command,
-which exchanges it and writes the pair. There is no way to skip the browser: the
-authorization server refuses the device-code grant to the Claude Code client, so
-the approval has to happen on a page someone looks at. Nothing is printed that
-carries a token.
+The session has to be created by the Claude Code CLI itself, and the second command
+adopts what it wrote. This is not a shortcut around a browser flow — it is the only
+thing that works. The authorization server grants the scopes that open the usage
+endpoint, `user:sessions:claude_code` among them, to the CLI's own approval and to
+nothing else: an approval obtained any other way comes back carrying `user:profile`
+and `user:file_upload`, and the endpoint answers
+
+```
+403 oauth_not_allowed_for_organization
+```
+
+which reads like an account problem and is not one — the same account gets a 200
+with a session the CLI created. The command still supports the browser flow
+(`app:claude:login` with no `--import`, which prints a URL and takes a pasted
+`<code>#<state>`); it is kept for the day those scopes are grantable, and until then
+it authorises a session the usage endpoint refuses.
+
+**After the import, do not run `claude` on that host again.** The poller now owns
+the token family and rotates it; the CLI would rotate the same family, and whichever
+renews first leaves the other holding a token the server has retired. Nothing is
+printed that carries a token.
 
 `GET https://api.anthropic.com/api/oauth/usage` is the endpoint the Claude Code
 CLI calls to feed its own statusline: undocumented, under no commitment, and free
