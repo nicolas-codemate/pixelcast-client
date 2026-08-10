@@ -29,4 +29,7 @@
 /pixelcast.yaml
 /deploy/pixelcast.yaml
 /deploy/pixelcast.env
+# Holds the OAuth pair app:claude:login writes. This repository is public.
+/claude/
+/deploy/claude/
 ###< pixelcast config ###
