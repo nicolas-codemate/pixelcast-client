@@ -1,0 +1,6 @@
+# Sample configuration used by ClaudeUsageProviderTest.
+syncs:
+    claude:
+        enabled: true
+        interval: '15 minutes'
+        staleBehavior: dim

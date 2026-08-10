@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Config\Sync;
 
 use App\Config\Sync\BoursoramaSyncConfig;
+use App\Config\Sync\ClaudeSyncConfig;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Config\Sync\SyncGroupRegistry;
 use App\Config\Sync\TwelveDataSyncConfig;
@@ -15,7 +16,7 @@ final class SyncGroupRegistryTest extends TestCase
 {
     public function testEveryDeclaredGroupExposesItsSyncType(): void
     {
-        self::assertSame(['weather', 'coingecko', 'twelvedata', 'boursorama'], SyncGroupRegistry::syncTypes());
+        self::assertSame(['weather', 'coingecko', 'twelvedata', 'boursorama', 'claude'], SyncGroupRegistry::syncTypes());
     }
 
     public function testASyncTypeResolvesToItsConfigurationClass(): void
@@ -24,6 +25,7 @@ final class SyncGroupRegistryTest extends TestCase
         self::assertSame(CoinGeckoSyncConfig::class, SyncGroupRegistry::syncGroupClassFor('coingecko'));
         self::assertSame(TwelveDataSyncConfig::class, SyncGroupRegistry::syncGroupClassFor('twelvedata'));
         self::assertSame(BoursoramaSyncConfig::class, SyncGroupRegistry::syncGroupClassFor('boursorama'));
+        self::assertSame(ClaudeSyncConfig::class, SyncGroupRegistry::syncGroupClassFor('claude'));
     }
 
     public function testAnUnknownSyncTypeIsACodeInconsistency(): void

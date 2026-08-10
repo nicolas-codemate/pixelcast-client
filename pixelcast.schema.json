@@ -26,6 +26,9 @@
                 },
                 "boursorama": {
                     "$ref": "#/definitions/trackerSync"
+                },
+                "claude": {
+                    "$ref": "#/definitions/claudeSync"
                 }
             }
         }
@@ -127,6 +130,46 @@
                     "items": {
                         "$ref": "#/definitions/trackerItem"
                     }
+                },
+                "staleAfter": {
+                    "$ref": "#/definitions/staleAfter"
+                },
+                "staleBehavior": {
+                    "description": "What the device does with the app once stale. \"hide\" leaves the rotation until the next push, \"dim\" stays visible dimmed with a STALE badge, \"badge\" stays at full colour with the badge, \"none\" shows no sign. Without it the firmware default applies.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "hide",
+                        "dim",
+                        "badge",
+                        "none",
+                        null
+                    ]
+                },
+                "activeWindow": {
+                    "$ref": "#/definitions/activeWindow"
+                }
+            }
+        },
+        "claudeSync": {
+            "description": "Claude Code subscription counters pushed as one gauge. The OAuth credentials are read from the file named by PIXELCAST_CLAUDE_CREDENTIALS_FILE, never from this file.",
+            "type": "object",
+            "required": [
+                "enabled",
+                "interval"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "A disabled group is never scheduled and cannot be dispatched by hand.",
+                    "type": "boolean"
+                },
+                "interval": {
+                    "description": "How often the group runs, e.g. \"30 minutes\", \"1 hour\", \"PT30M\", \"1800\". At least 60 seconds.",
+                    "type": "string",
+                    "minLength": 1
                 },
                 "staleAfter": {
                     "$ref": "#/definitions/staleAfter"

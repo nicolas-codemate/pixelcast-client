@@ -69,13 +69,17 @@ The image carries the code only: the device address, the provider API keys and
 the sync settings are supplied by the host at runtime.
 
 The prod image runs a single process, the scheduler consumer, so the host needs
-neither the repository nor a web server. Copy `deploy/compose.yaml` next to two
-files you own:
+neither the repository nor a web server. Copy `deploy/compose.yaml` next to three
+things you own:
 
 - `pixelcast.env`, from `deploy/pixelcast.env.dist` — the device base URL and the
   API keys of the data providers
 - `pixelcast.yaml`, from `pixelcast.yaml.dist` — the sync groups, their interval
   and their options
+- `claude/`, an empty directory you create yourself — where the `claude` group
+  keeps the credentials of its session, and the only mount the container writes
+  into. Only that group needs it, and `mkdir claude` before the first
+  `docker compose up -d` is all there is to it
 
 ```
 docker login ghcr.io
@@ -216,6 +220,75 @@ the next midnight, which keeps the whole group well inside the free quota of
 10 000 calls a month. An asset whose midnight price cannot be fetched is logged
 and skipped for that cycle, and the screen keeps what it already shows.
 
+#### The `claude` group
+
+The `claude` group pushes the four counters of a Claude Code subscription as a
+single gauge named `claude`: the rolling five hours, the rolling seven days, the
+weekly allowance scoped to the Fable model, and the extra-usage credits. Each row
+carries a bar coloured from the percentage — green under 50, yellow to 79, red
+from 80 — and, next to it, a pace such as `x1.2^`: the multiple of the rate that
+would use the window up exactly at its reset, with an arrow for the direction.
+Above `x1.0` the window is being spent faster than it renews. The first hour of a
+window carries no pace at all, because a divisor that small says nothing.
+
+The counters are account-wide, not machine-wide. So the host reports the usage of
+every machine signed in to that account, and it keeps the reading correct around
+the clock — a window that resets at three in the morning is drawn right at three
+in the morning, whether or not a workstation is running.
+
+The group ships `enabled: false` in `pixelcast.yaml.dist`, because a group enabled
+before it has a session reports a failure at every cycle. Authorise the host
+first, then flip `enabled` to `true` and restart the consumer:
+
+```
+docker compose exec php bin/console app:claude:login
+```
+
+That command is interactive and is run once, by hand. It prints a URL: open it on
+any machine that has a browser — the host itself needs none — sign in with the
+account the counters should come from, and approve. The page then displays a line
+of the form `<code>#<state>`; copy it whole and paste it back into the command,
+which exchanges it and writes the pair. There is no way to skip the browser: the
+authorization server refuses the device-code grant to the Claude Code client, so
+the approval has to happen on a page someone looks at. Nothing is printed that
+carries a token.
+
+`GET https://api.anthropic.com/api/oauth/usage` is the endpoint the Claude Code
+CLI calls to feed its own statusline: undocumented, under no commitment, and free
+to change or vanish without notice — the same standing as the Boursorama source
+above. The trade is deliberate: there is no public Anthropic API for subscription
+limits at all, the Admin API's `/v1/organizations/usage_report/…` covering console
+API spend rather than subscription quotas. Reading it consumes no quota, so a
+15-minute interval costs nothing.
+
+The credentials file is written by the container and never edited by hand. It
+holds a pair of tokens, and the refresh token **rotates**: every renewal issues a
+new one and retires the one that was used. So the host must have a login of its
+own, and a workstation's `~/.claude/.credentials.json` must never be copied onto
+it — the first of the two machines to refresh logs the other out, and which one
+that is depends on nothing more than timing. The file is written through a
+temporary file, flushed to the disk and renamed into place, and it keeps the pair
+it replaced, so a rotation interrupted halfway has something left to retry from.
+Losing the file means running `app:claude:login` again.
+
+It is written `0600` and owned by root, because the image declares no `USER` and
+the container runs as one. That is the right owner for a credential, but it does
+mean the host account cannot read or back the file up without `sudo`.
+
+The refresh token expires too, on a horizon of its own that no refresh extends
+indefinitely. A host left off past that horizon cannot refresh its way back: the
+renewal is refused, the group fails every cycle, and `app:claude:login` has to be
+run again on it. That is a normal end of life for a session, not a fault to
+diagnose.
+
+`SyncHealthChecker` watches every enabled group, this one included, so a session
+that has been revoked, has expired, or that Anthropic cannot renew turns the
+container `unhealthy` after three cycles — 45 minutes for the 15-minute interval.
+That is the intended behaviour and is not to be worked around: a group that failed
+silently forever would be worse than one that goes red. Confirm with
+`docker compose exec php bin/console app:health`, which names the group, then
+re-authorise with `app:claude:login`.
+
 Any group may declare an `activeWindow` — `days`, `from`, `to` and a `timezone`
 — and is then scheduled during those hours only: outside them no provider is
 called and the healthcheck does not watch the group. Both bounds are inclusive,
@@ -250,10 +323,10 @@ tolerates before it treats the app as stale, and a `staleBehavior` when the
 group declares one. Without a `staleAfter` key the value is three times the
 interval — the same rule as the healthcheck, so 45 minutes for a 15-minute cycle
 — capped at seven days, and `0` tells the device to never age the app out.
-`staleBehavior` is `hide`, `dim`, `badge` or `none` on a tracker group, and
-`hide` or `none` on the weather group, the two others being drawn by the tracker
-layout alone; without the key the firmware default applies. `pixelcast.yaml.dist`
-carries the exact shape of the three keys.
+`staleBehavior` is `hide`, `dim`, `badge` or `none` on a tracker group and on the
+`claude` group, and `hide` or `none` on the weather group, the two others being
+drawn by the tracker and gauge layouts alone; without the key the firmware default
+applies. `pixelcast.yaml.dist` carries the exact shape of the three keys.
 
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host
@@ -288,4 +361,18 @@ only `enabled: true` in the local `pixelcast.yaml`.
 the request log carries one `POST /api/tracker` per asset. `make inspect` reads
 the local simulator, on `PIXELCAST_SIMULATOR_HOST_PORT` (8088 by default), never
 a real screen.
+
+`claude` is checked the same way, with `enabled: true` in the local
+`pixelcast.yaml` and a credentials file the container can read —
+`bin/console app:claude:login` writes one under `claude/` at the root of the
+checkout by default, so no environment variable is needed locally either. That
+directory is git-ignored; the pair must never reach a commit.
+
+```
+make sync ARGS="claude"
+make inspect
+```
+
+`state.gauges.claude.rows` then holds up to four entries and the request log
+carries one `POST /api/gauge`.
 
