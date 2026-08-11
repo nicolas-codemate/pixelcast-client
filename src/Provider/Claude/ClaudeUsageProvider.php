@@ -10,6 +10,7 @@ use App\Claude\Exception\ClaudeOAuthException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
 use App\Config\Sync\ClaudeSyncConfig;
+use App\Config\Sync\ClaudeUsageRowLabel;
 use App\Config\Sync\StaleDeclaration;
 use App\Config\SyncsConfigLoader;
 use Psr\Clock\ClockInterface;
@@ -43,10 +44,6 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
 
     private const string SESSION_RESET_FORMAT = 'H:i';
     private const string WEEKLY_RESET_FORMAT = 'd/m H\h';
-    private const string SESSION_ROW_LABEL = '5h';
-    private const string WEEKLY_ROW_LABEL = '7j';
-    private const string FABLE_ROW_LABEL = 'fable';
-    private const string CREDITS_ROW_LABEL = 'credits';
     private const string PERCENT_VALUE_FORMAT = '%d%%';
     private const string CREDIT_BALANCE_FORMAT = '%s/%s %s';
     private const string DECIMAL_SEPARATOR = '.';
@@ -83,7 +80,7 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
             return null;
         }
 
-        $rows = $this->buildRows($usageSnapshot, $this->clock->now());
+        $rows = $this->buildRows($usageSnapshot, $this->clock->now(), $claudeSyncGroup->hiddenRows);
         if ([] === $rows) {
             $this->logger->warning('No Claude usage row could be drawn');
 
@@ -156,21 +153,26 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
     }
 
     /**
+     * @param list<ClaudeUsageRowLabel> $hiddenRows
+     *
      * @return list<GaugeRow>
      */
-    private function buildRows(ClaudeUsageSnapshot $usageSnapshot, \DateTimeImmutable $now): array
+    private function buildRows(ClaudeUsageSnapshot $usageSnapshot, \DateTimeImmutable $now, array $hiddenRows): array
     {
         return array_values(array_filter([
-            $this->buildWindowRow($usageSnapshot->session, self::SESSION_ROW_LABEL, self::SESSION_RESET_FORMAT, $now),
-            $this->buildWindowRow($usageSnapshot->weeklyAll, self::WEEKLY_ROW_LABEL, self::WEEKLY_RESET_FORMAT, $now),
-            $this->buildWindowRow($usageSnapshot->fableWeekly, self::FABLE_ROW_LABEL, self::WEEKLY_RESET_FORMAT, $now),
-            $this->buildCreditsRow($usageSnapshot->spend),
+            $this->buildWindowRow($usageSnapshot->session, ClaudeUsageRowLabel::Session, self::SESSION_RESET_FORMAT, $now, $hiddenRows),
+            $this->buildWindowRow($usageSnapshot->weeklyAll, ClaudeUsageRowLabel::WeeklyAll, self::WEEKLY_RESET_FORMAT, $now, $hiddenRows),
+            $this->buildWindowRow($usageSnapshot->fableWeekly, ClaudeUsageRowLabel::Fable, self::WEEKLY_RESET_FORMAT, $now, $hiddenRows),
+            $this->buildCreditsRow($usageSnapshot->spend, $hiddenRows),
         ]));
     }
 
-    private function buildWindowRow(?ClaudeUsageWindow $window, string $label, string $resetFormat, \DateTimeImmutable $now): ?GaugeRow
+    /**
+     * @param list<ClaudeUsageRowLabel> $hiddenRows
+     */
+    private function buildWindowRow(?ClaudeUsageWindow $window, ClaudeUsageRowLabel $label, string $resetFormat, \DateTimeImmutable $now, array $hiddenRows): ?GaugeRow
     {
-        if (null === $window) {
+        if (null === $window || \in_array($label, $hiddenRows, true)) {
             return null;
         }
 
@@ -179,7 +181,7 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
 
         try {
             return GaugeRow::create(
-                label: $label,
+                label: $label->value,
                 percent: $displayedPercent,
                 info: self::formatResetInstant($window->resetsAt, $resetFormat),
                 value: \sprintf(self::PERCENT_VALUE_FORMAT, $displayedPercent),
@@ -188,15 +190,18 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
                 noteColor: null === $pace ? null : ClaudeUsageColors::noteColorFor($pace),
             );
         } catch (\InvalidArgumentException $invalidRow) {
-            $this->logger->warning('A Claude usage row outgrew its limits', ['label' => $label, 'error' => $invalidRow->getMessage()]);
+            $this->logger->warning('A Claude usage row outgrew its limits', ['label' => $label->value, 'error' => $invalidRow->getMessage()]);
 
             return null;
         }
     }
 
-    private function buildCreditsRow(?ClaudeSpend $spend): ?GaugeRow
+    /**
+     * @param list<ClaudeUsageRowLabel> $hiddenRows
+     */
+    private function buildCreditsRow(?ClaudeSpend $spend, array $hiddenRows): ?GaugeRow
     {
-        if (null === $spend) {
+        if (null === $spend || \in_array(ClaudeUsageRowLabel::Credits, $hiddenRows, true)) {
             return null;
         }
 
@@ -211,14 +216,14 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
 
         try {
             return GaugeRow::create(
-                label: self::CREDITS_ROW_LABEL,
+                label: ClaudeUsageRowLabel::Credits->value,
                 percent: $displayedPercent,
                 info: self::formatCreditBalance($spend),
                 value: \sprintf(self::PERCENT_VALUE_FORMAT, $displayedPercent),
                 barColor: ClaudeUsageColors::barColorFor($displayedPercent),
             );
         } catch (\InvalidArgumentException $invalidRow) {
-            $this->logger->warning('A Claude usage row outgrew its limits', ['label' => self::CREDITS_ROW_LABEL, 'error' => $invalidRow->getMessage()]);
+            $this->logger->warning('A Claude usage row outgrew its limits', ['label' => ClaudeUsageRowLabel::Credits->value, 'error' => $invalidRow->getMessage()]);
 
             return null;
         }
