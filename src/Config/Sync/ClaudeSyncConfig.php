@@ -17,11 +17,15 @@ use App\Message\SyncMessage;
  */
 final readonly class ClaudeSyncConfig implements SyncGroupConfig
 {
+    /**
+     * @param list<ClaudeUsageRowLabel> $hiddenRows
+     */
     public function __construct(
         public bool $enabled,
         public SyncInterval $interval,
         public StaleDeclaration $staleDeclaration,
         public ?ActiveWindow $activeWindow,
+        public array $hiddenRows,
     ) {
     }
 
@@ -42,6 +46,7 @@ final readonly class ClaudeSyncConfig implements SyncGroupConfig
             // All four behaviours, unlike the weather group: the gauge layout draws `dim` and `badge`.
             staleDeclaration: StaleDeclaration::fromOptions($options, $optionsPath, $interval, StaleBehavior::cases()),
             activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath),
+            hiddenRows: SyncOptionReader::optionalEnumList($options, 'hiddenRows', $optionsPath, ClaudeUsageRowLabel::class),
         );
     }
 

@@ -318,10 +318,30 @@ final class ClaudeUsageProviderTest extends TestCase
         self::assertStringNotContainsString(self::STORED_REFRESH_TOKEN, $loggedText);
     }
 
+    public function testAHiddenRowIsLeftOutOfTheGaugeEvenWhenTheAnswerCarriesIt(): void
+    {
+        $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
+
+        $gauge = $this->buildProvider(self::usageClient([self::usageFixtureResponse()]), configFixture: 'tests/Config/Fixtures/syncs-claude-hidden-credits.yaml')->fetchUsageGauge();
+
+        self::assertNotNull($gauge);
+        self::assertSame(['5h', '7j', 'fable'], self::rowLabels($gauge->toArray()['rows']));
+    }
+
+    public function testHidingEveryRowLeavesTheGroupPushingNothing(): void
+    {
+        $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
+
+        $gauge = $this->buildProvider(self::usageClient([self::usageFixtureResponse()]), configFixture: 'tests/Config/Fixtures/syncs-claude-all-rows-hidden.yaml')->fetchUsageGauge();
+
+        self::assertNull($gauge);
+    }
+
     private function buildProvider(
         MockHttpClient $usageClient,
         ?MockHttpClient $oauthClient = null,
         ?RecordingLoggerStub $logger = null,
+        string $configFixture = self::CONFIG_FIXTURE,
     ): ClaudeUsageProvider {
         $clock = new MockClock(self::NOW);
         $store = new ClaudeCredentialsStore($this->credentialsFilePath);
@@ -331,7 +351,7 @@ final class ClaudeUsageProviderTest extends TestCase
             $usageClient,
             new ClaudeOAuthClient($oauthClient ?? self::oauthClient([]), $store, $clock, $recordingLogger),
             new ClaudeUsageResponseReader($recordingLogger),
-            SyncsConfigLoaderFactory::forConfigFile(SyncsConfigLoaderFactory::projectFilePath(self::CONFIG_FIXTURE)),
+            SyncsConfigLoaderFactory::forConfigFile(SyncsConfigLoaderFactory::projectFilePath($configFixture)),
             $clock,
             $recordingLogger,
         );

@@ -1,0 +1,7 @@
+# Sample configuration used by ClaudeUsageProviderTest: every row is hidden.
+syncs:
+    claude:
+        enabled: true
+        interval: '15 minutes'
+        staleBehavior: dim
+        hiddenRows: [5h, 7j, fable, credits]

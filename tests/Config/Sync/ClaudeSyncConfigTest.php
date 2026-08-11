@@ -7,6 +7,7 @@ namespace App\Tests\Config\Sync;
 use App\Client\StaleBehavior;
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sync\ClaudeSyncConfig;
+use App\Config\Sync\ClaudeUsageRowLabel;
 use App\Message\SyncClaudeMessage;
 use PHPUnit\Framework\TestCase;
 
@@ -113,5 +114,50 @@ final class ClaudeSyncConfigTest extends TestCase
         $outsideTheWindow = $claudeSync->activityAt(new \DateTimeImmutable('2026-08-03 19:00:00', new \DateTimeZone('Europe/Paris')));
         self::assertFalse($outsideTheWindow->isActive);
         self::assertNull($outsideTheWindow->secondsSinceBecameActive);
+    }
+
+    public function testWithoutHiddenRowsNoRowIsHidden(): void
+    {
+        $claudeSync = ClaudeSyncConfig::fromOptions(self::validOptions());
+
+        self::assertSame([], $claudeSync->hiddenRows);
+    }
+
+    public function testHiddenRowsParsesTheDeclaredLabelsIntoTheirEnumCases(): void
+    {
+        $claudeSync = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), [
+            'hiddenRows' => ['credits', 'fable'],
+        ]));
+
+        self::assertSame([ClaudeUsageRowLabel::Credits, ClaudeUsageRowLabel::Fable], $claudeSync->hiddenRows);
+    }
+
+    public function testAnExplicitlyEmptyHiddenRowsListIsAccepted(): void
+    {
+        $claudeSync = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), [
+            'hiddenRows' => [],
+        ]));
+
+        self::assertSame([], $claudeSync->hiddenRows);
+    }
+
+    public function testAnUnknownHiddenRowNamesItsFullPathWithIndex(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('syncs.claude.hiddenRows[1]');
+
+        ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), [
+            'hiddenRows' => ['credits', 'unknown'],
+        ]));
+    }
+
+    public function testAHiddenRowsValueThatIsNotAListNamesItsFullPath(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('syncs.claude.hiddenRows');
+
+        ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), [
+            'hiddenRows' => 'credits',
+        ]));
     }
 }
