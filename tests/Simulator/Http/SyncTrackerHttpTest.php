@@ -16,13 +16,13 @@ use App\Provider\Tracker\CoinGeckoTrackerProvider;
 use App\Provider\Tracker\TrackerProviderInterface;
 use App\Provider\Tracker\TwelveDataTrackerProvider;
 use App\Simulator\State\PersistedStateReader;
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
-use App\Tracker\AllTimeHighStore;
+use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
-use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -37,22 +37,13 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     private const string BOURSORAMA_DCAM_FIXTURE_FILE = 'boursorama-ticks-dcam.json';
     private const string BOURSORAMA_CW8_FIXTURE_FILE = 'boursorama-ticks-cw8.json';
 
-    private string $temporaryDirectory;
     private string $allTimeHighDatabasePath;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->temporaryDirectory = sys_get_temp_dir().'/pixelcast-sync-tracker-'.bin2hex(random_bytes(6));
-        $this->allTimeHighDatabasePath = $this->temporaryDirectory.'/tracker-all-time-high.sqlite';
-    }
-
-    protected function tearDown(): void
-    {
-        new Filesystem()->remove($this->temporaryDirectory);
-
-        parent::tearDown();
+        $this->allTimeHighDatabasePath = AllTimeHighStoreFactory::temporaryDatabasePath();
     }
 
     public function testTrackersReachTheSimulatorInASingleUpstreamCall(): void
@@ -245,7 +236,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
             $coinGeckoClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast.yaml'),
             CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
-            new AllTimeHighStore($this->allTimeHighDatabasePath, new NullLogger()),
+            AllTimeHighStoreFactory::storeAt($this->allTimeHighDatabasePath),
             new MockClock(),
             new NullLogger(),
         );
@@ -264,9 +255,9 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     private function buildBoursoramaProvider(MockHttpClient $boursoramaClient): BoursoramaTrackerProvider
     {
         return new BoursoramaTrackerProvider(
-            $boursoramaClient,
+            new BoursoramaEndOfDayRequest($boursoramaClient),
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast-boursorama.yaml'),
-            new AllTimeHighStore($this->allTimeHighDatabasePath, new NullLogger()),
+            AllTimeHighStoreFactory::storeAt($this->allTimeHighDatabasePath),
             new MockClock(),
             new NullLogger(),
         );

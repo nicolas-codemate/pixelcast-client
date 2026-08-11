@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Command;
 
 use App\Command\TrackerAllTimeHighCommand;
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingAllTimeHighSourceStub;
-use App\Tests\Stub\RecordingLoggerStub;
 use App\Tracker\AllTimeHigh;
 use App\Tracker\AllTimeHighStore;
 use App\Tracker\History\AllTimeHighSourceInterface;
@@ -15,7 +15,6 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
-use Symfony\Component\Filesystem\Filesystem;
 
 final class TrackerAllTimeHighCommandTest extends TestCase
 {
@@ -27,22 +26,13 @@ final class TrackerAllTimeHighCommandTest extends TestCase
     private const string WORLD_ETF_CODE = '1rTCW8';
     private const string CATCH_UP_INSTANT = '2026-08-11T15:00:00+00:00';
 
-    private string $temporaryDirectory;
     private string $databaseFilePath;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->temporaryDirectory = sys_get_temp_dir().'/pixelcast-tracker-ath-command-'.bin2hex(random_bytes(6));
-        $this->databaseFilePath = $this->temporaryDirectory.'/tracker-all-time-high.sqlite';
-    }
-
-    protected function tearDown(): void
-    {
-        new Filesystem()->remove($this->temporaryDirectory);
-
-        parent::tearDown();
+        $this->databaseFilePath = AllTimeHighStoreFactory::temporaryDatabasePath();
     }
 
     public function testASymbolAndTheAllOptionTogetherAreRefused(): void
@@ -214,7 +204,7 @@ final class TrackerAllTimeHighCommandTest extends TestCase
 
         self::assertSame(Command::SUCCESS, $exitCode);
         self::assertStringContainsString(
-            'twelvedata AAPL (USD): nothing to catch up, this group serves no history and offers no ath bottom line yet',
+            'twelvedata AAPL (USD): nothing to catch up, no source serves the deep history of this group',
             $tester->getDisplay(),
         );
     }
@@ -234,7 +224,7 @@ final class TrackerAllTimeHighCommandTest extends TestCase
     {
         $tester = $this->createTester(
             new RecordingAllTimeHighSourceStub(self::BOURSORAMA, 742.8),
-            databaseFilePath: $this->unwritableDatabasePath(),
+            allTimeHighStore: AllTimeHighStoreFactory::unreachableStore(),
         );
 
         $exitCode = $tester->execute(['symbol' => self::ETF_CODE]);
@@ -294,7 +284,7 @@ final class TrackerAllTimeHighCommandTest extends TestCase
     {
         $tester = $this->createTester(
             new RecordingAllTimeHighSourceStub(self::BOURSORAMA, 742.8),
-            databaseFilePath: $this->unwritableDatabasePath(),
+            allTimeHighStore: AllTimeHighStoreFactory::unreachableStore(),
         );
 
         $exitCode = $tester->execute(['symbol' => self::ETF_CODE, '--reset' => true]);
@@ -306,19 +296,19 @@ final class TrackerAllTimeHighCommandTest extends TestCase
     private function createTester(
         AllTimeHighSourceInterface $allTimeHighSource,
         string $configFileName = self::CATCH_UP_CONFIG_FILE,
-        ?string $databaseFilePath = null,
+        ?AllTimeHighStore $allTimeHighStore = null,
     ): CommandTester {
         return new CommandTester(new TrackerAllTimeHighCommand(
             [$allTimeHighSource],
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
-            $this->createStore($databaseFilePath),
+            $allTimeHighStore ?? $this->createStore(),
             new MockClock(new \DateTimeImmutable(self::CATCH_UP_INSTANT)),
         ));
     }
 
-    private function createStore(?string $databaseFilePath = null): AllTimeHighStore
+    private function createStore(): AllTimeHighStore
     {
-        return new AllTimeHighStore($databaseFilePath ?? $this->databaseFilePath, new RecordingLoggerStub());
+        return AllTimeHighStoreFactory::storeAt($this->databaseFilePath);
     }
 
     private function storeHigh(string $symbol, string $currency, float $price): void
@@ -336,16 +326,5 @@ final class TrackerAllTimeHighCommandTest extends TestCase
     private function readStoredHigh(string $symbol, string $currency): ?AllTimeHigh
     {
         return $this->createStore()->readAllTimeHigh(self::BOURSORAMA, $symbol, $currency);
-    }
-
-    /**
-     * A regular file cannot hold a directory, so neither the parent nor the database can be created.
-     */
-    private function unwritableDatabasePath(): string
-    {
-        $blockingFile = $this->temporaryDirectory.'/not-a-directory';
-        new Filesystem()->dumpFile($blockingFile, '');
-
-        return $blockingFile.'/tracker-all-time-high.sqlite';
     }
 }

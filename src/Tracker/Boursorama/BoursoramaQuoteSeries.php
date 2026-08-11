@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tracker\History;
+namespace App\Tracker\Boursorama;
 
 use App\Tracker\AllTimeHigh;
 
@@ -42,8 +42,7 @@ final class BoursoramaQuoteSeries
         string $currency,
         \DateTimeImmutable $observedAt,
     ): ?AllTimeHigh {
-        $highestPrice = null;
-        $highestBar = null;
+        $allTimeHigh = null;
 
         foreach ($quoteBars as $quoteBar) {
             if (!\is_array($quoteBar)) {
@@ -55,26 +54,21 @@ final class BoursoramaQuoteSeries
                 continue;
             }
 
-            if (null !== $highestPrice && $sessionHigh <= $highestPrice) {
+            if (null !== $allTimeHigh && $sessionHigh <= $allTimeHigh->price) {
                 continue;
             }
 
-            $highestPrice = $sessionHigh;
-            $highestBar = $quoteBar;
+            $allTimeHigh = new AllTimeHigh(
+                $syncType,
+                $symbol,
+                $currency,
+                $sessionHigh,
+                reachedAt: self::readDayOf($quoteBar),
+                observedAt: $observedAt,
+            );
         }
 
-        if (null === $highestPrice || null === $highestBar) {
-            return null;
-        }
-
-        return new AllTimeHigh(
-            $syncType,
-            $symbol,
-            $currency,
-            $highestPrice,
-            reachedAt: self::readDayOf($highestBar),
-            observedAt: $observedAt,
-        );
+        return $allTimeHigh;
     }
 
     /**

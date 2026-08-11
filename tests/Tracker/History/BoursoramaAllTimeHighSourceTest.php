@@ -9,6 +9,7 @@ use App\Config\Sync\StaleDeclaration;
 use App\Config\Sync\SyncInterval;
 use App\Config\Sync\TrackerItem;
 use App\Tests\Stub\RecordingLoggerStub;
+use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
 use App\Tracker\History\BoursoramaAllTimeHighSource;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -156,7 +157,7 @@ final class BoursoramaAllTimeHighSourceTest extends TestCase
 
     private static function buildSource(MockHttpClient $httpClient, ?LoggerInterface $logger = null): BoursoramaAllTimeHighSource
     {
-        return new BoursoramaAllTimeHighSource($httpClient, $logger ?? new NullLogger());
+        return new BoursoramaAllTimeHighSource(new BoursoramaEndOfDayRequest($httpClient), $logger ?? new NullLogger());
     }
 
     private static function trackedItem(string $boursoramaCode = self::CW8_CODE, string $currency = 'eur'): TrackerItem

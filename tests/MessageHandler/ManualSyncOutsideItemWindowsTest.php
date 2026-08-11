@@ -11,14 +11,14 @@ use App\Message\SyncOutcome;
 use App\Message\SyncTrackerMessage;
 use App\MessageHandler\SyncTrackerHandler;
 use App\Provider\Tracker\BoursoramaTrackerProvider;
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingPixelcastClientStub;
-use App\Tracker\AllTimeHighStore;
+use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
-use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -35,22 +35,6 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
     private const string MARKET_TIMEZONE = 'Europe/Paris';
     private const string INSTANT_AFTER_EVERY_CLOSING = '2026-08-03 23:00:00';
     private const string INSTANT_BEFORE_THE_AMERICAN_OPENING = '2026-08-03 10:00:00';
-
-    private string $temporaryDirectory;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->temporaryDirectory = sys_get_temp_dir().'/pixelcast-manual-sync-'.bin2hex(random_bytes(6));
-    }
-
-    protected function tearDown(): void
-    {
-        new Filesystem()->remove($this->temporaryDirectory);
-
-        parent::tearDown();
-    }
 
     public function testACycleDispatchedByHandPushesEveryItemWhateverItsOwnWindow(): void
     {
@@ -109,9 +93,9 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
     ): SyncTrackerHandler {
         $clock = new MockClock($instant, self::MARKET_TIMEZONE);
         $trackerProvider = new BoursoramaTrackerProvider(
-            $boursoramaClient,
+            new BoursoramaEndOfDayRequest($boursoramaClient),
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.self::TWO_MARKETS_CONFIG_FILE),
-            new AllTimeHighStore($this->temporaryDirectory.'/tracker-all-time-high.sqlite', new NullLogger()),
+            AllTimeHighStoreFactory::temporaryStore(),
             $clock,
             new NullLogger(),
         );

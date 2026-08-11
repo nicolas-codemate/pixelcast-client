@@ -71,7 +71,7 @@ final class AllTimeHighStore
         $storedCurrency = self::normaliseCurrency($currency);
 
         try {
-            return $this->selectAllTimeHigh($this->connect(), $syncType, $symbol, $storedCurrency);
+            return $this->selectAllTimeHigh($syncType, $symbol, $storedCurrency);
         } catch (\PDOException $storageError) {
             $this->logAccessFailureOncePerProcess($storageError);
 
@@ -89,9 +89,7 @@ final class AllTimeHighStore
         $storedCurrency = self::normaliseCurrency($allTimeHigh->currency);
 
         try {
-            $connection = $this->connect();
-
-            $raise = $connection->prepare(self::RAISE_STATEMENT);
+            $raise = $this->connect()->prepare(self::RAISE_STATEMENT);
             $raise->execute([
                 'sync_type' => $allTimeHigh->syncType,
                 'symbol' => $allTimeHigh->symbol,
@@ -101,7 +99,7 @@ final class AllTimeHighStore
                 'observed_at' => $allTimeHigh->observedAt->format(\DateTimeInterface::RFC3339),
             ]);
 
-            return $this->selectAllTimeHigh($connection, $allTimeHigh->syncType, $allTimeHigh->symbol, $storedCurrency);
+            return $this->selectAllTimeHigh($allTimeHigh->syncType, $allTimeHigh->symbol, $storedCurrency);
         } catch (\PDOException $storageError) {
             $this->logAccessFailureOncePerProcess($storageError);
 
@@ -132,9 +130,9 @@ final class AllTimeHighStore
         }
     }
 
-    private function selectAllTimeHigh(\PDO $connection, string $syncType, string $symbol, string $storedCurrency): ?AllTimeHigh
+    private function selectAllTimeHigh(string $syncType, string $symbol, string $storedCurrency): ?AllTimeHigh
     {
-        $select = $connection->prepare(self::SELECT_STATEMENT);
+        $select = $this->connect()->prepare(self::SELECT_STATEMENT);
         $select->execute([
             'sync_type' => $syncType,
             'symbol' => $symbol,

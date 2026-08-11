@@ -7,16 +7,17 @@ namespace App\Tests\Provider\Tracker;
 use App\Client\StaleBehavior;
 use App\Config\Sync\BoursoramaSyncConfig;
 use App\Provider\Tracker\BoursoramaTrackerProvider;
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
 use App\Tracker\AllTimeHigh;
 use App\Tracker\AllTimeHighStore;
+use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
-use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -34,24 +35,6 @@ final class BoursoramaTrackerProviderTest extends TestCase
     private const string INSTANT_BEFORE_THE_AMERICAN_OPENING = '2026-08-03 10:00:00';
     private const string DCAM_CODE = '1rTDCAM';
     private const string CW8_CODE = '1rTCW8';
-
-    private string $temporaryDirectory;
-    private string $databaseFilePath;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->temporaryDirectory = sys_get_temp_dir().'/pixelcast-boursorama-tracker-'.bin2hex(random_bytes(6));
-        $this->databaseFilePath = $this->temporaryDirectory.'/tracker-all-time-high.sqlite';
-    }
-
-    protected function tearDown(): void
-    {
-        new Filesystem()->remove($this->temporaryDirectory);
-
-        parent::tearDown();
-    }
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
@@ -277,7 +260,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
 
     public function testTheHighestBarPriceRaisesTheStoredAllTimeHigh(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
 
         $this->fetchWithStore($allTimeHighStore, self::TWO_ITEMS_CONFIG_FILE, 'boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
 
@@ -287,7 +270,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
 
     public function testABarHighAboveEveryCloseIsWhatRaisesTheStoredAllTimeHigh(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
         $highestClosingPriceOfTheCw8Series = 520.0;
 
         $this->fetchWithStore($allTimeHighStore, self::TWO_ITEMS_CONFIG_FILE, 'boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
@@ -297,7 +280,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
 
     public function testTheStoredHighCarriesTheDayOfItsBarRatherThanTheSyncInstant(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
 
         $this->fetchWithStore($allTimeHighStore, self::TWO_ITEMS_CONFIG_FILE, 'boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
 
@@ -307,7 +290,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
 
     public function testABarWithoutAHighFallsBackOnItsClose(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
 
         $this->fetchWithStore($allTimeHighStore, self::PLAIN_CODE_CONFIG_FILE, 'boursorama-ticks-missing-high.json');
 
@@ -318,7 +301,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
 
     public function testABarSeriesBelowTheStoredAllTimeHighDoesNotLowerIt(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
         $priceSeenOnAnEarlierCycle = 10.0;
         $allTimeHighStore->raiseTo(self::observedHigh(self::DCAM_CODE, $priceSeenOnAnEarlierCycle));
 
@@ -355,7 +338,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
     {
         $logger = new RecordingLoggerStub();
 
-        $trackerPayloads = $this->buildBottomLineProvider($this->buildUnreachableAllTimeHighStore($logger))->fetchTrackers(self::insideEveryWindow());
+        $trackerPayloads = $this->buildBottomLineProvider(AllTimeHighStoreFactory::unreachableStore($logger))->fetchTrackers(self::insideEveryWindow());
 
         self::assertCount(2, $trackerPayloads);
         self::assertNull($trackerPayloads[0]->bottomText);
@@ -395,22 +378,6 @@ final class BoursoramaTrackerProviderTest extends TestCase
         );
     }
 
-    private function buildAllTimeHighStore(?LoggerInterface $logger = null): AllTimeHighStore
-    {
-        return new AllTimeHighStore($this->databaseFilePath, $logger ?? new NullLogger());
-    }
-
-    /**
-     * A regular file cannot hold a directory, so neither the parent nor the database can be created.
-     */
-    private function buildUnreachableAllTimeHighStore(LoggerInterface $logger): AllTimeHighStore
-    {
-        $blockingFile = $this->temporaryDirectory.'/not-a-directory';
-        new Filesystem()->dumpFile($blockingFile, '');
-
-        return new AllTimeHighStore($blockingFile.'/tracker-all-time-high.sqlite', $logger);
-    }
-
     private function buildProvider(
         MockHttpClient $httpClient,
         ?LoggerInterface $logger = null,
@@ -418,9 +385,9 @@ final class BoursoramaTrackerProviderTest extends TestCase
         ?AllTimeHighStore $allTimeHighStore = null,
     ): BoursoramaTrackerProvider {
         return new BoursoramaTrackerProvider(
-            $httpClient,
+            new BoursoramaEndOfDayRequest($httpClient),
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
-            $allTimeHighStore ?? $this->buildAllTimeHighStore(),
+            $allTimeHighStore ?? AllTimeHighStoreFactory::temporaryStore(),
             new MockClock(self::INSTANT_INSIDE_EVERY_WINDOW),
             $logger ?? new NullLogger(),
         );

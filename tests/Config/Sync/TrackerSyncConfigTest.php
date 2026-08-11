@@ -98,47 +98,53 @@ final class TrackerSyncConfigTest extends TestCase
         self::assertNull($trackerSync->items[1]->bottomLine);
     }
 
-    public function testTheCoinGeckoGroupReadsBothBottomLineCases(): void
+    /**
+     * @return iterable<string, array{class-string<TrackerSyncConfig>, BottomLine}>
+     */
+    public static function provideAcceptedBottomLines(): iterable
     {
-        $withTheAllTimeHigh = CoinGeckoSyncConfig::fromOptions(self::optionsWithBottomLine('ath'));
-        $withTheTradedVolume = CoinGeckoSyncConfig::fromOptions(self::optionsWithBottomLine('volume'));
-
-        self::assertSame(BottomLine::AllTimeHigh, $withTheAllTimeHigh->items[0]->bottomLine);
-        self::assertSame(BottomLine::TradedVolume, $withTheTradedVolume->items[0]->bottomLine);
-    }
-
-    public function testTheBoursoramaGroupReadsTheAllTimeHighBottomLine(): void
-    {
-        $boursoramaSync = BoursoramaSyncConfig::fromOptions(self::optionsWithBottomLine('ath'));
-
-        self::assertSame(BottomLine::AllTimeHigh, $boursoramaSync->items[0]->bottomLine);
-    }
-
-    public function testTheBoursoramaGroupRefusesTheTradedVolumeBottomLine(): void
-    {
-        $this->expectException(PixelCastConfigException::class);
-        $this->expectExceptionMessage('syncs.boursorama.items[0].bottomLine');
-
-        BoursoramaSyncConfig::fromOptions(self::optionsWithBottomLine('volume'));
-    }
-
-    #[DataProvider('provideBottomLineCases')]
-    public function testTheTwelveDataGroupRefusesEveryBottomLine(BottomLine $bottomLine): void
-    {
-        $this->expectException(PixelCastConfigException::class);
-        $this->expectExceptionMessage('syncs.twelvedata.items[0].bottomLine');
-
-        TwelveDataSyncConfig::fromOptions(self::optionsWithBottomLine($bottomLine->value));
+        foreach (self::provideTrackerSyncGroups() as [$syncGroupClass, $syncType]) {
+            foreach ($syncGroupClass::acceptedBottomLines() as $bottomLine) {
+                yield $syncType.' '.$bottomLine->value => [$syncGroupClass, $bottomLine];
+            }
+        }
     }
 
     /**
-     * @return iterable<string, array{BottomLine}>
+     * @return iterable<string, array{class-string<TrackerSyncConfig>, string, BottomLine}>
      */
-    public static function provideBottomLineCases(): iterable
+    public static function provideRefusedBottomLines(): iterable
     {
-        foreach (BottomLine::cases() as $bottomLine) {
-            yield $bottomLine->value => [$bottomLine];
+        foreach (self::provideTrackerSyncGroups() as [$syncGroupClass, $syncType]) {
+            foreach (BottomLine::cases() as $bottomLine) {
+                if (!\in_array($bottomLine, $syncGroupClass::acceptedBottomLines(), true)) {
+                    yield $syncType.' '.$bottomLine->value => [$syncGroupClass, $syncType, $bottomLine];
+                }
+            }
         }
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideAcceptedBottomLines')]
+    public function testAGroupReadsEveryBottomLineItAccepts(string $syncGroupClass, BottomLine $bottomLine): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::optionsWithBottomLine($bottomLine->value));
+
+        self::assertSame($bottomLine, $trackerSync->items[0]->bottomLine);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideRefusedBottomLines')]
+    public function testAGroupNamesTheOptionOfEveryBottomLineItRefuses(string $syncGroupClass, string $expectedSyncType, BottomLine $bottomLine): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage(\sprintf('syncs.%s.items[0].bottomLine', $expectedSyncType));
+
+        $syncGroupClass::fromOptions(self::optionsWithBottomLine($bottomLine->value));
     }
 
     /**

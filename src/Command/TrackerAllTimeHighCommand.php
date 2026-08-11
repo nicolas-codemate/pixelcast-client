@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Config\Sync\CoinGeckoSyncConfig;
-use App\Config\Sync\TrackerItem;
-use App\Config\Sync\TwelveDataSyncConfig;
 use App\Config\SyncsConfigLoader;
 use App\Tracker\AllTimeHigh;
 use App\Tracker\AllTimeHighStore;
 use App\Tracker\History\AllTimeHighSourceInterface;
+use App\Tracker\TrackedAsset;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -75,7 +74,11 @@ final class TrackerAllTimeHighCommand extends Command
             return Command::INVALID;
         }
 
-        if (null !== $requestedSymbol && [] === self::assetsCarrying($trackedAssets, $requestedSymbol)) {
+        $assetsCarryingTheRequestedSymbol = null === $requestedSymbol
+            ? []
+            : self::assetsCarrying($trackedAssets, $requestedSymbol);
+
+        if (null !== $requestedSymbol && [] === $assetsCarryingTheRequestedSymbol) {
             $io->error(\sprintf(
                 'Unknown symbol "%s". Configured: %s.',
                 $requestedSymbol,
@@ -100,7 +103,7 @@ final class TrackerAllTimeHighCommand extends Command
         if ($catchUpEveryAsset) {
             $assetsToProcess = $trackedAssets;
         } elseif (null !== $requestedSymbol) {
-            $assetsToProcess = self::assetsCarrying($trackedAssets, $requestedSymbol);
+            $assetsToProcess = $assetsCarryingTheRequestedSymbol;
         } else {
             /** @var string $chosenAssetLabel */
             $chosenAssetLabel = $io->choice('Which tracked asset do you want to catch up?', array_keys($trackedAssets));
@@ -110,13 +113,13 @@ final class TrackerAllTimeHighCommand extends Command
         $observedAt = $this->clock->now();
         $assetsThatFailed = [];
 
-        foreach ($assetsToProcess as $assetLabel => $trackedAsset) {
+        foreach ($assetsToProcess as $trackedAsset) {
             $assetWasProcessed = $forgetInsteadOfFetching
-                ? $this->forgetAndReport($io, $assetLabel, $trackedAsset['syncType'], $trackedAsset['item'])
-                : $this->catchUpAndReport($io, $assetLabel, $trackedAsset['syncType'], $trackedAsset['item'], $observedAt);
+                ? $this->forgetAndReport($io, $trackedAsset)
+                : $this->catchUpAndReport($io, $trackedAsset, $observedAt);
 
             if (!$assetWasProcessed) {
-                $assetsThatFailed[] = $assetLabel;
+                $assetsThatFailed[] = $trackedAsset->label;
             }
         }
 
@@ -133,34 +136,40 @@ final class TrackerAllTimeHighCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function catchUpAndReport(SymfonyStyle $io, string $assetLabel, string $syncType, TrackerItem $item, \DateTimeImmutable $observedAt): bool
+    private function catchUpAndReport(SymfonyStyle $io, TrackedAsset $trackedAsset, \DateTimeImmutable $observedAt): bool
     {
-        $source = $this->sourceServing($syncType);
+        $item = $trackedAsset->item;
+
+        $source = $this->sourceServing($trackedAsset->syncType);
         if (null === $source) {
-            $io->writeln(\sprintf('  %s: nothing to catch up, %s', $assetLabel, self::whyThisGroupHasNoSource($syncType)));
+            $io->writeln(\sprintf(
+                '  %s: nothing to catch up, %s',
+                $trackedAsset->label,
+                self::whyThisGroupHasNoSource($trackedAsset->syncType),
+            ));
 
             return true;
         }
 
-        $storedHigh = $this->allTimeHighStore->readAllTimeHigh($syncType, $item->symbol, $item->currency);
+        $storedHigh = $this->allTimeHighStore->readAllTimeHigh($trackedAsset->syncType, $item->symbol, $item->currency);
 
         $fetchedHigh = $source->fetchAllTimeHigh($item, $observedAt);
         if (null === $fetchedHigh) {
-            $io->writeln(\sprintf('  %s: the source served no all-time high, see the logs', $assetLabel));
+            $io->writeln(\sprintf('  %s: the source served no all-time high, see the logs', $trackedAsset->label));
 
             return false;
         }
 
         $resultingHigh = $this->allTimeHighStore->raiseTo($fetchedHigh);
         if (null === $resultingHigh) {
-            $io->writeln(\sprintf('  %s: the fetched all-time high could not be written, see the logs', $assetLabel));
+            $io->writeln(\sprintf('  %s: the fetched all-time high could not be written, see the logs', $trackedAsset->label));
 
             return false;
         }
 
         $io->writeln(\sprintf(
             '  %s: was %s, fetched %s, now %s',
-            $assetLabel,
+            $trackedAsset->label,
             self::describeHigh($storedHigh),
             self::describeHigh($fetchedHigh),
             self::describeHigh($resultingHigh),
@@ -169,19 +178,21 @@ final class TrackerAllTimeHighCommand extends Command
         return true;
     }
 
-    private function forgetAndReport(SymfonyStyle $io, string $assetLabel, string $syncType, TrackerItem $item): bool
+    private function forgetAndReport(SymfonyStyle $io, TrackedAsset $trackedAsset): bool
     {
-        $storedHigh = $this->allTimeHighStore->readAllTimeHigh($syncType, $item->symbol, $item->currency);
+        $item = $trackedAsset->item;
 
-        if (!$this->allTimeHighStore->forget($syncType, $item->symbol, $item->currency)) {
-            $io->writeln(\sprintf('  %s: the stored all-time high could not be forgotten, see the logs', $assetLabel));
+        $storedHigh = $this->allTimeHighStore->readAllTimeHigh($trackedAsset->syncType, $item->symbol, $item->currency);
+
+        if (!$this->allTimeHighStore->forget($trackedAsset->syncType, $item->symbol, $item->currency)) {
+            $io->writeln(\sprintf('  %s: the stored all-time high could not be forgotten, see the logs', $trackedAsset->label));
 
             return false;
         }
 
         $io->writeln(\sprintf(
             '  %s: %s',
-            $assetLabel,
+            $trackedAsset->label,
             null === $storedHigh ? 'nothing was stored' : 'forgotten, was '.self::describeHigh($storedHigh),
         ));
 
@@ -189,7 +200,7 @@ final class TrackerAllTimeHighCommand extends Command
     }
 
     /**
-     * @return array<string, array{syncType: string, item: TrackerItem}> keyed by the label that names an item, e.g. coingecko bitcoin (EUR)
+     * @return array<string, TrackedAsset> keyed by the label that names an asset, e.g. coingecko bitcoin (EUR)
      */
     private function trackedAssets(): array
     {
@@ -197,7 +208,8 @@ final class TrackerAllTimeHighCommand extends Command
 
         foreach ($this->configLoader->load()->trackerSyncGroups() as $syncType => $trackerSyncGroup) {
             foreach ($trackerSyncGroup->items as $item) {
-                $trackedAssets[self::labelOf($syncType, $item)] = ['syncType' => $syncType, 'item' => $item];
+                $trackedAsset = new TrackedAsset($syncType, $item);
+                $trackedAssets[$trackedAsset->label] = $trackedAsset;
             }
         }
 
@@ -216,47 +228,35 @@ final class TrackerAllTimeHighCommand extends Command
     }
 
     /**
-     * A symbol alone does not name an item, since the same asset can be tracked in two currencies.
-     */
-    private static function labelOf(string $syncType, TrackerItem $item): string
-    {
-        return \sprintf('%s %s (%s)', $syncType, $item->symbol, mb_strtoupper($item->currency));
-    }
-
-    /**
-     * @param array<string, array{syncType: string, item: TrackerItem}> $trackedAssets
+     * @param array<string, TrackedAsset> $trackedAssets
      *
-     * @return array<string, array{syncType: string, item: TrackerItem}>
+     * @return array<string, TrackedAsset>
      */
     private static function assetsCarrying(array $trackedAssets, string $symbol): array
     {
         return array_filter(
             $trackedAssets,
-            static fn (array $trackedAsset): bool => $trackedAsset['item']->symbol === $symbol,
+            static fn (TrackedAsset $trackedAsset): bool => $trackedAsset->item->symbol === $symbol,
         );
     }
 
     /**
-     * @param array<string, array{syncType: string, item: TrackerItem}> $trackedAssets
+     * @param array<string, TrackedAsset> $trackedAssets
      *
      * @return list<string>
      */
     private static function configuredSymbols(array $trackedAssets): array
     {
-        $symbols = [];
-
-        foreach ($trackedAssets as $trackedAsset) {
-            $symbols[] = $trackedAsset['item']->symbol;
-        }
-
-        return array_values(array_unique($symbols));
+        return array_values(array_unique(array_map(
+            static fn (TrackedAsset $trackedAsset): string => $trackedAsset->item->symbol,
+            $trackedAssets,
+        )));
     }
 
     private static function whyThisGroupHasNoSource(string $syncType): string
     {
         return match ($syncType) {
             CoinGeckoSyncConfig::syncType() => 'this group serves its own all-time high on every sync',
-            TwelveDataSyncConfig::syncType() => 'this group serves no history and offers no ath bottom line yet',
             default => 'no source serves the deep history of this group',
         };
     }

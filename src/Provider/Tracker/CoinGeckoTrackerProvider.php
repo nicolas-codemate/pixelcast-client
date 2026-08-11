@@ -217,24 +217,25 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
     }
 
     /**
-     * The source knows the history from before this client was installed but publishes it with a
-     * delay, hence this order: the current price comes last so that a high seen between two
-     * responses survives the next one.
+     * The store keeps the maximum, so one write is enough: of the high the source serves, which
+     * predates this client, and the current price, which the source publishes with a delay, only
+     * the higher one can raise the record. A tie keeps the record of the source, which is the one
+     * that knows the day the price was reached.
      *
      * @param array<string, mixed> $market
      */
     private function raiseStoredAllTimeHigh(TrackerItem $item, array $market, float $currentPrice): ?AllTimeHigh
     {
         $observedAt = $this->clock->now();
-
         $priceServedBySource = self::readNumber($market, 'ath');
-        if (null !== $priceServedBySource && $priceServedBySource > 0.0) {
-            $this->allTimeHighStore->raiseTo(new AllTimeHigh(
+
+        if (null === $priceServedBySource || $priceServedBySource <= 0.0 || $currentPrice > $priceServedBySource) {
+            return $this->allTimeHighStore->raiseTo(new AllTimeHigh(
                 $this->syncType(),
                 $item->symbol,
                 $item->currency,
-                $priceServedBySource,
-                reachedAt: self::readInstant($market, 'ath_date'),
+                $currentPrice,
+                reachedAt: $observedAt,
                 observedAt: $observedAt,
             ));
         }
@@ -243,8 +244,8 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
             $this->syncType(),
             $item->symbol,
             $item->currency,
-            $currentPrice,
-            reachedAt: $observedAt,
+            $priceServedBySource,
+            reachedAt: self::readInstant($market, 'ath_date'),
             observedAt: $observedAt,
         ));
     }

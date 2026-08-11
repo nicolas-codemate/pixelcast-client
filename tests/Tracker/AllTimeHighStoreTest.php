@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Tracker;
 
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Stub\RecordingLoggerStub;
 use App\Tracker\AllTimeHigh;
 use App\Tracker\AllTimeHighStore;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LogLevel;
-use Symfony\Component\Filesystem\Filesystem;
 
 final class AllTimeHighStoreTest extends TestCase
 {
@@ -19,7 +19,6 @@ final class AllTimeHighStoreTest extends TestCase
     private const string FIRST_SYNC = '2026-08-11T10:00:00+00:00';
     private const string SECOND_SYNC = '2026-08-11T10:05:00+00:00';
 
-    private string $temporaryDirectory;
     private string $databaseFilePath;
     private RecordingLoggerStub $logger;
 
@@ -27,16 +26,8 @@ final class AllTimeHighStoreTest extends TestCase
     {
         parent::setUp();
 
-        $this->temporaryDirectory = sys_get_temp_dir().'/pixelcast-tracker-ath-'.bin2hex(random_bytes(6));
-        $this->databaseFilePath = $this->temporaryDirectory.'/tracker-all-time-high.sqlite';
+        $this->databaseFilePath = AllTimeHighStoreFactory::temporaryDatabasePath();
         $this->logger = new RecordingLoggerStub();
-    }
-
-    protected function tearDown(): void
-    {
-        new Filesystem()->remove($this->temporaryDirectory);
-
-        parent::tearDown();
     }
 
     public function testAnUnknownAssetHasNoStoredAllTimeHigh(): void
@@ -169,24 +160,15 @@ final class AllTimeHighStoreTest extends TestCase
     public function testNoDatabaseFileIsCreatedBeforeTheFirstUse(): void
     {
         $store = $this->createStore();
-        self::assertDirectoryDoesNotExist($this->temporaryDirectory);
+        self::assertDirectoryDoesNotExist(\dirname($this->databaseFilePath));
 
         self::assertNull($store->readAllTimeHigh(self::COINGECKO, self::BITCOIN, 'EUR'));
         self::assertFileExists($this->databaseFilePath);
     }
 
-    public function testAnUnwritableDatabasePathReadsAsNoAllTimeHighAndLogsAWarning(): void
+    public function testAnUnreachableDatabaseReadsAsNoAllTimeHighAndIsReportedOncePerProcess(): void
     {
-        $store = $this->createStore($this->unwritableDatabasePath());
-
-        self::assertNull($store->readAllTimeHigh(self::COINGECKO, self::BITCOIN, 'EUR'));
-        self::assertCount(1, $this->logger->records);
-        self::assertSame(LogLevel::WARNING, $this->logger->records[0]['level'] ?? null);
-    }
-
-    public function testAnUnreachableDatabaseIsReportedOncePerProcess(): void
-    {
-        $store = $this->createStore($this->unwritableDatabasePath());
+        $store = AllTimeHighStoreFactory::unreachableStore($this->logger);
 
         self::assertNull($store->readAllTimeHigh(self::COINGECKO, self::BITCOIN, 'EUR'));
         self::assertNull($store->raiseTo($this->highOf(self::COINGECKO, self::BITCOIN, 'EUR', 108400.0)));
@@ -194,22 +176,12 @@ final class AllTimeHighStoreTest extends TestCase
         self::assertNull($store->readAllTimeHigh(self::COINGECKO, self::BITCOIN, 'EUR'));
 
         self::assertCount(1, $this->logger->records);
+        self::assertSame(LogLevel::WARNING, $this->logger->records[0]['level'] ?? null);
     }
 
-    private function createStore(?string $databaseFilePath = null): AllTimeHighStore
+    private function createStore(): AllTimeHighStore
     {
-        return new AllTimeHighStore($databaseFilePath ?? $this->databaseFilePath, $this->logger);
-    }
-
-    /**
-     * A regular file cannot hold a directory, so neither the parent nor the database can be created.
-     */
-    private function unwritableDatabasePath(): string
-    {
-        $blockingFile = $this->temporaryDirectory.'/not-a-directory';
-        new Filesystem()->dumpFile($blockingFile, '');
-
-        return $blockingFile.'/tracker-all-time-high.sqlite';
+        return AllTimeHighStoreFactory::storeAt($this->databaseFilePath, $this->logger);
     }
 
     private function highOf(

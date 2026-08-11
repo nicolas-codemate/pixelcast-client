@@ -8,6 +8,7 @@ use App\Client\Tracker\TrackerPayload;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Provider\Tracker\CoinGeckoMidnightPriceProvider;
 use App\Provider\Tracker\CoinGeckoTrackerProvider;
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
@@ -18,7 +19,6 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
-use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -32,24 +32,6 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     private const string BOTTOM_LINE_CONFIG_FILE = 'pixelcast-coingecko-bottom-line.yaml';
     private const string SYNC_INSTANT = '2026-08-03 16:00:00';
     private const string BITCOIN_ALL_TIME_HIGH_DATE = '2025-10-06T10:57:42+00:00';
-
-    private string $temporaryDirectory;
-    private string $databaseFilePath;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->temporaryDirectory = sys_get_temp_dir().'/pixelcast-coingecko-tracker-'.bin2hex(random_bytes(6));
-        $this->databaseFilePath = $this->temporaryDirectory.'/tracker-all-time-high.sqlite';
-    }
-
-    protected function tearDown(): void
-    {
-        new Filesystem()->remove($this->temporaryDirectory);
-
-        parent::tearDown();
-    }
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
@@ -282,7 +264,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
 
     public function testTheAllTimeHighServedByTheSourceIsStored(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
 
         $this->fetchWithStore($allTimeHighStore, 'coingecko-markets.json');
 
@@ -292,7 +274,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
 
     public function testTheAllTimeHighServedByTheSourceKeepsTheDateItWasReachedOn(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
 
         $this->fetchWithStore($allTimeHighStore, 'coingecko-markets.json');
 
@@ -302,7 +284,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
 
     public function testAnAllTimeHighServedByTheSourceBelowTheStoredOneDoesNotLowerIt(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
         $priceSeenOnAnEarlierCycle = 108400.0;
         $allTimeHighStore->raiseTo(self::observedHigh('bitcoin', $priceSeenOnAnEarlierCycle));
 
@@ -313,7 +295,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
 
     public function testAMarketWithoutAnAthFieldStoresTheCurrentPriceAsTheHighestKnown(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
 
         $this->fetchWithStore($allTimeHighStore, 'coingecko-markets-hourly-week.json');
 
@@ -324,7 +306,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
 
     public function testAMalformedAllTimeHighDateStoresTheHighWithoutADateReached(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
 
         $this->fetchWithStore($allTimeHighStore, 'coingecko-markets-malformed.json');
 
@@ -335,7 +317,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
 
     public function testAPriceAboveTheStoredAllTimeHighRaisesIt(): void
     {
-        $allTimeHighStore = $this->buildAllTimeHighStore();
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
         $allTimeHighStore->raiseTo(self::observedHigh('bitcoin', 40000.0));
 
         $this->fetchWithStore($allTimeHighStore, 'coingecko-markets-hourly-week.json');
@@ -369,7 +351,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     {
         $logger = new RecordingLoggerStub();
 
-        $trackerPayloads = $this->buildBottomLineProvider($this->buildUnreachableAllTimeHighStore($logger))->fetchTrackers(self::syncInstant());
+        $trackerPayloads = $this->buildBottomLineProvider(AllTimeHighStoreFactory::unreachableStore($logger))->fetchTrackers(self::syncInstant());
 
         self::assertCount(4, $trackerPayloads);
         self::assertNull($trackerPayloads[0]->bottomText);
@@ -415,27 +397,11 @@ final class CoinGeckoTrackerProviderTest extends TestCase
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
             $midnightPriceProvider ?? CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
-            $allTimeHighStore ?? $this->buildAllTimeHighStore(),
+            $allTimeHighStore ?? AllTimeHighStoreFactory::temporaryStore(),
             new MockClock(self::SYNC_INSTANT),
             $logger ?? new NullLogger(),
             $apiKey,
         );
-    }
-
-    private function buildAllTimeHighStore(?LoggerInterface $logger = null): AllTimeHighStore
-    {
-        return new AllTimeHighStore($this->databaseFilePath, $logger ?? new NullLogger());
-    }
-
-    /**
-     * A regular file cannot hold a directory, so neither the parent nor the database can be created.
-     */
-    private function buildUnreachableAllTimeHighStore(LoggerInterface $logger): AllTimeHighStore
-    {
-        $blockingFile = $this->temporaryDirectory.'/not-a-directory';
-        new Filesystem()->dumpFile($blockingFile, '');
-
-        return new AllTimeHighStore($blockingFile.'/tracker-all-time-high.sqlite', $logger);
     }
 
     private function buildBottomLineProvider(?AllTimeHighStore $allTimeHighStore = null): CoinGeckoTrackerProvider
