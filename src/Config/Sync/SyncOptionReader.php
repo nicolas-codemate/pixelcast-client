@@ -100,6 +100,18 @@ final class SyncOptionReader
     /**
      * @param array<string, mixed> $options
      */
+    public static function optionalBool(array $options, string $key, string $parentPath): ?bool
+    {
+        if (!self::isDeclared($options, $key)) {
+            return null;
+        }
+
+        return self::requireBool($options, $key, $parentPath);
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
     public static function optionalInt(array $options, string $key, string $parentPath, int $minimum, int $maximum): ?int
     {
         if (!self::isDeclared($options, $key)) {

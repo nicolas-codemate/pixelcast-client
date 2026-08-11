@@ -28,6 +28,7 @@ final class TrackerPayloadTest extends TestCase
             currentValue: 98452.30,
             changePercentage: 2.14,
             sparklinePoints: [92100.0, 89300.0, 93200.0],
+            volumePoints: [3.2, 4.1, 3.8],
             symbolColor: Color::fromHexCode('#FF8800'),
             sparklineColor: Color::fromHexCode('#00D4FF'),
             sparklinePeriod: '7d',
@@ -45,6 +46,7 @@ final class TrackerPayloadTest extends TestCase
                 'value' => 98452.30,
                 'change' => 2.14,
                 'sparkline' => [92100.0, 89300.0, 93200.0],
+                'volumes' => [3.2, 4.1, 3.8],
                 'symbolColor' => '#FF8800',
                 'sparklineColor' => '#00D4FF',
                 'sparklinePeriod' => '7d',
@@ -79,6 +81,13 @@ final class TrackerPayloadTest extends TestCase
         self::assertSame(['symbol' => 'BTC'], $payload->toArray());
     }
 
+    public function testToArrayOmitsTheVolumesKeyWhenThereIsNoPoint(): void
+    {
+        $payload = new TrackerPayload(name: 'BTC', symbol: 'BTC', volumePoints: []);
+
+        self::assertSame(['symbol' => 'BTC'], $payload->toArray());
+    }
+
     public function testConstructorAcceptsOnePointPerChartColumn(): void
     {
         $payload = new TrackerPayload(name: 'BTC', sparklinePoints: self::buildSparklinePoints(63));
@@ -92,6 +101,14 @@ final class TrackerPayloadTest extends TestCase
         $this->expectExceptionMessage('at most 63 points, got 64');
 
         new TrackerPayload(name: 'BTC', sparklinePoints: self::buildSparklinePoints(64));
+    }
+
+    public function testConstructorBoundsTheVolumeSeriesToTheChartColumnsToo(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('A tracker volume series holds at most 63 points, got 64.');
+
+        new TrackerPayload(name: 'BTC', volumePoints: self::buildSparklinePoints(64));
     }
 
     public function testConstructorRejectsAnEmptyName(): void

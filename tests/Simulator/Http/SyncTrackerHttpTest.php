@@ -18,6 +18,7 @@ use App\Provider\Tracker\TwelveDataTrackerProvider;
 use App\Simulator\State\PersistedStateReader;
 use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
+use App\Tests\Factory\CoinGeckoVolumeSeriesProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
 use Psr\Log\NullLogger;
@@ -67,6 +68,10 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
             PersistedStateReader::payloadMap($trackerState['trackers'] ?? null),
             $this->server->serverOutput(),
         );
+
+        $bitcoinVolumes = $expectedBodies['BTC']['volumes'] ?? null;
+        self::assertIsArray($bitcoinVolumes);
+        self::assertCount(30, $bitcoinVolumes);
 
         self::assertSame(0, $lastSuccessfulSyncStore->ageInSecondsOf(CoinGeckoSyncConfig::syncType()));
     }
@@ -152,6 +157,10 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         self::assertSame('EUR', $expectedBodies['1RTDCAM']['currency']);
         self::assertSame('33d', $expectedBodies['1RTDCAM']['sparklinePeriod']);
 
+        $worldEtfVolumes = $expectedBodies['1RTDCAM']['volumes'] ?? null;
+        self::assertIsArray($worldEtfVolumes);
+        self::assertCount(24, $worldEtfVolumes);
+
         self::assertSame(0, $lastSuccessfulSyncStore->ageInSecondsOf(BoursoramaSyncConfig::syncType()));
     }
 
@@ -236,6 +245,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
             $coinGeckoClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast.yaml'),
             CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
+            CoinGeckoVolumeSeriesProviderFactory::withFixtureVolumes(),
             AllTimeHighStoreFactory::storeAt($this->allTimeHighDatabasePath),
             new MockClock(),
             new NullLogger(),

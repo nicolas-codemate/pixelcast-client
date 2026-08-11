@@ -32,6 +32,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
         private HttpClientInterface $coinGeckoClient,
         private SyncsConfigLoader $configLoader,
         private CoinGeckoMidnightPriceProvider $midnightPriceProvider,
+        private CoinGeckoVolumeSeriesProvider $volumeSeriesProvider,
         private AllTimeHighStore $allTimeHighStore,
         private ClockInterface $clock,
         private LoggerInterface $logger,
@@ -181,7 +182,9 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
 
         $tickerSymbolUppercase = mb_strtoupper($tickerSymbol);
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);
-        $sparklinePoints = SparklineDownsampler::downsampleToAtMost(self::readSparklinePoints($market), TrackerPayload::MAXIMUM_SPARKLINE_POINTS);
+        $pricePoints = self::readSparklinePoints($market);
+        $sparklinePoints = SparklineDownsampler::downsampleToAtMost($pricePoints, TrackerPayload::MAXIMUM_SPARKLINE_POINTS);
+        $volumePoints = $this->readVolumePoints($item, $pricePoints);
         $tradedVolumeText = TradedVolumeBottomText::composeFrom(self::readNumber($market, 'total_volume'), $item->currency);
 
         $allTimeHigh = $this->raiseStoredAllTimeHigh($item, $market, $currentPrice);
@@ -199,6 +202,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
                 currentValue: $currentPrice,
                 changePercentage: $changePercentage,
                 sparklinePoints: $sparklinePoints,
+                volumePoints: $volumePoints,
                 symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
                 sparklinePeriod: self::SPARKLINE_PERIOD,
@@ -248,6 +252,35 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
             reachedAt: self::readInstant($market, 'ath_date'),
             observedAt: $observedAt,
         ));
+    }
+
+    /**
+     * The series costs a request of its own, so an item that refuses the bars does not pay for it.
+     *
+     * @param list<float> $pricePoints
+     *
+     * @return list<float>
+     */
+    private function readVolumePoints(TrackerItem $item, array $pricePoints): array
+    {
+        if (!$item->volumeBars) {
+            return [];
+        }
+
+        $tradedVolumes = $this->volumeSeriesProvider->volumeSeriesOf($item->symbol, $item->currency);
+        $volumePoints = TradedVolumeSeries::alignedWith($pricePoints, $tradedVolumes);
+
+        // Unlike the other sources, here the two series come from two endpoints: a series served
+        // shorter than the curve is dropped, and only a log says why the bars went away.
+        if ([] === $volumePoints && [] !== $tradedVolumes) {
+            $this->logger->warning('CoinGecko volume series could not be drawn under the price curve', [
+                'coin_id' => $item->symbol,
+                'price_point_count' => \count($pricePoints),
+                'volume_point_count' => \count($tradedVolumes),
+            ]);
+        }
+
+        return $volumePoints;
     }
 
     /**

@@ -1,0 +1,11 @@
+# Sample configuration used by CoinGeckoTrackerProviderTest: one coin refusing the volume
+# bars, to prove the extra request the series needs is not spent.
+syncs:
+    coingecko:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+              icon: bitcoin
+              volumeBars: false

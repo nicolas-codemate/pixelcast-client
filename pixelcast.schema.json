@@ -324,6 +324,13 @@
                         null
                     ]
                 },
+                "volumeBars": {
+                    "description": "Whether the device draws the traded volume as bars behind the price curve. Enabled without it, and only where the provider serves a volume for each point of the curve. Turning it off for a coingecko asset also spares the extra request that provider needs to collect the series.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
                 "staleAfter": {
                     "$ref": "#/definitions/staleAfter"
                 },

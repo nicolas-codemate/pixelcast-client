@@ -22,6 +22,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
     private const string TWO_ITEMS_CONFIG_FILE = 'pixelcast-twelvedata.yaml';
     private const string SINGLE_ITEM_CONFIG_FILE = 'pixelcast-twelvedata-single-item.yaml';
     private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-twelvedata-labelled-item.yaml';
+    private const string THREE_CATEGORIES_CONFIG_FILE = 'pixelcast-twelvedata-three-categories.yaml';
     private const int MAXIMUM_CURRENCY_LENGTH = 7;
     private const string SYNC_INSTANT = '2026-08-03 16:00:00';
 
@@ -101,6 +102,30 @@ final class TwelveDataTrackerProviderTest extends TestCase
         self::assertCount(30, $worldEtfPayload->sparklinePoints);
         self::assertSame(128.0, $worldEtfPayload->sparklinePoints[0]);
         self::assertSame(99.0, $worldEtfPayload->sparklinePoints[29]);
+    }
+
+    public function testTheVolumeSeriesCarriesTheVolumeOfEveryDailyBar(): void
+    {
+        $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
+
+        [$applePayload] = $provider->fetchTrackers(self::syncInstant());
+
+        self::assertCount(30, $applePayload->volumePoints);
+        self::assertSame(1000000.0, $applePayload->volumePoints[0]);
+        self::assertSame(1029000.0, $applePayload->volumePoints[29]);
+    }
+
+    public function testAnIndexQuotedWithoutVolumeLeavesTheChartWithoutBars(): void
+    {
+        $provider = $this->buildProvider(
+            new MockHttpClient(self::fixtureResponse('twelvedata-time-series-three-categories.json'), self::TWELVEDATA_BASE_URI),
+            configFileName: self::THREE_CATEGORIES_CONFIG_FILE,
+        );
+
+        [$applePayload, , $indexPayload] = $provider->fetchTrackers(self::syncInstant());
+
+        self::assertCount(6, $applePayload->volumePoints);
+        self::assertSame([], $indexPayload->volumePoints);
     }
 
     public function testAllConfiguredItemsAreFetchedInASingleRequest(): void
