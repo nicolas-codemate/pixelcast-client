@@ -12,6 +12,7 @@ use App\Config\Sync\TrackerItem;
 use App\Config\SyncsConfigLoader;
 use App\Tracker\AllTimeHigh;
 use App\Tracker\AllTimeHighStore;
+use App\Tracker\History\BoursoramaQuoteSeries;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
@@ -28,7 +29,6 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     private const string BOURSORAMA_CODE_PREFIX_PATTERN = '/^\d[a-z][A-Z]/';
     private const string BROWSER_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
     private const string AJAX_REQUESTED_WITH = 'XMLHttpRequest';
-    private const int SECONDS_PER_DAY = 86_400;
 
     public function __construct(
         #[Target('boursorama.client')]
@@ -100,7 +100,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
      */
     private function buildTrackerPayload(TrackerItem $item, array $decodedResponse): ?TrackerPayload
     {
-        $quoteBars = self::readQuoteBars($decodedResponse);
+        $quoteBars = BoursoramaQuoteSeries::readBars($decodedResponse);
 
         if ([] === $quoteBars) {
             $this->logger->warning('Boursorama served no quotes for a symbol', ['symbol' => $item->symbol]);
@@ -159,69 +159,23 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     }
 
     /**
-     * The highest price observed is the highest session high of the series, not the last close: an
-     * ETF that touches 620 during a session and closes at 610 did reach 620. The day of the winning
-     * bar travels with it, since that bar can be weeks old while the sync happens now.
-     *
      * @param array<array-key, mixed> $quoteBars
      */
     private function raiseStoredAllTimeHigh(TrackerItem $item, array $quoteBars): ?AllTimeHigh
     {
-        $highestPrice = null;
-        $dayOfTheHighestBar = null;
-
-        foreach ($quoteBars as $quoteBar) {
-            if (!\is_array($quoteBar)) {
-                continue;
-            }
-
-            $sessionHigh = self::readNumber($quoteBar, 'h') ?? self::readNumber($quoteBar, 'c');
-            if (null === $sessionHigh) {
-                continue;
-            }
-
-            if (null !== $highestPrice && $sessionHigh <= $highestPrice) {
-                continue;
-            }
-
-            $highestPrice = $sessionHigh;
-            $dayOfTheHighestBar = self::readNumber($quoteBar, 'd');
-        }
-
-        if (null === $highestPrice) {
-            return null;
-        }
-
-        return $this->allTimeHighStore->raiseTo(new AllTimeHigh(
+        $observedAllTimeHigh = BoursoramaQuoteSeries::readAllTimeHigh(
+            $quoteBars,
             $this->syncType(),
             $item->symbol,
             $item->currency,
-            $highestPrice,
-            reachedAt: self::instantOfDay($dayOfTheHighestBar),
-            observedAt: $this->clock->now(),
-        ));
-    }
+            $this->clock->now(),
+        );
 
-    private static function instantOfDay(?float $dayCountSinceEpoch): ?\DateTimeImmutable
-    {
-        if (null === $dayCountSinceEpoch) {
+        if (null === $observedAllTimeHigh) {
             return null;
         }
 
-        return new \DateTimeImmutable('@'.((int) $dayCountSinceEpoch * self::SECONDS_PER_DAY));
-    }
-
-    /**
-     * @param array<array-key, mixed> $decodedResponse
-     *
-     * @return array<array-key, mixed>
-     */
-    private static function readQuoteBars(array $decodedResponse): array
-    {
-        $quoteBlock = $decodedResponse['d'] ?? null;
-        $quoteBars = \is_array($quoteBlock) ? ($quoteBlock['QuoteTab'] ?? null) : null;
-
-        return \is_array($quoteBars) ? $quoteBars : [];
+        return $this->allTimeHighStore->raiseTo($observedAllTimeHigh);
     }
 
     /**
