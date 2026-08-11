@@ -18,9 +18,11 @@ use App\Provider\Tracker\TwelveDataTrackerProvider;
 use App\Simulator\State\PersistedStateReader;
 use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
+use App\Tracker\AllTimeHighStore;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -35,12 +37,30 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     private const string BOURSORAMA_DCAM_FIXTURE_FILE = 'boursorama-ticks-dcam.json';
     private const string BOURSORAMA_CW8_FIXTURE_FILE = 'boursorama-ticks-cw8.json';
 
+    private string $temporaryDirectory;
+    private string $allTimeHighDatabasePath;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->temporaryDirectory = sys_get_temp_dir().'/pixelcast-sync-tracker-'.bin2hex(random_bytes(6));
+        $this->allTimeHighDatabasePath = $this->temporaryDirectory.'/tracker-all-time-high.sqlite';
+    }
+
+    protected function tearDown(): void
+    {
+        new Filesystem()->remove($this->temporaryDirectory);
+
+        parent::tearDown();
+    }
+
     public function testTrackersReachTheSimulatorInASingleUpstreamCall(): void
     {
         $coinGeckoClient = self::coinGeckoClient(self::COINGECKO_FIXTURE_FILE);
         $lastSuccessfulSyncStore = new LastSuccessfulSyncStore(new ArrayAdapter(), new MockClock());
-        $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildCoinGeckoProvider($coinGeckoClient), $lastSuccessfulSyncStore);
-        $expectedBodies = self::coinGeckoWireBodies(self::COINGECKO_FIXTURE_FILE);
+        $syncTrackerHandler = $this->buildSyncTrackerHandler($this->buildCoinGeckoProvider($coinGeckoClient), $lastSuccessfulSyncStore);
+        $expectedBodies = $this->coinGeckoWireBodies(self::COINGECKO_FIXTURE_FILE);
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::coinGeckoMessage()), $this->server->serverOutput());
         self::assertSame(1, $coinGeckoClient->getRequestsCount());
@@ -63,8 +83,8 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     public function testASecondCycleRefreshesTheStoredTrackersInPlace(): void
     {
         $coinGeckoClient = self::coinGeckoClient(self::COINGECKO_FIXTURE_FILE, self::COINGECKO_NEXT_CYCLE_FIXTURE_FILE);
-        $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildCoinGeckoProvider($coinGeckoClient));
-        $expectedRefreshedBodies = self::coinGeckoWireBodies(self::COINGECKO_NEXT_CYCLE_FIXTURE_FILE);
+        $syncTrackerHandler = $this->buildSyncTrackerHandler($this->buildCoinGeckoProvider($coinGeckoClient));
+        $expectedRefreshedBodies = $this->coinGeckoWireBodies(self::COINGECKO_NEXT_CYCLE_FIXTURE_FILE);
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::coinGeckoMessage()), $this->server->serverOutput());
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::coinGeckoMessage()), $this->server->serverOutput());
@@ -175,9 +195,9 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     /**
      * @return array<string, array<string, mixed>> keyed by tracker name
      */
-    private static function coinGeckoWireBodies(string $fixtureFileName): array
+    private function coinGeckoWireBodies(string $fixtureFileName): array
     {
-        return self::expectedWireBodies(self::buildCoinGeckoProvider(self::coinGeckoClient($fixtureFileName)));
+        return self::expectedWireBodies($this->buildCoinGeckoProvider(self::coinGeckoClient($fixtureFileName)));
     }
 
     /**
@@ -219,12 +239,14 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         return $wireBodies;
     }
 
-    private static function buildCoinGeckoProvider(MockHttpClient $coinGeckoClient): CoinGeckoTrackerProvider
+    private function buildCoinGeckoProvider(MockHttpClient $coinGeckoClient): CoinGeckoTrackerProvider
     {
         return new CoinGeckoTrackerProvider(
             $coinGeckoClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast.yaml'),
             CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
+            new AllTimeHighStore($this->allTimeHighDatabasePath, new NullLogger()),
+            new MockClock(),
             new NullLogger(),
         );
     }

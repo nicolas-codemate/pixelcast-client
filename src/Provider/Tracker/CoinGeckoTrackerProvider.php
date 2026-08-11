@@ -6,9 +6,13 @@ namespace App\Provider\Tracker;
 
 use App\Client\Color;
 use App\Client\Tracker\TrackerPayload;
+use App\Config\Sync\BottomLine;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Config\Sync\TrackerItem;
 use App\Config\SyncsConfigLoader;
+use App\Tracker\AllTimeHigh;
+use App\Tracker\AllTimeHighStore;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
@@ -28,6 +32,8 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
         private HttpClientInterface $coinGeckoClient,
         private SyncsConfigLoader $configLoader,
         private CoinGeckoMidnightPriceProvider $midnightPriceProvider,
+        private AllTimeHighStore $allTimeHighStore,
+        private ClockInterface $clock,
         private LoggerInterface $logger,
         private ?string $apiKey = null,
     ) {
@@ -178,6 +184,12 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
         $sparklinePoints = SparklineDownsampler::downsampleToAtMost(self::readSparklinePoints($market), TrackerPayload::MAXIMUM_SPARKLINE_POINTS);
         $tradedVolumeText = TradedVolumeBottomText::composeFrom(self::readNumber($market, 'total_volume'), $item->currency);
 
+        $allTimeHigh = $this->raiseStoredAllTimeHigh($item, $market, $currentPrice);
+        $bottomText = $item->bottomText ?? match ($item->bottomLine) {
+            BottomLine::AllTimeHigh => AllTimeHighBottomText::composeFrom($allTimeHigh?->price, $item->currency),
+            BottomLine::TradedVolume, null => $tradedVolumeText,
+        };
+
         try {
             return new TrackerPayload(
                 name: $tickerSymbolUppercase,
@@ -190,7 +202,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
                 symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
                 sparklinePeriod: self::SPARKLINE_PERIOD,
-                bottomText: $item->bottomText ?? $tradedVolumeText,
+                bottomText: $bottomText,
                 staleAfterInSeconds: $item->staleDeclaration->staleAfterInSeconds,
                 staleBehavior: $item->staleDeclaration->staleBehavior,
             );
@@ -202,6 +214,39 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
 
             return null;
         }
+    }
+
+    /**
+     * The source knows the history from before this client was installed but publishes it with a
+     * delay, hence this order: the current price comes last so that a high seen between two
+     * responses survives the next one.
+     *
+     * @param array<string, mixed> $market
+     */
+    private function raiseStoredAllTimeHigh(TrackerItem $item, array $market, float $currentPrice): ?AllTimeHigh
+    {
+        $observedAt = $this->clock->now();
+
+        $priceServedBySource = self::readNumber($market, 'ath');
+        if (null !== $priceServedBySource && $priceServedBySource > 0.0) {
+            $this->allTimeHighStore->raiseTo(new AllTimeHigh(
+                $this->syncType(),
+                $item->symbol,
+                $item->currency,
+                $priceServedBySource,
+                reachedAt: self::readInstant($market, 'ath_date'),
+                observedAt: $observedAt,
+            ));
+        }
+
+        return $this->allTimeHighStore->raiseTo(new AllTimeHigh(
+            $this->syncType(),
+            $item->symbol,
+            $item->currency,
+            $currentPrice,
+            reachedAt: $observedAt,
+            observedAt: $observedAt,
+        ));
     }
 
     /**
@@ -237,6 +282,23 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
         $value = $block[$key] ?? null;
 
         return \is_string($value) && '' !== $value ? $value : null;
+    }
+
+    /**
+     * @param array<array-key, mixed> $block
+     */
+    private static function readInstant(array $block, string $key): ?\DateTimeImmutable
+    {
+        $writtenInstant = self::readString($block, $key);
+        if (null === $writtenInstant) {
+            return null;
+        }
+
+        try {
+            return new \DateTimeImmutable($writtenInstant);
+        } catch (\DateMalformedStringException) {
+            return null;
+        }
     }
 
     /**
