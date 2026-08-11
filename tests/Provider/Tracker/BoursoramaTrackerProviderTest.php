@@ -45,7 +45,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertSame(1.0, $worldEtfPayload->changePercentage);
         self::assertSame('#00FF00', $worldEtfPayload->symbolColor?->hexCode);
         self::assertSame('#00FF00', $worldEtfPayload->sparklineColor?->hexCode);
-        self::assertSame('24d', $worldEtfPayload->sparklinePeriod);
+        self::assertSame('33d', $worldEtfPayload->sparklinePeriod);
 
         self::assertSame('1RTCW8', $secondWorldEtfPayload->name);
         self::assertSame('CW8', $secondWorldEtfPayload->symbol);
@@ -139,7 +139,16 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertCount(24, $worldEtfPayload->sparklinePoints);
         self::assertSame(6.0, $worldEtfPayload->sparklinePoints[0]);
         self::assertSame(6.262, $worldEtfPayload->sparklinePoints[23]);
-        self::assertSame('24d', $worldEtfPayload->sparklinePeriod);
+    }
+
+    public function testTheSparklinePeriodStatesTheCalendarSpannedRatherThanTheCloseCount(): void
+    {
+        $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
+
+        [$worldEtfPayload] = $provider->fetchTrackers(self::insideEveryWindow());
+
+        self::assertCount(24, $worldEtfPayload->sparklinePoints);
+        self::assertSame('33d', $worldEtfPayload->sparklinePeriod);
     }
 
     public function testAnUnknownCodeIsSkippedAndLogsAWarning(): void

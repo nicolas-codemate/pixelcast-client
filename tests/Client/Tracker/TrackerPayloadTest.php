@@ -79,19 +79,19 @@ final class TrackerPayloadTest extends TestCase
         self::assertSame(['symbol' => 'BTC'], $payload->toArray());
     }
 
-    public function testConstructorAcceptsTwentyFourSparklinePoints(): void
+    public function testConstructorAcceptsOnePointPerChartColumn(): void
     {
-        $payload = new TrackerPayload(name: 'BTC', sparklinePoints: self::buildSparklinePoints(24));
+        $payload = new TrackerPayload(name: 'BTC', sparklinePoints: self::buildSparklinePoints(63));
 
-        self::assertCount(24, $payload->sparklinePoints);
+        self::assertCount(63, $payload->sparklinePoints);
     }
 
-    public function testConstructorRejectsATwentyFifthSparklinePoint(): void
+    public function testConstructorRejectsAPointBeyondTheLastChartColumn(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('at most 24 points, got 25');
+        $this->expectExceptionMessage('at most 63 points, got 64');
 
-        new TrackerPayload(name: 'BTC', sparklinePoints: self::buildSparklinePoints(25));
+        new TrackerPayload(name: 'BTC', sparklinePoints: self::buildSparklinePoints(64));
     }
 
     public function testConstructorRejectsAnEmptyName(): void

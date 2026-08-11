@@ -131,7 +131,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
                 sparklinePoints: $sparklinePoints,
                 symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
-                sparklinePeriod: \sprintf('%dd', $closingPriceCount),
+                sparklinePeriod: SparklinePeriodLabel::forDayCount(self::readCoveredDayCount($quoteBars)),
                 bottomText: $item->bottomText,
                 staleAfterInSeconds: $item->staleDeclaration->staleAfterInSeconds,
                 staleBehavior: $item->staleDeclaration->staleBehavior,
@@ -157,6 +157,27 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         $quoteBars = \is_array($quoteBlock) ? ($quoteBlock['QuoteTab'] ?? null) : null;
 
         return \is_array($quoteBars) ? $quoteBars : [];
+    }
+
+    /**
+     * Each bar carries its day as a count of days since the Unix epoch, so the calendar the
+     * series spans is the distance between the first bar and the last.
+     *
+     * @param array<array-key, mixed> $quoteBars
+     */
+    private static function readCoveredDayCount(array $quoteBars): ?int
+    {
+        $firstBar = reset($quoteBars);
+        $lastBar = end($quoteBars);
+
+        $firstDay = \is_array($firstBar) ? self::readNumber($firstBar, 'd') : null;
+        $lastDay = \is_array($lastBar) ? self::readNumber($lastBar, 'd') : null;
+
+        if (null === $firstDay || null === $lastDay) {
+            return null;
+        }
+
+        return (int) ($lastDay - $firstDay);
     }
 
     /**

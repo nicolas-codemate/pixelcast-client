@@ -110,19 +110,31 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         self::assertSame('Réserve de valeur', $trackerPayloads[0]->bottomText);
     }
 
-    public function testSparklineIsDownsampledToAtMost24PointsKeepingFirstAndLastPoint(): void
+    public function testASeriesShorterThanTheChartIsSentWhole(): void
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI));
 
         [$bitcoinPayload, $ethereumPayload] = $provider->fetchTrackers(self::syncInstant());
 
-        self::assertCount(24, $bitcoinPayload->sparklinePoints);
+        self::assertCount(30, $bitcoinPayload->sparklinePoints);
         self::assertSame(44000.0, $bitcoinPayload->sparklinePoints[0]);
-        self::assertSame(45450.0, $bitcoinPayload->sparklinePoints[23]);
+        self::assertSame(45450.0, $bitcoinPayload->sparklinePoints[29]);
 
-        self::assertCount(24, $ethereumPayload->sparklinePoints);
+        self::assertCount(30, $ethereumPayload->sparklinePoints);
         self::assertSame(2600.0, $ethereumPayload->sparklinePoints[0]);
-        self::assertSame(2455.0, $ethereumPayload->sparklinePoints[23]);
+        self::assertSame(2455.0, $ethereumPayload->sparklinePoints[29]);
+    }
+
+    public function testTheHourlyWeekIsDownsampledToOnePointPerChartColumnKeepingBothEnds(): void
+    {
+        $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets-hourly-week.json'), self::COINGECKO_BASE_URI));
+
+        [$bitcoinPayload] = $provider->fetchTrackers(self::syncInstant());
+
+        self::assertCount(63, $bitcoinPayload->sparklinePoints);
+        self::assertSame(44000.0, $bitcoinPayload->sparklinePoints[0]);
+        self::assertSame(45670.0, $bitcoinPayload->sparklinePoints[62]);
+        self::assertSame('7d', $bitcoinPayload->sparklinePeriod);
     }
 
     public function testRequestTargetsCoinGeckoMarketsEndpointWithExpectedQuery(): void
