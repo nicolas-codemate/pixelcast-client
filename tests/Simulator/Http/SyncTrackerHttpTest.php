@@ -16,8 +16,10 @@ use App\Provider\Tracker\CoinGeckoTrackerProvider;
 use App\Provider\Tracker\TrackerProviderInterface;
 use App\Provider\Tracker\TwelveDataTrackerProvider;
 use App\Simulator\State\PersistedStateReader;
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
+use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
@@ -35,12 +37,21 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     private const string BOURSORAMA_DCAM_FIXTURE_FILE = 'boursorama-ticks-dcam.json';
     private const string BOURSORAMA_CW8_FIXTURE_FILE = 'boursorama-ticks-cw8.json';
 
+    private string $allTimeHighDatabasePath;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->allTimeHighDatabasePath = AllTimeHighStoreFactory::temporaryDatabasePath();
+    }
+
     public function testTrackersReachTheSimulatorInASingleUpstreamCall(): void
     {
         $coinGeckoClient = self::coinGeckoClient(self::COINGECKO_FIXTURE_FILE);
         $lastSuccessfulSyncStore = new LastSuccessfulSyncStore(new ArrayAdapter(), new MockClock());
-        $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildCoinGeckoProvider($coinGeckoClient), $lastSuccessfulSyncStore);
-        $expectedBodies = self::coinGeckoWireBodies(self::COINGECKO_FIXTURE_FILE);
+        $syncTrackerHandler = $this->buildSyncTrackerHandler($this->buildCoinGeckoProvider($coinGeckoClient), $lastSuccessfulSyncStore);
+        $expectedBodies = $this->coinGeckoWireBodies(self::COINGECKO_FIXTURE_FILE);
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::coinGeckoMessage()), $this->server->serverOutput());
         self::assertSame(1, $coinGeckoClient->getRequestsCount());
@@ -63,8 +74,8 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     public function testASecondCycleRefreshesTheStoredTrackersInPlace(): void
     {
         $coinGeckoClient = self::coinGeckoClient(self::COINGECKO_FIXTURE_FILE, self::COINGECKO_NEXT_CYCLE_FIXTURE_FILE);
-        $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildCoinGeckoProvider($coinGeckoClient));
-        $expectedRefreshedBodies = self::coinGeckoWireBodies(self::COINGECKO_NEXT_CYCLE_FIXTURE_FILE);
+        $syncTrackerHandler = $this->buildSyncTrackerHandler($this->buildCoinGeckoProvider($coinGeckoClient));
+        $expectedRefreshedBodies = $this->coinGeckoWireBodies(self::COINGECKO_NEXT_CYCLE_FIXTURE_FILE);
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::coinGeckoMessage()), $this->server->serverOutput());
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::coinGeckoMessage()), $this->server->serverOutput());
@@ -118,8 +129,8 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     {
         $boursoramaClient = self::boursoramaClient(self::BOURSORAMA_DCAM_FIXTURE_FILE, self::BOURSORAMA_CW8_FIXTURE_FILE);
         $lastSuccessfulSyncStore = new LastSuccessfulSyncStore(new ArrayAdapter(), new MockClock());
-        $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildBoursoramaProvider($boursoramaClient), $lastSuccessfulSyncStore);
-        $expectedBodies = self::boursoramaWireBodies();
+        $syncTrackerHandler = $this->buildSyncTrackerHandler($this->buildBoursoramaProvider($boursoramaClient), $lastSuccessfulSyncStore);
+        $expectedBodies = $this->boursoramaWireBodies();
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::boursoramaMessage()), $this->server->serverOutput());
         // Boursorama serves one symbol per call, unlike the single grouped call of twelvedata.
@@ -175,9 +186,9 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     /**
      * @return array<string, array<string, mixed>> keyed by tracker name
      */
-    private static function coinGeckoWireBodies(string $fixtureFileName): array
+    private function coinGeckoWireBodies(string $fixtureFileName): array
     {
-        return self::expectedWireBodies(self::buildCoinGeckoProvider(self::coinGeckoClient($fixtureFileName)));
+        return self::expectedWireBodies($this->buildCoinGeckoProvider(self::coinGeckoClient($fixtureFileName)));
     }
 
     /**
@@ -193,9 +204,9 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     /**
      * @return array<string, array<string, mixed>> keyed by tracker name
      */
-    private static function boursoramaWireBodies(): array
+    private function boursoramaWireBodies(): array
     {
-        return self::expectedWireBodies(self::buildBoursoramaProvider(
+        return self::expectedWireBodies($this->buildBoursoramaProvider(
             self::boursoramaClient(self::BOURSORAMA_DCAM_FIXTURE_FILE, self::BOURSORAMA_CW8_FIXTURE_FILE),
         ));
     }
@@ -219,12 +230,14 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         return $wireBodies;
     }
 
-    private static function buildCoinGeckoProvider(MockHttpClient $coinGeckoClient): CoinGeckoTrackerProvider
+    private function buildCoinGeckoProvider(MockHttpClient $coinGeckoClient): CoinGeckoTrackerProvider
     {
         return new CoinGeckoTrackerProvider(
             $coinGeckoClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast.yaml'),
             CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
+            AllTimeHighStoreFactory::storeAt($this->allTimeHighDatabasePath),
+            new MockClock(),
             new NullLogger(),
         );
     }
@@ -239,11 +252,13 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         );
     }
 
-    private static function buildBoursoramaProvider(MockHttpClient $boursoramaClient): BoursoramaTrackerProvider
+    private function buildBoursoramaProvider(MockHttpClient $boursoramaClient): BoursoramaTrackerProvider
     {
         return new BoursoramaTrackerProvider(
-            $boursoramaClient,
+            new BoursoramaEndOfDayRequest($boursoramaClient),
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast-boursorama.yaml'),
+            AllTimeHighStoreFactory::storeAt($this->allTimeHighDatabasePath),
+            new MockClock(),
             new NullLogger(),
         );
     }

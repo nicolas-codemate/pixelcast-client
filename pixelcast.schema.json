@@ -312,6 +312,18 @@
                     "minLength": 1,
                     "maxLength": 31
                 },
+                "bottomLine": {
+                    "description": "What the row under the price shows when bottomText does not fix it. \"ath\" shows the all-time high of the asset, \"volume\" its 24 hour traded volume. Each group only accepts what it can serve: coingecko takes both, boursorama takes ath, twelvedata takes neither. Without it the group default applies: coingecko shows the volume, the other groups show nothing.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "ath",
+                        "volume",
+                        null
+                    ]
+                },
                 "staleAfter": {
                     "$ref": "#/definitions/staleAfter"
                 },

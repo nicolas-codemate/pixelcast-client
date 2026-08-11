@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace App\Tests\Provider\Tracker;
 
 use App\Client\Tracker\TrackerPayload;
+use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Provider\Tracker\CoinGeckoMidnightPriceProvider;
 use App\Provider\Tracker\CoinGeckoTrackerProvider;
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
+use App\Tracker\AllTimeHigh;
+use App\Tracker\AllTimeHighStore;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -24,7 +29,9 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     private const string SINGLE_CURRENCY_CONFIG_FILE = 'pixelcast.yaml';
     private const string MIXED_CURRENCIES_CONFIG_FILE = 'pixelcast-mixed-currencies.yaml';
     private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-coingecko-labelled-item.yaml';
+    private const string BOTTOM_LINE_CONFIG_FILE = 'pixelcast-coingecko-bottom-line.yaml';
     private const string SYNC_INSTANT = '2026-08-03 16:00:00';
+    private const string BITCOIN_ALL_TIME_HIGH_DATE = '2025-10-06T10:57:42+00:00';
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
@@ -245,20 +252,166 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         self::assertSame('bitcoin', $logger->records[0]['context']['coin_id'] ?? null);
     }
 
+    public function testWithoutABottomLineTheTradedVolumeStillFillsTheBottomRow(): void
+    {
+        $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI));
+
+        [$bitcoinPayload, $ethereumPayload] = $provider->fetchTrackers(self::syncInstant());
+
+        self::assertSame('Volume : 18B', $bitcoinPayload->bottomText);
+        self::assertSame('Volume : 9.8B', $ethereumPayload->bottomText);
+    }
+
+    public function testTheAllTimeHighServedByTheSourceIsStored(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+
+        $this->fetchWithStore($allTimeHighStore, 'coingecko-markets.json');
+
+        self::assertSame(107662.0, self::storedPriceOf($allTimeHighStore, 'bitcoin'));
+        self::assertSame(4890.5, self::storedPriceOf($allTimeHighStore, 'ethereum'));
+    }
+
+    public function testTheAllTimeHighServedByTheSourceKeepsTheDateItWasReachedOn(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+
+        $this->fetchWithStore($allTimeHighStore, 'coingecko-markets.json');
+
+        $storedHigh = self::storedHighOf($allTimeHighStore, 'bitcoin');
+        self::assertSame(self::BITCOIN_ALL_TIME_HIGH_DATE, $storedHigh?->reachedAt?->format(\DateTimeInterface::RFC3339));
+    }
+
+    public function testAnAllTimeHighServedByTheSourceBelowTheStoredOneDoesNotLowerIt(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+        $priceSeenOnAnEarlierCycle = 108400.0;
+        $allTimeHighStore->raiseTo(self::observedHigh('bitcoin', $priceSeenOnAnEarlierCycle));
+
+        $this->fetchWithStore($allTimeHighStore, 'coingecko-markets.json');
+
+        self::assertSame($priceSeenOnAnEarlierCycle, self::storedPriceOf($allTimeHighStore, 'bitcoin'));
+    }
+
+    public function testAMarketWithoutAnAthFieldStoresTheCurrentPriceAsTheHighestKnown(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+
+        $this->fetchWithStore($allTimeHighStore, 'coingecko-markets-hourly-week.json');
+
+        $storedHigh = self::storedHighOf($allTimeHighStore, 'bitcoin');
+        self::assertSame(45670.0, $storedHigh?->price);
+        self::assertSame(self::SYNC_INSTANT, $storedHigh->reachedAt?->format('Y-m-d H:i:s'));
+    }
+
+    public function testAMalformedAllTimeHighDateStoresTheHighWithoutADateReached(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+
+        $this->fetchWithStore($allTimeHighStore, 'coingecko-markets-malformed.json');
+
+        $storedHigh = self::storedHighOf($allTimeHighStore, 'ethereum');
+        self::assertSame(4890.5, $storedHigh?->price);
+        self::assertNull($storedHigh->reachedAt);
+    }
+
+    public function testAPriceAboveTheStoredAllTimeHighRaisesIt(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+        $allTimeHighStore->raiseTo(self::observedHigh('bitcoin', 40000.0));
+
+        $this->fetchWithStore($allTimeHighStore, 'coingecko-markets-hourly-week.json');
+
+        self::assertSame(45670.0, self::storedPriceOf($allTimeHighStore, 'bitcoin'));
+    }
+
+    public function testBottomLineAthFillsTheBottomRowWithTheStoredAllTimeHigh(): void
+    {
+        $trackerPayloads = $this->buildBottomLineProvider()->fetchTrackers(self::syncInstant());
+
+        self::assertSame('ATH 107662', $trackerPayloads[0]->bottomText);
+        self::assertSame('ATH 107662$', $trackerPayloads[2]->bottomText);
+    }
+
+    public function testBottomLineVolumeFillsTheBottomRowWithTheTradedVolume(): void
+    {
+        $trackerPayloads = $this->buildBottomLineProvider()->fetchTrackers(self::syncInstant());
+
+        self::assertSame('Volume : 9.8B', $trackerPayloads[1]->bottomText);
+    }
+
+    public function testAFixedBottomTextStillWinsOverBottomLineAth(): void
+    {
+        $trackerPayloads = $this->buildBottomLineProvider()->fetchTrackers(self::syncInstant());
+
+        self::assertSame('Réserve de valeur', $trackerPayloads[3]->bottomText);
+    }
+
+    public function testAnUnreachableStoreLeavesTheBottomRowEmptyWithoutLosingTheTracker(): void
+    {
+        $logger = new RecordingLoggerStub();
+
+        $trackerPayloads = $this->buildBottomLineProvider(AllTimeHighStoreFactory::unreachableStore($logger))->fetchTrackers(self::syncInstant());
+
+        self::assertCount(4, $trackerPayloads);
+        self::assertNull($trackerPayloads[0]->bottomText);
+        self::assertSame(LogLevel::WARNING, $logger->records[0]['level'] ?? null);
+    }
+
+    private function fetchWithStore(AllTimeHighStore $allTimeHighStore, string $marketsFixtureFileName): void
+    {
+        $this
+            ->buildProvider(
+                new MockHttpClient(self::fixtureResponse($marketsFixtureFileName), self::COINGECKO_BASE_URI),
+                allTimeHighStore: $allTimeHighStore,
+            )
+            ->fetchTrackers(self::syncInstant());
+    }
+
+    private static function storedHighOf(AllTimeHighStore $allTimeHighStore, string $coinId): ?AllTimeHigh
+    {
+        return $allTimeHighStore->readAllTimeHigh(CoinGeckoSyncConfig::syncType(), $coinId, 'eur');
+    }
+
+    private static function storedPriceOf(AllTimeHighStore $allTimeHighStore, string $coinId): ?float
+    {
+        return self::storedHighOf($allTimeHighStore, $coinId)?->price;
+    }
+
+    private static function observedHigh(string $coinId, float $price): AllTimeHigh
+    {
+        $earlierCycle = new \DateTimeImmutable('2026-08-03 10:00:00');
+
+        return new AllTimeHigh(CoinGeckoSyncConfig::syncType(), $coinId, 'eur', $price, $earlierCycle, $earlierCycle);
+    }
+
     private function buildProvider(
         MockHttpClient $httpClient,
         ?LoggerInterface $logger = null,
         string $configFileName = self::SINGLE_CURRENCY_CONFIG_FILE,
         ?string $apiKey = null,
         ?CoinGeckoMidnightPriceProvider $midnightPriceProvider = null,
+        ?AllTimeHighStore $allTimeHighStore = null,
     ): CoinGeckoTrackerProvider {
         return new CoinGeckoTrackerProvider(
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
             $midnightPriceProvider ?? CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
+            $allTimeHighStore ?? AllTimeHighStoreFactory::temporaryStore(),
+            new MockClock(self::SYNC_INSTANT),
             $logger ?? new NullLogger(),
             $apiKey,
         );
+    }
+
+    private function buildBottomLineProvider(?AllTimeHighStore $allTimeHighStore = null): CoinGeckoTrackerProvider
+    {
+        $httpClient = new MockHttpClient(
+            [self::fixtureResponse('coingecko-markets.json'), self::fixtureResponse('coingecko-markets.json')],
+            self::COINGECKO_BASE_URI,
+        );
+
+        return $this->buildProvider($httpClient, configFileName: self::BOTTOM_LINE_CONFIG_FILE, allTimeHighStore: $allTimeHighStore);
     }
 
     private static function syncInstant(): \DateTimeImmutable

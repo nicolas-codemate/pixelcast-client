@@ -6,6 +6,7 @@ namespace App\Config;
 
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sync\SyncGroupConfig;
+use App\Config\Sync\TrackerSyncConfig;
 
 final readonly class SyncsConfig
 {
@@ -26,6 +27,25 @@ final readonly class SyncsConfig
             $this->syncGroups,
             static fn (SyncGroupConfig $syncGroup): bool => $syncGroup->enabled,
         );
+    }
+
+    /**
+     * Every group that tracks assets, enabled or not: a group about to be enabled deserves its
+     * all-time highs caught up first.
+     *
+     * @return array<string, TrackerSyncConfig>
+     */
+    public function trackerSyncGroups(): array
+    {
+        $trackerSyncGroups = [];
+
+        foreach ($this->syncGroups as $syncType => $syncGroup) {
+            if ($syncGroup instanceof TrackerSyncConfig) {
+                $trackerSyncGroups[$syncType] = $syncGroup;
+            }
+        }
+
+        return $trackerSyncGroups;
     }
 
     /**

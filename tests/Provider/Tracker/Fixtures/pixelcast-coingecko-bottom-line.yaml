@@ -1,0 +1,24 @@
+# Sample configuration used by CoinGeckoTrackerProviderTest: the two bottom lines the group
+# serves, in the two currencies, plus an item whose fixed bottomText must win over its bottomLine.
+syncs:
+    coingecko:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+              icon: bitcoin
+              bottomLine: ath
+            - symbol: ethereum
+              currency: eur
+              icon: ethereum
+              bottomLine: volume
+            - symbol: bitcoin
+              currency: usd
+              icon: bitcoin
+              bottomLine: ath
+            - symbol: ethereum
+              currency: usd
+              icon: ethereum
+              bottomLine: ath
+              bottomText: Réserve de valeur

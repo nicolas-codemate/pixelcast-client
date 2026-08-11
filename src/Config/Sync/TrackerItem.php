@@ -6,6 +6,7 @@ namespace App\Config\Sync;
 
 use App\Client\Color;
 use App\Client\StaleBehavior;
+use App\Config\Exception\PixelCastConfigException;
 
 final readonly class TrackerItem
 {
@@ -18,6 +19,7 @@ final readonly class TrackerItem
         public ?Color $labelColor = null,
         public ?string $bottomText = null,
         public ?ActiveWindow $activeWindow = null,
+        public ?BottomLine $bottomLine = null,
     ) {
     }
 
@@ -25,8 +27,9 @@ final readonly class TrackerItem
      * @param array<string, mixed> $options options already validated against pixelcast.schema.json
      * @param string $itemPath the path of the item including its index, e.g. syncs.coingecko.items[0]
      * @param StaleDeclaration $groupStaleDeclaration the declaration of the group, which the item follows unless it declares its own
+     * @param list<BottomLine> $acceptedBottomLines the bottom lines the group of this item can fill
      */
-    public static function fromOptions(array $options, string $itemPath, StaleDeclaration $groupStaleDeclaration): self
+    public static function fromOptions(array $options, string $itemPath, StaleDeclaration $groupStaleDeclaration, array $acceptedBottomLines): self
     {
         return new self(
             symbol: SyncOptionReader::requireString($options, 'symbol', $itemPath),
@@ -37,6 +40,24 @@ final readonly class TrackerItem
             labelColor: SyncOptionReader::optionalColor($options, 'labelColor', $itemPath),
             bottomText: SyncOptionReader::optionalString($options, 'bottomText', $itemPath),
             activeWindow: ActiveWindow::optionalFromOptions($options, $itemPath),
+            bottomLine: self::readBottomLine($options, $itemPath, $acceptedBottomLines),
         );
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     * @param list<BottomLine> $acceptedBottomLines
+     */
+    private static function readBottomLine(array $options, string $itemPath, array $acceptedBottomLines): ?BottomLine
+    {
+        if ([] === $acceptedBottomLines) {
+            if (SyncOptionReader::isDeclared($options, 'bottomLine')) {
+                throw PixelCastConfigException::invalidValue($itemPath.'.bottomLine', 'this group serves no bottom line');
+            }
+
+            return null;
+        }
+
+        return SyncOptionReader::optionalEnum($options, 'bottomLine', $itemPath, $acceptedBottomLines);
     }
 }

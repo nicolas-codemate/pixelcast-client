@@ -206,6 +206,24 @@ footer, as a single colored string or as up to eight colored segments, but the
 configuration exposes the plain string alone — a deliberate limit of the
 current scope rather than an omission.
 
+`bottomLine` chooses what that row shows when `bottomText` is absent: `ath`
+writes the all-time high of the asset, `volume` its 24 hour traded volume. Each
+group only accepts what it can serve, and a value it cannot serve is refused at
+startup, naming the item: `coingecko` takes both, `boursorama` takes `ath`, and
+`twelvedata` takes neither. A group offers the all-time high only when it knows
+a high it did not observe itself. Twelve Data has none here — no API key was
+available to check what it serves — and a high built from what the client alone
+has seen reads "at the all-time high" on any asset from the first day, with a
+stock split freezing a wrong value for good; that stays open until the Twelve
+Data API is tested with a real key. Without `bottomLine` nothing changes:
+`coingecko` keeps showing the 24 hour volume and the other two groups keep
+showing nothing. Ten characters of that row are read at a glance and the device
+contract accepts 31, anything longer scrolling rather than being cut.
+
+On `boursorama` the row only tells the whole story once `app:tracker:ath` has
+run: until then it shows the highest of the last thirty sessions, which is all
+the sync cycle downloads.
+
 Colors follow the trend unless they are told otherwise. By default the name and
 the sparkline both turn green above zero and red below it, which paints the
 whole screen red on a variation of -0.03% even when the curve has been
@@ -404,6 +422,43 @@ only `enabled: true` in the local `pixelcast.yaml`.
 the request log carries one `POST /api/tracker` per asset. `make inspect` reads
 the local simulator, on `PIXELCAST_SIMULATOR_HOST_PORT` (8088 by default), never
 a real screen.
+
+The all-time high a `bottomLine: ath` row shows is caught up by hand, outside
+the scheduler: Boursorama serves it as twenty years of daily bars, a few hundred
+kilobytes per asset, which has no place in a cycle that runs every few minutes.
+
+```
+docker compose run --rm php bin/console app:tracker:ath --all
+```
+
+Without `--all` a symbol picks the assets to catch up, and every item carrying
+that symbol is processed whatever its group and its currency — the same asset is
+often tracked in two currencies, and each currency holds its own high. Without
+either the command asks which asset to take, listing them as
+`boursorama 1rTCW8 (EUR)`. Every tracker group is covered, including the
+disabled ones, so a group can be caught up before it is turned on. `coingecko`
+has nothing to catch up, since it serves its own all-time high on every sync,
+and `twelvedata` serves no history at all until its API is checked with a real
+key; both are reported and neither fails the run.
+
+The highs are kept in `var/share/tracker-all-time-high.sqlite`, on the named
+volume `deploy/compose.yaml` mounts, so they survive a redeployment and
+`cache:clear` never touches them. Back that file up to keep them, or pass
+`--reset` to the command to drop the high of an asset and let it be rebuilt.
+
+What the command writes only rises, exactly like a sync: the bars it reads end
+at the previous close, so a catch-up launched during a session knows nothing of
+the high of the day and must not crush what the morning sync observed. Bringing
+a wrong value down — an aberrant tick, a stock split — is therefore two
+deliberate steps, `--reset` on the asset then a catch-up:
+
+```
+docker compose run --rm php bin/console app:tracker:ath 1rTCW8 --reset
+```
+
+`--reset` consults no source, so it works on any group, and it combines with
+`--all`. On `coingecko` it is the whole cure: the next sync rewrites the value
+the source serves.
 
 `claude` is checked the same way, with `enabled: true` in the local
 `pixelcast.yaml` and a credentials file the container can read —

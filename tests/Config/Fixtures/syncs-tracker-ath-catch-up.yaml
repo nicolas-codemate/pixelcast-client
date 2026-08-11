@@ -1,0 +1,27 @@
+# Sample configuration used by TrackerAllTimeHighCommandTest: the group served by a deep-history
+# source, with an asset it tracks in two currencies, plus two disabled groups without any source.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: 1rTCW8
+              currency: eur
+            - symbol: 1rTCW8
+              currency: usd
+            - symbol: 1rTDCAM
+              currency: eur
+
+    coingecko:
+        enabled: false
+        interval: '5 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+
+    twelvedata:
+        enabled: false
+        interval: '15 minutes'
+        items:
+            - symbol: AAPL
+              currency: usd

@@ -1,0 +1,9 @@
+# Sample configuration used by SyncsConfigLoaderTest: a bottom line the schema does not declare.
+syncs:
+    coingecko:
+        enabled: true
+        interval: '5 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+              bottomLine: volumes

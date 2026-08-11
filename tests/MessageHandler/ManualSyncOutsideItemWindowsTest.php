@@ -11,8 +11,10 @@ use App\Message\SyncOutcome;
 use App\Message\SyncTrackerMessage;
 use App\MessageHandler\SyncTrackerHandler;
 use App\Provider\Tracker\BoursoramaTrackerProvider;
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingPixelcastClientStub;
+use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -38,7 +40,7 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
     {
         $client = new RecordingPixelcastClientStub();
         $boursoramaClient = self::fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
-        $handler = self::buildHandler($boursoramaClient, self::INSTANT_AFTER_EVERY_CLOSING, $client);
+        $handler = $this->buildHandler($boursoramaClient, self::INSTANT_AFTER_EVERY_CLOSING, $client);
 
         $outcome = $handler(new SyncTrackerMessage(BoursoramaSyncConfig::syncType())->dispatchedByHand());
 
@@ -51,7 +53,7 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
     {
         $client = new RecordingPixelcastClientStub();
         $boursoramaClient = self::fixtureClient();
-        $handler = self::buildHandler($boursoramaClient, self::INSTANT_AFTER_EVERY_CLOSING, $client);
+        $handler = $this->buildHandler($boursoramaClient, self::INSTANT_AFTER_EVERY_CLOSING, $client);
 
         $outcome = $handler(new SyncTrackerMessage(BoursoramaSyncConfig::syncType()));
 
@@ -64,7 +66,7 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
     {
         $client = new RecordingPixelcastClientStub();
         $boursoramaClient = self::fixtureClient('boursorama-ticks-dcam.json');
-        $handler = self::buildHandler($boursoramaClient, self::INSTANT_BEFORE_THE_AMERICAN_OPENING, $client);
+        $handler = $this->buildHandler($boursoramaClient, self::INSTANT_BEFORE_THE_AMERICAN_OPENING, $client);
 
         $outcome = $handler(new SyncTrackerMessage(BoursoramaSyncConfig::syncType()));
 
@@ -84,15 +86,17 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
         );
     }
 
-    private static function buildHandler(
+    private function buildHandler(
         MockHttpClient $boursoramaClient,
         string $instant,
         RecordingPixelcastClientStub $client,
     ): SyncTrackerHandler {
         $clock = new MockClock($instant, self::MARKET_TIMEZONE);
         $trackerProvider = new BoursoramaTrackerProvider(
-            $boursoramaClient,
+            new BoursoramaEndOfDayRequest($boursoramaClient),
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.self::TWO_MARKETS_CONFIG_FILE),
+            AllTimeHighStoreFactory::temporaryStore(),
+            $clock,
             new NullLogger(),
         );
 

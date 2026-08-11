@@ -95,6 +95,13 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertSame(['weather'], array_keys($config->enabledSyncGroups()));
     }
 
+    public function testTheTrackerGroupsAreListedWhateverTheirEnabledFlag(): void
+    {
+        $config = self::loaderFor('syncs-valid.yaml')->load();
+
+        self::assertSame(['coingecko', 'twelvedata'], array_keys($config->trackerSyncGroups()));
+    }
+
     public function testAFileWhereEveryGroupIsDisabledEnablesNothing(): void
     {
         $config = self::loaderFor('syncs-all-disabled.yaml')->load();
@@ -154,6 +161,9 @@ final class SyncsConfigLoaderTest extends TestCase
         yield 'window declaring a day that does not exist' => ['syncs-window-bad-day.yaml', 'syncs.boursorama.activeWindow.days'];
         yield 'window declaring an unknown timezone' => ['syncs-window-bad-timezone.yaml', 'syncs.boursorama.activeWindow.timezone'];
         yield 'item window spanning midnight' => ['syncs-item-window-crossing-midnight.yaml', 'syncs.boursorama.items[0].activeWindow.to'];
+        yield 'bottom line the schema does not declare' => ['syncs-tracker-unknown-bottom-line.yaml', 'syncs.coingecko.items[0].bottomLine'];
+        yield 'bottom line the group cannot serve' => ['syncs-tracker-unsupported-bottom-line.yaml', 'syncs.boursorama.items[0].bottomLine'];
+        yield 'bottom line on the group that serves none' => ['syncs-twelvedata-bottom-line.yaml', 'syncs.twelvedata.items[0].bottomLine'];
     }
 
     #[DataProvider('provideRejectedFileCases')]

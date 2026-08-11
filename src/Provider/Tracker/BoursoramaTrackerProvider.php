@@ -6,29 +6,30 @@ namespace App\Provider\Tracker;
 
 use App\Client\Color;
 use App\Client\Tracker\TrackerPayload;
+use App\Config\Sync\BottomLine;
 use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\TrackerItem;
 use App\Config\SyncsConfigLoader;
+use App\Tracker\AllTimeHigh;
+use App\Tracker\AllTimeHighStore;
+use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
+use App\Tracker\Boursorama\BoursoramaQuoteSeries;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class BoursoramaTrackerProvider implements TrackerProviderInterface
 {
-    private const string TICKS_PATH = 'bourse/action/graph/ws/GetTicksEOD';
     private const int REQUESTED_BAR_COUNT = 30;
-    private const int END_OF_DAY_PERIOD = 0;
     private const string POSITIVE_TREND_COLOR_HEX = '#00FF00';
     private const string NEGATIVE_TREND_COLOR_HEX = '#FF0000';
     private const string BOURSORAMA_CODE_PREFIX_PATTERN = '/^\d[a-z][A-Z]/';
-    private const string BROWSER_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
-    private const string AJAX_REQUESTED_WITH = 'XMLHttpRequest';
 
     public function __construct(
-        #[Target('boursorama.client')]
-        private HttpClientInterface $boursoramaClient,
+        private BoursoramaEndOfDayRequest $endOfDayRequest,
         private SyncsConfigLoader $configLoader,
+        private AllTimeHighStore $allTimeHighStore,
+        private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
     }
@@ -44,12 +45,12 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
 
         $trackerPayloads = [];
         foreach ($boursoramaSyncGroup->itemsToFetchAt($activeWindowInstant) as $item) {
-            $decodedResponse = $this->requestQuoteTab($item->symbol);
-            if (null === $decodedResponse) {
+            $quoteBars = $this->requestQuoteBars($item->symbol);
+            if (null === $quoteBars) {
                 continue;
             }
 
-            $trackerPayload = $this->buildTrackerPayload($item, $decodedResponse);
+            $trackerPayload = $this->buildTrackerPayload($item, $quoteBars);
             if (null !== $trackerPayload) {
                 $trackerPayloads[] = $trackerPayload;
             }
@@ -61,23 +62,10 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     /**
      * @return array<array-key, mixed>|null
      */
-    private function requestQuoteTab(string $boursoramaCode): ?array
+    private function requestQuoteBars(string $boursoramaCode): ?array
     {
         try {
-            return $this->boursoramaClient->request('GET', self::TICKS_PATH, [
-                // Without both of these the endpoint answers 200 with an empty quote
-                // list instead of an error, so a missing header reads as an unknown code.
-                'headers' => [
-                    'User-Agent' => self::BROWSER_USER_AGENT,
-                    'X-Requested-With' => self::AJAX_REQUESTED_WITH,
-                ],
-                'query' => [
-                    'symbol' => $boursoramaCode,
-                    'length' => self::REQUESTED_BAR_COUNT,
-                    'period' => self::END_OF_DAY_PERIOD,
-                    'guid' => '',
-                ],
-            ])->toArray();
+            return $this->endOfDayRequest->fetchBars($boursoramaCode, self::REQUESTED_BAR_COUNT);
         } catch (HttpClientExceptionInterface $httpError) {
             $this->logger->warning('Boursorama request failed', [
                 'symbol' => $boursoramaCode,
@@ -89,12 +77,10 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     }
 
     /**
-     * @param array<array-key, mixed> $decodedResponse
+     * @param array<array-key, mixed> $quoteBars
      */
-    private function buildTrackerPayload(TrackerItem $item, array $decodedResponse): ?TrackerPayload
+    private function buildTrackerPayload(TrackerItem $item, array $quoteBars): ?TrackerPayload
     {
-        $quoteBars = self::readQuoteBars($decodedResponse);
-
         if ([] === $quoteBars) {
             $this->logger->warning('Boursorama served no quotes for a symbol', ['symbol' => $item->symbol]);
 
@@ -120,6 +106,12 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);
         $sparklinePoints = SparklineDownsampler::downsampleToAtMost($closingPrices, TrackerPayload::MAXIMUM_SPARKLINE_POINTS);
 
+        $allTimeHigh = $this->raiseStoredAllTimeHigh($item, $quoteBars);
+        $bottomText = $item->bottomText ?? match ($item->bottomLine) {
+            BottomLine::AllTimeHigh => AllTimeHighBottomText::composeFrom($allTimeHigh?->price, $item->currency),
+            BottomLine::TradedVolume, null => null,
+        };
+
         try {
             return new TrackerPayload(
                 name: mb_strtoupper($item->symbol),
@@ -132,7 +124,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
                 symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
                 sparklinePeriod: SparklinePeriodLabel::forDayCount(self::readCoveredDayCount($quoteBars)),
-                bottomText: $item->bottomText,
+                bottomText: $bottomText,
                 staleAfterInSeconds: $item->staleDeclaration->staleAfterInSeconds,
                 staleBehavior: $item->staleDeclaration->staleBehavior,
             );
@@ -147,16 +139,23 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     }
 
     /**
-     * @param array<array-key, mixed> $decodedResponse
-     *
-     * @return array<array-key, mixed>
+     * @param array<array-key, mixed> $quoteBars
      */
-    private static function readQuoteBars(array $decodedResponse): array
+    private function raiseStoredAllTimeHigh(TrackerItem $item, array $quoteBars): ?AllTimeHigh
     {
-        $quoteBlock = $decodedResponse['d'] ?? null;
-        $quoteBars = \is_array($quoteBlock) ? ($quoteBlock['QuoteTab'] ?? null) : null;
+        $observedAllTimeHigh = BoursoramaQuoteSeries::readAllTimeHigh(
+            $quoteBars,
+            $this->syncType(),
+            $item->symbol,
+            $item->currency,
+            $this->clock->now(),
+        );
 
-        return \is_array($quoteBars) ? $quoteBars : [];
+        if (null === $observedAllTimeHigh) {
+            return null;
+        }
+
+        return $this->allTimeHighStore->raiseTo($observedAllTimeHigh);
     }
 
     /**

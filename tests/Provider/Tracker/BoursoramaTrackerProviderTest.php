@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace App\Tests\Provider\Tracker;
 
 use App\Client\StaleBehavior;
+use App\Config\Sync\BoursoramaSyncConfig;
 use App\Provider\Tracker\BoursoramaTrackerProvider;
+use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
+use App\Tracker\AllTimeHigh;
+use App\Tracker\AllTimeHighStore;
+use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -23,9 +29,12 @@ final class BoursoramaTrackerProviderTest extends TestCase
     private const string PLAIN_CODE_CONFIG_FILE = 'pixelcast-boursorama-plain-code.yaml';
     private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-boursorama-labelled-item.yaml';
     private const string TWO_MARKETS_CONFIG_FILE = 'pixelcast-boursorama-two-markets.yaml';
+    private const string BOTTOM_LINE_CONFIG_FILE = 'pixelcast-boursorama-bottom-line.yaml';
     private const string MARKET_TIMEZONE = 'Europe/Paris';
     private const string INSTANT_INSIDE_EVERY_WINDOW = '2026-08-03 16:00:00';
     private const string INSTANT_BEFORE_THE_AMERICAN_OPENING = '2026-08-03 10:00:00';
+    private const string DCAM_CODE = '1rTDCAM';
+    private const string CW8_CODE = '1rTCW8';
 
     public function testFetchTrackersBuildsPayloadsFromFixture(): void
     {
@@ -249,14 +258,137 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertNotNull($logger->records[0]['context']['error'] ?? null);
     }
 
+    public function testTheHighestBarPriceRaisesTheStoredAllTimeHigh(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+
+        $this->fetchWithStore($allTimeHighStore, self::TWO_ITEMS_CONFIG_FILE, 'boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
+
+        self::assertSame(6.312, self::storedPriceOf($allTimeHighStore, self::DCAM_CODE));
+        self::assertSame(524.16, self::storedPriceOf($allTimeHighStore, self::CW8_CODE));
+    }
+
+    public function testABarHighAboveEveryCloseIsWhatRaisesTheStoredAllTimeHigh(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+        $highestClosingPriceOfTheCw8Series = 520.0;
+
+        $this->fetchWithStore($allTimeHighStore, self::TWO_ITEMS_CONFIG_FILE, 'boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
+
+        self::assertGreaterThan($highestClosingPriceOfTheCw8Series, self::storedPriceOf($allTimeHighStore, self::CW8_CODE));
+    }
+
+    public function testTheStoredHighCarriesTheDayOfItsBarRatherThanTheSyncInstant(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+
+        $this->fetchWithStore($allTimeHighStore, self::TWO_ITEMS_CONFIG_FILE, 'boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
+
+        self::assertSame('2026-07-06', self::storedHighOf($allTimeHighStore, self::DCAM_CODE)?->reachedAt?->format('Y-m-d'));
+        self::assertSame('2026-06-03', self::storedHighOf($allTimeHighStore, self::CW8_CODE)?->reachedAt?->format('Y-m-d'));
+    }
+
+    public function testABarWithoutAHighFallsBackOnItsClose(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+
+        $this->fetchWithStore($allTimeHighStore, self::PLAIN_CODE_CONFIG_FILE, 'boursorama-ticks-missing-high.json');
+
+        $storedHigh = self::storedHighOf($allTimeHighStore, 'DCAM');
+        self::assertSame(6.4, $storedHigh?->price);
+        self::assertSame('2026-07-04', $storedHigh->reachedAt?->format('Y-m-d'));
+    }
+
+    public function testABarSeriesBelowTheStoredAllTimeHighDoesNotLowerIt(): void
+    {
+        $allTimeHighStore = AllTimeHighStoreFactory::temporaryStore();
+        $priceSeenOnAnEarlierCycle = 10.0;
+        $allTimeHighStore->raiseTo(self::observedHigh(self::DCAM_CODE, $priceSeenOnAnEarlierCycle));
+
+        $this->fetchWithStore($allTimeHighStore, self::TWO_ITEMS_CONFIG_FILE, 'boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json');
+
+        self::assertSame($priceSeenOnAnEarlierCycle, self::storedPriceOf($allTimeHighStore, self::DCAM_CODE));
+    }
+
+    public function testBottomLineAthFillsTheBottomRowWithTheStoredAllTimeHigh(): void
+    {
+        $trackerPayloads = $this->buildBottomLineProvider()->fetchTrackers(self::insideEveryWindow());
+
+        self::assertSame('ATH 6.31', $trackerPayloads[0]->bottomText);
+    }
+
+    public function testWithoutABottomLineTheBottomRowStaysEmpty(): void
+    {
+        $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
+
+        $trackerPayloads = $provider->fetchTrackers(self::insideEveryWindow());
+
+        self::assertNull($trackerPayloads[0]->bottomText);
+        self::assertNull($trackerPayloads[1]->bottomText);
+    }
+
+    public function testAFixedBottomTextStillWinsOverBottomLineAth(): void
+    {
+        $trackerPayloads = $this->buildBottomLineProvider()->fetchTrackers(self::insideEveryWindow());
+
+        self::assertSame('MSCI World', $trackerPayloads[1]->bottomText);
+    }
+
+    public function testAnUnreachableStoreLeavesTheBottomRowEmptyWithoutLosingTheTracker(): void
+    {
+        $logger = new RecordingLoggerStub();
+
+        $trackerPayloads = $this->buildBottomLineProvider(AllTimeHighStoreFactory::unreachableStore($logger))->fetchTrackers(self::insideEveryWindow());
+
+        self::assertCount(2, $trackerPayloads);
+        self::assertNull($trackerPayloads[0]->bottomText);
+        self::assertSame(LogLevel::WARNING, $logger->records[0]['level'] ?? null);
+    }
+
+    private function fetchWithStore(AllTimeHighStore $allTimeHighStore, string $configFileName, string ...$fixtureFileNames): void
+    {
+        $this
+            ->buildProvider($this->fixtureClient(...$fixtureFileNames), configFileName: $configFileName, allTimeHighStore: $allTimeHighStore)
+            ->fetchTrackers(self::insideEveryWindow());
+    }
+
+    private static function storedHighOf(AllTimeHighStore $allTimeHighStore, string $boursoramaCode): ?AllTimeHigh
+    {
+        return $allTimeHighStore->readAllTimeHigh(BoursoramaSyncConfig::syncType(), $boursoramaCode, 'eur');
+    }
+
+    private static function storedPriceOf(AllTimeHighStore $allTimeHighStore, string $boursoramaCode): ?float
+    {
+        return self::storedHighOf($allTimeHighStore, $boursoramaCode)?->price;
+    }
+
+    private static function observedHigh(string $boursoramaCode, float $price): AllTimeHigh
+    {
+        $earlierCycle = new \DateTimeImmutable('2026-08-03 10:00:00');
+
+        return new AllTimeHigh(BoursoramaSyncConfig::syncType(), $boursoramaCode, 'eur', $price, $earlierCycle, $earlierCycle);
+    }
+
+    private function buildBottomLineProvider(?AllTimeHighStore $allTimeHighStore = null): BoursoramaTrackerProvider
+    {
+        return $this->buildProvider(
+            $this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'),
+            configFileName: self::BOTTOM_LINE_CONFIG_FILE,
+            allTimeHighStore: $allTimeHighStore,
+        );
+    }
+
     private function buildProvider(
         MockHttpClient $httpClient,
         ?LoggerInterface $logger = null,
         string $configFileName = self::TWO_ITEMS_CONFIG_FILE,
+        ?AllTimeHighStore $allTimeHighStore = null,
     ): BoursoramaTrackerProvider {
         return new BoursoramaTrackerProvider(
-            $httpClient,
+            new BoursoramaEndOfDayRequest($httpClient),
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
+            $allTimeHighStore ?? AllTimeHighStoreFactory::temporaryStore(),
+            new MockClock(self::INSTANT_INSIDE_EVERY_WINDOW),
             $logger ?? new NullLogger(),
         );
     }

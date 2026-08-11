@@ -6,6 +6,7 @@ namespace App\Tests\Config\Sync;
 
 use App\Client\StaleBehavior;
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sync\BottomLine;
 use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Config\Sync\TrackerSyncConfig;
@@ -83,6 +84,77 @@ final class TrackerSyncConfigTest extends TestCase
         self::assertNull($trackerSync->items[1]->label);
         self::assertNull($trackerSync->items[1]->labelColor);
         self::assertNull($trackerSync->items[1]->bottomText);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemWithoutABottomLineKeyCarriesNoBottomLine(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+
+        self::assertNull($trackerSync->items[0]->bottomLine);
+        self::assertNull($trackerSync->items[1]->bottomLine);
+    }
+
+    /**
+     * @return iterable<string, array{class-string<TrackerSyncConfig>, BottomLine}>
+     */
+    public static function provideAcceptedBottomLines(): iterable
+    {
+        foreach (self::provideTrackerSyncGroups() as [$syncGroupClass, $syncType]) {
+            foreach ($syncGroupClass::acceptedBottomLines() as $bottomLine) {
+                yield $syncType.' '.$bottomLine->value => [$syncGroupClass, $bottomLine];
+            }
+        }
+    }
+
+    /**
+     * @return iterable<string, array{class-string<TrackerSyncConfig>, string, BottomLine}>
+     */
+    public static function provideRefusedBottomLines(): iterable
+    {
+        foreach (self::provideTrackerSyncGroups() as [$syncGroupClass, $syncType]) {
+            foreach (BottomLine::cases() as $bottomLine) {
+                if (!\in_array($bottomLine, $syncGroupClass::acceptedBottomLines(), true)) {
+                    yield $syncType.' '.$bottomLine->value => [$syncGroupClass, $syncType, $bottomLine];
+                }
+            }
+        }
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideAcceptedBottomLines')]
+    public function testAGroupReadsEveryBottomLineItAccepts(string $syncGroupClass, BottomLine $bottomLine): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::optionsWithBottomLine($bottomLine->value));
+
+        self::assertSame($bottomLine, $trackerSync->items[0]->bottomLine);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideRefusedBottomLines')]
+    public function testAGroupNamesTheOptionOfEveryBottomLineItRefuses(string $syncGroupClass, string $expectedSyncType, BottomLine $bottomLine): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage(\sprintf('syncs.%s.items[0].bottomLine', $expectedSyncType));
+
+        $syncGroupClass::fromOptions(self::optionsWithBottomLine($bottomLine->value));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function optionsWithBottomLine(string $bottomLine): array
+    {
+        return array_merge(self::validOptions(), [
+            'items' => [['symbol' => 'BTC', 'currency' => 'eur', 'bottomLine' => $bottomLine]],
+        ]);
     }
 
     /**

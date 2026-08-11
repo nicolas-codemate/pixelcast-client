@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2293a4fea83d654935a5332231653e78",
+    "content-hash": "3fc235b1c54a5f09fac02c76ac481a08",
     "packages": [
         {
             "name": "devizzent/cebe-php-openapi",
@@ -7889,7 +7889,8 @@
     "platform": {
         "php": ">=8.5",
         "ext-ctype": "*",
-        "ext-iconv": "*"
+        "ext-iconv": "*",
+        "ext-pdo_sqlite": "*"
     },
     "platform-dev": {},
     "plugin-api-version": "2.9.0"
