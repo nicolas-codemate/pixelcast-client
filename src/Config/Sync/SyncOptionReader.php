@@ -165,6 +165,41 @@ final class SyncOptionReader
     }
 
     /**
+     * @template TBackedEnum of \BackedEnum
+     *
+     * @param array<string, mixed> $options
+     * @param class-string<TBackedEnum> $enumClass
+     *
+     * @return list<TBackedEnum>
+     */
+    public static function optionalEnumList(array $options, string $key, string $parentPath, string $enumClass): array
+    {
+        if (!self::isDeclared($options, $key)) {
+            return [];
+        }
+
+        $optionPath = self::optionPath($parentPath, $key);
+        $value = $options[$key];
+
+        if (!\is_array($value) || !array_is_list($value)) {
+            throw PixelCastConfigException::invalidValue($optionPath, 'expected a list');
+        }
+
+        $matchedCases = [];
+        foreach ($value as $index => $entry) {
+            $matchedCase = \is_string($entry) ? $enumClass::tryFrom($entry) : null;
+
+            if (null === $matchedCase) {
+                throw PixelCastConfigException::invalidValue(\sprintf('%s[%d]', $optionPath, $index), \sprintf('expected one of: %s', implode(', ', array_column($enumClass::cases(), 'value'))));
+            }
+
+            $matchedCases[] = $matchedCase;
+        }
+
+        return $matchedCases;
+    }
+
+    /**
      * @param array<string, mixed> $options
      *
      * @return list<array<string, mixed>>

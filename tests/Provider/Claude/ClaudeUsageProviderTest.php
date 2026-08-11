@@ -341,7 +341,7 @@ final class ClaudeUsageProviderTest extends TestCase
         MockHttpClient $usageClient,
         ?MockHttpClient $oauthClient = null,
         ?RecordingLoggerStub $logger = null,
-        ?string $configFixture = null,
+        string $configFixture = self::CONFIG_FIXTURE,
     ): ClaudeUsageProvider {
         $clock = new MockClock(self::NOW);
         $store = new ClaudeCredentialsStore($this->credentialsFilePath);
@@ -351,7 +351,7 @@ final class ClaudeUsageProviderTest extends TestCase
             $usageClient,
             new ClaudeOAuthClient($oauthClient ?? self::oauthClient([]), $store, $clock, $recordingLogger),
             new ClaudeUsageResponseReader($recordingLogger),
-            SyncsConfigLoaderFactory::forConfigFile(SyncsConfigLoaderFactory::projectFilePath($configFixture ?? self::CONFIG_FIXTURE)),
+            SyncsConfigLoaderFactory::forConfigFile(SyncsConfigLoaderFactory::projectFilePath($configFixture)),
             $clock,
             $recordingLogger,
         );

@@ -159,20 +159,19 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
      */
     private function buildRows(ClaudeUsageSnapshot $usageSnapshot, \DateTimeImmutable $now, array $hiddenRows): array
     {
+        $isVisible = static fn (ClaudeUsageRowLabel $label): bool => !\in_array($label, $hiddenRows, true);
+
         return array_values(array_filter([
-            $this->buildWindowRow($usageSnapshot->session, ClaudeUsageRowLabel::Session, self::SESSION_RESET_FORMAT, $now, $hiddenRows),
-            $this->buildWindowRow($usageSnapshot->weeklyAll, ClaudeUsageRowLabel::WeeklyAll, self::WEEKLY_RESET_FORMAT, $now, $hiddenRows),
-            $this->buildWindowRow($usageSnapshot->fableWeekly, ClaudeUsageRowLabel::Fable, self::WEEKLY_RESET_FORMAT, $now, $hiddenRows),
-            $this->buildCreditsRow($usageSnapshot->spend, $hiddenRows),
+            $isVisible(ClaudeUsageRowLabel::Session) ? $this->buildWindowRow($usageSnapshot->session, ClaudeUsageRowLabel::Session, self::SESSION_RESET_FORMAT, $now) : null,
+            $isVisible(ClaudeUsageRowLabel::WeeklyAll) ? $this->buildWindowRow($usageSnapshot->weeklyAll, ClaudeUsageRowLabel::WeeklyAll, self::WEEKLY_RESET_FORMAT, $now) : null,
+            $isVisible(ClaudeUsageRowLabel::Fable) ? $this->buildWindowRow($usageSnapshot->fableWeekly, ClaudeUsageRowLabel::Fable, self::WEEKLY_RESET_FORMAT, $now) : null,
+            $isVisible(ClaudeUsageRowLabel::Credits) ? $this->buildCreditsRow($usageSnapshot->spend) : null,
         ]));
     }
 
-    /**
-     * @param list<ClaudeUsageRowLabel> $hiddenRows
-     */
-    private function buildWindowRow(?ClaudeUsageWindow $window, ClaudeUsageRowLabel $label, string $resetFormat, \DateTimeImmutable $now, array $hiddenRows): ?GaugeRow
+    private function buildWindowRow(?ClaudeUsageWindow $window, ClaudeUsageRowLabel $label, string $resetFormat, \DateTimeImmutable $now): ?GaugeRow
     {
-        if (null === $window || \in_array($label, $hiddenRows, true)) {
+        if (null === $window) {
             return null;
         }
 
@@ -196,12 +195,9 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
         }
     }
 
-    /**
-     * @param list<ClaudeUsageRowLabel> $hiddenRows
-     */
-    private function buildCreditsRow(?ClaudeSpend $spend, array $hiddenRows): ?GaugeRow
+    private function buildCreditsRow(?ClaudeSpend $spend): ?GaugeRow
     {
-        if (null === $spend || \in_array(ClaudeUsageRowLabel::Credits, $hiddenRows, true)) {
+        if (null === $spend) {
             return null;
         }
 
