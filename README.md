@@ -220,6 +220,10 @@ Data API is tested with a real key. Without `bottomLine` nothing changes:
 showing nothing. Ten characters of that row are read at a glance and the device
 contract accepts 31, anything longer scrolling rather than being cut.
 
+On `boursorama` the row only tells the whole story once `app:tracker:ath` has
+run: until then it shows the highest of the last thirty sessions, which is all
+the sync cycle downloads.
+
 Colors follow the trend unless they are told otherwise. By default the name and
 the sparkline both turn green above zero and red below it, which paints the
 whole screen red on a variation of -0.03% even when the curve has been
@@ -436,6 +440,11 @@ disabled ones, so a group can be caught up before it is turned on. `coingecko`
 has nothing to catch up, since it serves its own all-time high on every sync,
 and `twelvedata` serves no history at all until its API is checked with a real
 key; both are reported and neither fails the run.
+
+The highs are kept in `var/share/tracker-all-time-high.sqlite`, on the named
+volume `deploy/compose.yaml` mounts, so they survive a redeployment and
+`cache:clear` never touches them. Back that file up to keep them, or pass
+`--reset` to the command to drop the high of an asset and let it be rebuilt.
 
 What the command writes only rises, exactly like a sync: the bars it reads end
 at the previous close, so a catch-up launched during a session knows nothing of

@@ -155,8 +155,9 @@ syncs:
         # label: text shown on the top row instead of the text derived from symbol, optional.
         # labelColor: hex color of the label, optional. Without it the label follows the trend color.
         # bottomText: text shown under the price, optional.
-        # bottomLine: ath only here, this source carries no consolidated volume. Catching up on the
-        #   deep history is done with `bin/console app:tracker:ath`.
+        # bottomLine: ath only here, this source carries no consolidated volume. Until
+        #   `bin/console app:tracker:ath` has run the row shows the highest of the last thirty
+        #   sessions, which is all a sync cycle downloads.
         # activeWindow: hours this asset alone is fetched during, same shape as the group key above.
         #   It overrides the group window, which lets one group hold assets quoted on markets with
         #   different opening hours. Outside them the asset is skipped and no request is spent on it.
