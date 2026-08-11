@@ -6,9 +6,13 @@ namespace App\Provider\Tracker;
 
 use App\Client\Color;
 use App\Client\Tracker\TrackerPayload;
+use App\Config\Sync\BottomLine;
 use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\TrackerItem;
 use App\Config\SyncsConfigLoader;
+use App\Tracker\AllTimeHigh;
+use App\Tracker\AllTimeHighStore;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
@@ -24,11 +28,14 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
     private const string BOURSORAMA_CODE_PREFIX_PATTERN = '/^\d[a-z][A-Z]/';
     private const string BROWSER_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
     private const string AJAX_REQUESTED_WITH = 'XMLHttpRequest';
+    private const int SECONDS_PER_DAY = 86_400;
 
     public function __construct(
         #[Target('boursorama.client')]
         private HttpClientInterface $boursoramaClient,
         private SyncsConfigLoader $configLoader,
+        private AllTimeHighStore $allTimeHighStore,
+        private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
     }
@@ -120,6 +127,11 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);
         $sparklinePoints = SparklineDownsampler::downsampleToAtMost($closingPrices, TrackerPayload::MAXIMUM_SPARKLINE_POINTS);
 
+        $allTimeHigh = $this->raiseStoredAllTimeHigh($item, $quoteBars);
+        $bottomText = $item->bottomText ?? (BottomLine::AllTimeHigh === $item->bottomLine
+            ? AllTimeHighBottomText::composeFrom($allTimeHigh?->price, $item->currency)
+            : null);
+
         try {
             return new TrackerPayload(
                 name: mb_strtoupper($item->symbol),
@@ -132,7 +144,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
                 symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
                 sparklinePeriod: SparklinePeriodLabel::forDayCount(self::readCoveredDayCount($quoteBars)),
-                bottomText: $item->bottomText,
+                bottomText: $bottomText,
                 staleAfterInSeconds: $item->staleDeclaration->staleAfterInSeconds,
                 staleBehavior: $item->staleDeclaration->staleBehavior,
             );
@@ -144,6 +156,59 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
 
             return null;
         }
+    }
+
+    /**
+     * The highest price observed is the highest session high of the series, not the last close: an
+     * ETF that touches 620 during a session and closes at 610 did reach 620. The day of the winning
+     * bar travels with it, since that bar can be weeks old while the sync happens now.
+     *
+     * @param array<array-key, mixed> $quoteBars
+     */
+    private function raiseStoredAllTimeHigh(TrackerItem $item, array $quoteBars): ?AllTimeHigh
+    {
+        $highestPrice = null;
+        $dayOfTheHighestBar = null;
+
+        foreach ($quoteBars as $quoteBar) {
+            if (!\is_array($quoteBar)) {
+                continue;
+            }
+
+            $sessionHigh = self::readNumber($quoteBar, 'h') ?? self::readNumber($quoteBar, 'c');
+            if (null === $sessionHigh) {
+                continue;
+            }
+
+            if (null !== $highestPrice && $sessionHigh <= $highestPrice) {
+                continue;
+            }
+
+            $highestPrice = $sessionHigh;
+            $dayOfTheHighestBar = self::readNumber($quoteBar, 'd');
+        }
+
+        if (null === $highestPrice) {
+            return null;
+        }
+
+        return $this->allTimeHighStore->raiseTo(new AllTimeHigh(
+            $this->syncType(),
+            $item->symbol,
+            $item->currency,
+            $highestPrice,
+            reachedAt: self::instantOfDay($dayOfTheHighestBar),
+            observedAt: $this->clock->now(),
+        ));
+    }
+
+    private static function instantOfDay(?float $dayCountSinceEpoch): ?\DateTimeImmutable
+    {
+        if (null === $dayCountSinceEpoch) {
+            return null;
+        }
+
+        return new \DateTimeImmutable('@'.((int) $dayCountSinceEpoch * self::SECONDS_PER_DAY));
     }
 
     /**

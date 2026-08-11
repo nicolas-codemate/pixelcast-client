@@ -1,0 +1,16 @@
+# Sample configuration used by BoursoramaTrackerProviderTest: the only bottom line the group
+# serves, plus an asset whose fixed bottomText must win over it.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: 1rTDCAM
+              currency: eur
+              icon: etf
+              bottomLine: ath
+            - symbol: 1rTCW8
+              currency: eur
+              icon: etf
+              bottomLine: ath
+              bottomText: MSCI World

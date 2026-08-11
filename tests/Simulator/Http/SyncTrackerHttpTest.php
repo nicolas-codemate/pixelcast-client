@@ -138,8 +138,8 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     {
         $boursoramaClient = self::boursoramaClient(self::BOURSORAMA_DCAM_FIXTURE_FILE, self::BOURSORAMA_CW8_FIXTURE_FILE);
         $lastSuccessfulSyncStore = new LastSuccessfulSyncStore(new ArrayAdapter(), new MockClock());
-        $syncTrackerHandler = $this->buildSyncTrackerHandler(self::buildBoursoramaProvider($boursoramaClient), $lastSuccessfulSyncStore);
-        $expectedBodies = self::boursoramaWireBodies();
+        $syncTrackerHandler = $this->buildSyncTrackerHandler($this->buildBoursoramaProvider($boursoramaClient), $lastSuccessfulSyncStore);
+        $expectedBodies = $this->boursoramaWireBodies();
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::boursoramaMessage()), $this->server->serverOutput());
         // Boursorama serves one symbol per call, unlike the single grouped call of twelvedata.
@@ -213,9 +213,9 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
     /**
      * @return array<string, array<string, mixed>> keyed by tracker name
      */
-    private static function boursoramaWireBodies(): array
+    private function boursoramaWireBodies(): array
     {
-        return self::expectedWireBodies(self::buildBoursoramaProvider(
+        return self::expectedWireBodies($this->buildBoursoramaProvider(
             self::boursoramaClient(self::BOURSORAMA_DCAM_FIXTURE_FILE, self::BOURSORAMA_CW8_FIXTURE_FILE),
         ));
     }
@@ -261,11 +261,13 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         );
     }
 
-    private static function buildBoursoramaProvider(MockHttpClient $boursoramaClient): BoursoramaTrackerProvider
+    private function buildBoursoramaProvider(MockHttpClient $boursoramaClient): BoursoramaTrackerProvider
     {
         return new BoursoramaTrackerProvider(
             $boursoramaClient,
             SyncsConfigLoaderFactory::forConfigFile(self::trackerFixturesDirectory().'/pixelcast-boursorama.yaml'),
+            new AllTimeHighStore($this->allTimeHighDatabasePath, new NullLogger()),
+            new MockClock(),
             new NullLogger(),
         );
     }
