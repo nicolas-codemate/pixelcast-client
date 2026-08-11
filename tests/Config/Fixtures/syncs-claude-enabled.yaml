@@ -1,4 +1,4 @@
-# Sample configuration used by ClaudeUsageProviderTest.
+# Sample configuration used by ClaudeUsageProviderTest and TrackerAllTimeHighCommandTest: no tracker group at all.
 syncs:
     claude:
         enabled: true

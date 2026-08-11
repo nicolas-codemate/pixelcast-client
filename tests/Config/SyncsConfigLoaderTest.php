@@ -95,6 +95,13 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertSame(['weather'], array_keys($config->enabledSyncGroups()));
     }
 
+    public function testTheTrackerGroupsAreListedWhateverTheirEnabledFlag(): void
+    {
+        $config = self::loaderFor('syncs-valid.yaml')->load();
+
+        self::assertSame(['coingecko', 'twelvedata'], array_keys($config->trackerSyncGroups()));
+    }
+
     public function testAFileWhereEveryGroupIsDisabledEnablesNothing(): void
     {
         $config = self::loaderFor('syncs-all-disabled.yaml')->load();
