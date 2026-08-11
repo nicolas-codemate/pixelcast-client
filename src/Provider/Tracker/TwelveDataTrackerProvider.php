@@ -23,7 +23,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
     private const string NEGATIVE_TREND_COLOR_HEX = '#FF0000';
     private const string TICKER_EXCHANGE_SEPARATORS = ':.';
     private const int DAILY_BAR_COUNT = 30;
-    private const string SPARKLINE_PERIOD = self::DAILY_BAR_COUNT.'d';
+    private const string DAILY_BAR_DATE_FORMAT = 'Y-m-d';
 
     public function __construct(
         #[Target('twelvedata.client')]
@@ -186,7 +186,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
                 sparklinePoints: $sparklinePoints,
                 symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
-                sparklinePeriod: self::SPARKLINE_PERIOD,
+                sparklinePeriod: SparklinePeriodLabel::forDayCount(self::readCoveredDayCount($series)),
                 bottomText: $item->bottomText,
                 staleAfterInSeconds: $item->staleDeclaration->staleAfterInSeconds,
                 staleBehavior: $item->staleDeclaration->staleBehavior,
@@ -228,6 +228,44 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         }
 
         return $closingPrices;
+    }
+
+    /**
+     * @param array<array-key, mixed> $series
+     */
+    private static function readCoveredDayCount(array $series): ?int
+    {
+        $bars = $series['values'] ?? null;
+        if (!\is_array($bars) || [] === $bars) {
+            return null;
+        }
+
+        $firstBar = reset($bars);
+        $lastBar = end($bars);
+
+        $firstDate = \is_array($firstBar) ? self::readBarDate($firstBar) : null;
+        $lastDate = \is_array($lastBar) ? self::readBarDate($lastBar) : null;
+
+        if (null === $firstDate || null === $lastDate) {
+            return null;
+        }
+
+        return $firstDate->diff($lastDate)->days;
+    }
+
+    /**
+     * @param array<array-key, mixed> $bar
+     */
+    private static function readBarDate(array $bar): ?\DateTimeImmutable
+    {
+        $rawDate = self::readString($bar, 'datetime');
+        if (null === $rawDate) {
+            return null;
+        }
+
+        $barDate = \DateTimeImmutable::createFromFormat(self::DAILY_BAR_DATE_FORMAT, $rawDate);
+
+        return false === $barDate ? null : $barDate;
     }
 
     /**

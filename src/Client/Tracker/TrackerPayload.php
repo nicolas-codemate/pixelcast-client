@@ -9,7 +9,8 @@ use App\Client\StaleBehavior;
 
 final readonly class TrackerPayload
 {
-    public const int MAXIMUM_SPARKLINE_POINTS = 24;
+    // The device chart is 63 columns wide and plots one point per column.
+    public const int MAXIMUM_SPARKLINE_POINTS = 63;
     public const int MAXIMUM_SYMBOL_LENGTH = 31;
     public const int MAXIMUM_BOTTOM_TEXT_LENGTH = 31;
 

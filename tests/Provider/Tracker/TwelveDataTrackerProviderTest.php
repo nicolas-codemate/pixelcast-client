@@ -43,7 +43,7 @@ final class TwelveDataTrackerProviderTest extends TestCase
         self::assertSame(0.5, $applePayload->changePercentage);
         self::assertSame('#00FF00', $applePayload->symbolColor?->hexCode);
         self::assertSame('#00FF00', $applePayload->sparklineColor?->hexCode);
-        self::assertSame('30d', $applePayload->sparklinePeriod);
+        self::assertSame('41d', $applePayload->sparklinePeriod);
 
         self::assertSame('IWDA.AS', $worldEtfPayload->name);
         self::assertSame('IWDA', $worldEtfPayload->symbol);
@@ -88,19 +88,19 @@ final class TwelveDataTrackerProviderTest extends TestCase
         }
     }
 
-    public function testSparklineIsDownsampledToAtMost24PointsKeepingFirstAndLastPoint(): void
+    public function testTheSparklineCarriesEveryDailyBarOfTheResponse(): void
     {
         $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('twelvedata-time-series.json'), self::TWELVEDATA_BASE_URI));
 
         [$applePayload, $worldEtfPayload] = $provider->fetchTrackers(self::syncInstant());
 
-        self::assertCount(24, $applePayload->sparklinePoints);
+        self::assertCount(30, $applePayload->sparklinePoints);
         self::assertSame(172.0, $applePayload->sparklinePoints[0]);
-        self::assertSame(201.0, $applePayload->sparklinePoints[23]);
+        self::assertSame(201.0, $applePayload->sparklinePoints[29]);
 
-        self::assertCount(24, $worldEtfPayload->sparklinePoints);
+        self::assertCount(30, $worldEtfPayload->sparklinePoints);
         self::assertSame(128.0, $worldEtfPayload->sparklinePoints[0]);
-        self::assertSame(99.0, $worldEtfPayload->sparklinePoints[23]);
+        self::assertSame(99.0, $worldEtfPayload->sparklinePoints[29]);
     }
 
     public function testAllConfiguredItemsAreFetchedInASingleRequest(): void

@@ -139,7 +139,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
 
         self::assertSame('DCAM', $expectedBodies['1RTDCAM']['symbol']);
         self::assertSame('EUR', $expectedBodies['1RTDCAM']['currency']);
-        self::assertSame('24d', $expectedBodies['1RTDCAM']['sparklinePeriod']);
+        self::assertSame('33d', $expectedBodies['1RTDCAM']['sparklinePeriod']);
 
         self::assertSame(0, $lastSuccessfulSyncStore->ageInSecondsOf(BoursoramaSyncConfig::syncType()));
     }
