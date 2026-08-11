@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Config\Sync;
 
 use App\Client\StaleBehavior;
+use App\Config\Exception\PixelCastConfigException;
 use App\Message\SyncClaudeMessage;
 use App\Message\SyncMessage;
 
@@ -17,11 +18,17 @@ use App\Message\SyncMessage;
  */
 final readonly class ClaudeSyncConfig implements SyncGroupConfig
 {
+    private const string HIDDEN_ROWS_OPTION_KEY = 'hiddenRows';
+
+    /**
+     * @param list<ClaudeUsageRowLabel> $hiddenRows
+     */
     public function __construct(
         public bool $enabled,
         public SyncInterval $interval,
         public StaleDeclaration $staleDeclaration,
         public ?ActiveWindow $activeWindow,
+        public array $hiddenRows,
     ) {
     }
 
@@ -42,6 +49,7 @@ final readonly class ClaudeSyncConfig implements SyncGroupConfig
             // All four behaviours, unlike the weather group: the gauge layout draws `dim` and `badge`.
             staleDeclaration: StaleDeclaration::fromOptions($options, $optionsPath, $interval, StaleBehavior::cases()),
             activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath),
+            hiddenRows: self::readHiddenRows($options, $optionsPath),
         );
     }
 
@@ -59,5 +67,36 @@ final readonly class ClaudeSyncConfig implements SyncGroupConfig
         }
 
         return SyncGroupActivity::activeSince($activeWindow?->secondsSinceOpening($instant));
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     *
+     * @return list<ClaudeUsageRowLabel>
+     */
+    private static function readHiddenRows(array $options, string $parentPath): array
+    {
+        if (!SyncOptionReader::isDeclared($options, self::HIDDEN_ROWS_OPTION_KEY)) {
+            return [];
+        }
+
+        $hiddenRowsPath = $parentPath.'.'.self::HIDDEN_ROWS_OPTION_KEY;
+        $declaredRows = $options[self::HIDDEN_ROWS_OPTION_KEY];
+        if (!\is_array($declaredRows) || !array_is_list($declaredRows)) {
+            throw PixelCastConfigException::invalidValue($hiddenRowsPath, 'expected a list');
+        }
+
+        $hiddenRows = [];
+        foreach ($declaredRows as $index => $declaredRow) {
+            $row = \is_string($declaredRow) ? ClaudeUsageRowLabel::tryFrom($declaredRow) : null;
+
+            if (null === $row) {
+                throw PixelCastConfigException::invalidValue(\sprintf('%s[%d]', $hiddenRowsPath, $index), \sprintf('expected one of: %s', implode(', ', array_column(ClaudeUsageRowLabel::cases(), 'value'))));
+            }
+
+            $hiddenRows[] = $row;
+        }
+
+        return $hiddenRows;
     }
 }

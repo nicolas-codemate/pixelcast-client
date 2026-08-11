@@ -171,6 +171,20 @@
                     "type": "string",
                     "minLength": 1
                 },
+                "hiddenRows": {
+                    "description": "Row labels left out of the gauge, as shown on the device (\"5h\", \"7j\", \"fable\", \"credits\"). A row named here is skipped even when the API answer carries it. Hiding every row leaves the group pushing nothing rather than an empty gauge. Without it every row the answer carries is shown.",
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "5h",
+                            "7j",
+                            "fable",
+                            "credits"
+                        ]
+                    }
+                },
                 "staleAfter": {
                     "$ref": "#/definitions/staleAfter"
                 },

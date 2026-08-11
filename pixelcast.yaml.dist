@@ -187,6 +187,11 @@ syncs:
         # Reading the counters consumes no quota, so a short interval costs nothing.
         interval: '15 minutes'
 
+        # Row labels to leave out of the gauge: any of '5h', '7j', 'fable', 'credits'. A row
+        # named here is skipped even when the API answer carries it; hiding every row leaves
+        # the group pushing nothing. Without this key every row the answer carries is shown.
+        # hiddenRows: [credits]
+
         # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
         # 604800 (7 days) at most. Without this key the value is three times the interval, the same
         # rule the healthcheck applies, so '15 minutes' gives 2700.
