@@ -15,6 +15,8 @@ parameters:
     # bind-mounts, so the default lands in the mount even when the env var is left unset.
     app.claude.default_credentials_file: '%kernel.project_dir%/claude/credentials.json'
     app.claude.credentials_file: '%env(default:app.claude.default_credentials_file:PIXELCAST_CLAUDE_CREDENTIALS_FILE)%'
+    app.tracker.default_all_time_high_database: '%kernel.share_dir%/tracker-all-time-high.sqlite'
+    app.tracker.all_time_high_database: '%env(default:app.tracker.default_all_time_high_database:PIXELCAST_TRACKER_ALL_TIME_HIGH_DATABASE)%'
 
 services:
     # default configuration for services in *this* file
@@ -77,6 +79,10 @@ services:
     App\Claude\ClaudeCredentialsStore:
         arguments:
             $credentialsFilePath: '%app.claude.credentials_file%'
+
+    App\Tracker\AllTimeHighStore:
+        arguments:
+            $databaseFilePath: '%app.tracker.all_time_high_database%'
 
     App\Provider\Tracker\CoinGeckoTrackerProvider:
         arguments:
