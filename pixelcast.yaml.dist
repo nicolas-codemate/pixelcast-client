@@ -66,6 +66,10 @@ syncs:
         # bottomText: text shown under the price, optional. Here it replaces the 24 hour volume.
         # bottomLine: what the row under the price shows when bottomText is absent, optional:
         #   ath (all-time high) or volume (the default here, the 24 hour volume).
+        # volumeBars: whether the device draws the traded volume as bars behind the price curve,
+        #   optional, drawn without this key. Here the series costs one call per coin on top of the
+        #   group call, and it is the rolling 24 hour volume sampled hourly rather than one bar per
+        #   session, so it reads smoother than an exchange volume. false spares both.
         items:
             - symbol: bitcoin
               currency: eur
@@ -104,6 +108,10 @@ syncs:
         #   price the client has seen since it was installed: "at the all-time high" from the
         #   first day, with no way to correct it. To reopen once the Twelve Data API has been
         #   tested with a real key.
+        # volumeBars: whether the device draws the traded volume as bars behind the price curve,
+        #   optional, drawn without this key. The volume travels with the daily bars, so it costs
+        #   no extra call. Indices and forex pairs are served with a volume of zero on every bar
+        #   and get no bars whatever this key says.
         items:
             - symbol: AAPL
               currency: usd
@@ -158,6 +166,9 @@ syncs:
         # bottomLine: ath only here, this source carries no consolidated volume. Until
         #   `bin/console app:tracker:ath` has run the row shows the highest of the last thirty
         #   sessions, which is all a sync cycle downloads.
+        # volumeBars: whether the device draws the traded volume as bars behind the price curve,
+        #   optional, drawn without this key. The volume travels with the daily bars, so it costs
+        #   no extra call.
         # activeWindow: hours this asset alone is fetched during, same shape as the group key above.
         #   It overrides the group window, which lets one group hold assets quoted on markets with
         #   different opening hours. Outside them the asset is skipped and no request is spent on it.

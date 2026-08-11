@@ -105,6 +105,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         $changePercentage = round(($latestClosingPrice - $previousClosingPrice) / $previousClosingPrice * 100, 2);
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);
         $sparklinePoints = SparklineDownsampler::downsampleToAtMost($closingPrices, TrackerPayload::MAXIMUM_SPARKLINE_POINTS);
+        $volumePoints = $item->volumeBars ? TradedVolumeSeries::alignedWith($closingPrices, self::readTradedVolumes($quoteBars)) : [];
 
         $allTimeHigh = $this->raiseStoredAllTimeHigh($item, $quoteBars);
         $bottomText = $item->bottomText ?? match ($item->bottomLine) {
@@ -121,6 +122,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
                 currentValue: $latestClosingPrice,
                 changePercentage: $changePercentage,
                 sparklinePoints: $sparklinePoints,
+                volumePoints: $volumePoints,
                 symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
                 sparklinePeriod: SparklinePeriodLabel::forDayCount(self::readCoveredDayCount($quoteBars)),
@@ -202,6 +204,27 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         }
 
         return $closingPrices;
+    }
+
+    /**
+     * @param array<array-key, mixed> $quoteBars
+     *
+     * @return list<float> empty as soon as one bar carries no volume, since a partial series
+     *                     would not line up with the price curve
+     */
+    private static function readTradedVolumes(array $quoteBars): array
+    {
+        $tradedVolumes = [];
+        foreach ($quoteBars as $quoteBar) {
+            $tradedVolume = \is_array($quoteBar) ? self::readNumber($quoteBar, 'v') : null;
+            if (null === $tradedVolume) {
+                return [];
+            }
+
+            $tradedVolumes[] = $tradedVolume;
+        }
+
+        return $tradedVolumes;
     }
 
     private static function displaySymbolOf(string $boursoramaCode): string

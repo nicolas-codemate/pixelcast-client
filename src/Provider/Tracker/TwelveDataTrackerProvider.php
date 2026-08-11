@@ -173,6 +173,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         $changePercentage = round(($latestClosingPrice - $previousClosingPrice) / $previousClosingPrice * 100, 2);
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);
         $sparklinePoints = SparklineDownsampler::downsampleToAtMost($closingPrices, TrackerPayload::MAXIMUM_SPARKLINE_POINTS);
+        $volumePoints = $item->volumeBars ? TradedVolumeSeries::alignedWith($closingPrices, self::readTradedVolumes($series)) : [];
         $quotedCurrency = self::readQuotedCurrency($series) ?? $item->currency;
 
         try {
@@ -184,6 +185,7 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
                 currentValue: $latestClosingPrice,
                 changePercentage: $changePercentage,
                 sparklinePoints: $sparklinePoints,
+                volumePoints: $volumePoints,
                 symbolColor: $item->labelColor ?? $trendColor,
                 sparklineColor: $trendColor,
                 sparklinePeriod: SparklinePeriodLabel::forDayCount(self::readCoveredDayCount($series)),
@@ -228,6 +230,34 @@ final readonly class TwelveDataTrackerProvider implements TrackerProviderInterfa
         }
 
         return $closingPrices;
+    }
+
+    /**
+     * The volume travels as a quoted string, like every other number of this source.
+     *
+     * @param array<array-key, mixed> $series
+     *
+     * @return list<float> empty as soon as one bar carries no volume, since a partial series
+     *                     would not line up with the price curve
+     */
+    private static function readTradedVolumes(array $series): array
+    {
+        $bars = $series['values'] ?? null;
+        if (!\is_array($bars)) {
+            return [];
+        }
+
+        $tradedVolumes = [];
+        foreach ($bars as $bar) {
+            $tradedVolume = \is_array($bar) ? self::readNumber($bar, 'volume') : null;
+            if (null === $tradedVolume) {
+                return [];
+            }
+
+            $tradedVolumes[] = $tradedVolume;
+        }
+
+        return $tradedVolumes;
     }
 
     /**

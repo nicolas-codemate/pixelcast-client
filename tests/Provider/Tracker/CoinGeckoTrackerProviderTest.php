@@ -8,8 +8,10 @@ use App\Client\Tracker\TrackerPayload;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Provider\Tracker\CoinGeckoMidnightPriceProvider;
 use App\Provider\Tracker\CoinGeckoTrackerProvider;
+use App\Provider\Tracker\CoinGeckoVolumeSeriesProvider;
 use App\Tests\Factory\AllTimeHighStoreFactory;
 use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
+use App\Tests\Factory\CoinGeckoVolumeSeriesProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
 use App\Tracker\AllTimeHigh;
@@ -30,6 +32,7 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     private const string MIXED_CURRENCIES_CONFIG_FILE = 'pixelcast-mixed-currencies.yaml';
     private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-coingecko-labelled-item.yaml';
     private const string BOTTOM_LINE_CONFIG_FILE = 'pixelcast-coingecko-bottom-line.yaml';
+    private const string WITHOUT_VOLUME_BARS_CONFIG_FILE = 'pixelcast-coingecko-without-volume-bars.yaml';
     private const string SYNC_INSTANT = '2026-08-03 16:00:00';
     private const string BITCOIN_ALL_TIME_HIGH_DATE = '2025-10-06T10:57:42+00:00';
 
@@ -142,6 +145,106 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         self::assertSame(44000.0, $bitcoinPayload->sparklinePoints[0]);
         self::assertSame(45670.0, $bitcoinPayload->sparklinePoints[62]);
         self::assertSame('7d', $bitcoinPayload->sparklinePeriod);
+    }
+
+    public function testTheVolumeSeriesIsTrimmedToTheLengthOfThePriceCurve(): void
+    {
+        $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI));
+
+        [$bitcoinPayload] = $provider->fetchTrackers(self::syncInstant());
+
+        self::assertCount(30, $bitcoinPayload->volumePoints);
+        self::assertSame(CoinGeckoVolumeSeriesProviderFactory::newestVolume(), $bitcoinPayload->volumePoints[29]);
+        self::assertSame(
+            CoinGeckoVolumeSeriesProviderFactory::volumeAtIndex(CoinGeckoVolumeSeriesProviderFactory::VOLUME_POINT_COUNT - 30),
+            $bitcoinPayload->volumePoints[0],
+        );
+    }
+
+    public function testTheVolumeSeriesFollowsTheChartColumnsWhenTheCurveIsDownsampled(): void
+    {
+        $provider = $this->buildProvider(new MockHttpClient(self::fixtureResponse('coingecko-markets-hourly-week.json'), self::COINGECKO_BASE_URI));
+
+        [$bitcoinPayload] = $provider->fetchTrackers(self::syncInstant());
+
+        self::assertCount(63, $bitcoinPayload->sparklinePoints);
+        self::assertCount(63, $bitcoinPayload->volumePoints);
+        self::assertSame(CoinGeckoVolumeSeriesProviderFactory::newestVolume(), $bitcoinPayload->volumePoints[62]);
+    }
+
+    public function testOneVolumeSeriesRequestIsSpentPerCoin(): void
+    {
+        $volumeClient = new MockHttpClient(CoinGeckoVolumeSeriesProviderFactory::respondWithVolumeSeries(...), self::COINGECKO_BASE_URI);
+
+        $this
+            ->buildProvider(
+                new MockHttpClient(self::fixtureResponse('coingecko-markets.json'), self::COINGECKO_BASE_URI),
+                volumeSeriesProvider: CoinGeckoVolumeSeriesProviderFactory::withHttpClient($volumeClient),
+            )
+            ->fetchTrackers(self::syncInstant());
+
+        self::assertSame(2, $volumeClient->getRequestsCount());
+    }
+
+    public function testAnItemRefusingTheVolumeBarsSpendsNoRequestOnTheSeries(): void
+    {
+        $volumeClient = new MockHttpClient(CoinGeckoVolumeSeriesProviderFactory::respondWithVolumeSeries(...), self::COINGECKO_BASE_URI);
+
+        $trackerPayloads = $this
+            ->buildProvider(
+                new MockHttpClient(self::fixtureResponse('coingecko-markets-bitcoin-only.json'), self::COINGECKO_BASE_URI),
+                configFileName: self::WITHOUT_VOLUME_BARS_CONFIG_FILE,
+                volumeSeriesProvider: CoinGeckoVolumeSeriesProviderFactory::withHttpClient($volumeClient),
+            )
+            ->fetchTrackers(self::syncInstant());
+
+        self::assertSame([], $trackerPayloads[0]->volumePoints);
+        self::assertSame(0, $volumeClient->getRequestsCount());
+    }
+
+    public function testAVolumeSeriesShorterThanThePriceCurveIsDroppedAndSaysSo(): void
+    {
+        $logger = new RecordingLoggerStub();
+        $shorterThanTheCurve = new MockResponse(json_encode(['total_volumes' => [[0, 1000000.0], [1, 1100000.0]]], \JSON_THROW_ON_ERROR));
+
+        $trackerPayloads = $this
+            ->buildProvider(
+                new MockHttpClient(self::fixtureResponse('coingecko-markets-bitcoin-only.json'), self::COINGECKO_BASE_URI),
+                $logger,
+                volumeSeriesProvider: CoinGeckoVolumeSeriesProviderFactory::withHttpClient(
+                    new MockHttpClient($shorterThanTheCurve, self::COINGECKO_BASE_URI),
+                    $logger,
+                ),
+            )
+            ->fetchTrackers(self::syncInstant());
+
+        self::assertCount(30, $trackerPayloads[0]->sparklinePoints);
+        self::assertSame([], $trackerPayloads[0]->volumePoints);
+
+        self::assertContains('CoinGecko volume series could not be drawn under the price curve', array_column($logger->records, 'message'));
+        self::assertSame(30, $logger->records[0]['context']['price_point_count'] ?? null);
+        self::assertSame(2, $logger->records[0]['context']['volume_point_count'] ?? null);
+    }
+
+    public function testACoinWhoseVolumeSeriesCannotBeFetchedKeepsItsPriceCurve(): void
+    {
+        $logger = new RecordingLoggerStub();
+        $volumeSeriesProvider = CoinGeckoVolumeSeriesProviderFactory::withHttpClient(
+            new MockHttpClient(new MockResponse('', ['error' => 'connection refused']), self::COINGECKO_BASE_URI),
+            $logger,
+        );
+
+        $trackerPayloads = $this
+            ->buildProvider(
+                new MockHttpClient(self::fixtureResponse('coingecko-markets-bitcoin-only.json'), self::COINGECKO_BASE_URI),
+                $logger,
+                volumeSeriesProvider: $volumeSeriesProvider,
+            )
+            ->fetchTrackers(self::syncInstant());
+
+        self::assertCount(30, $trackerPayloads[0]->sparklinePoints);
+        self::assertSame([], $trackerPayloads[0]->volumePoints);
+        self::assertContains('CoinGecko volume series request failed', array_column($logger->records, 'message'));
     }
 
     public function testRequestTargetsCoinGeckoMarketsEndpointWithExpectedQuery(): void
@@ -392,11 +495,13 @@ final class CoinGeckoTrackerProviderTest extends TestCase
         ?string $apiKey = null,
         ?CoinGeckoMidnightPriceProvider $midnightPriceProvider = null,
         ?AllTimeHighStore $allTimeHighStore = null,
+        ?CoinGeckoVolumeSeriesProvider $volumeSeriesProvider = null,
     ): CoinGeckoTrackerProvider {
         return new CoinGeckoTrackerProvider(
             $httpClient,
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
             $midnightPriceProvider ?? CoinGeckoMidnightPriceProviderFactory::withFixturePrices(),
+            $volumeSeriesProvider ?? CoinGeckoVolumeSeriesProviderFactory::withFixtureVolumes(),
             $allTimeHighStore ?? AllTimeHighStoreFactory::temporaryStore(),
             new MockClock(self::SYNC_INSTANT),
             $logger ?? new NullLogger(),

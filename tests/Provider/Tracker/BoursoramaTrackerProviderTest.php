@@ -30,6 +30,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
     private const string LABELLED_ITEM_CONFIG_FILE = 'pixelcast-boursorama-labelled-item.yaml';
     private const string TWO_MARKETS_CONFIG_FILE = 'pixelcast-boursorama-two-markets.yaml';
     private const string BOTTOM_LINE_CONFIG_FILE = 'pixelcast-boursorama-bottom-line.yaml';
+    private const string WITHOUT_VOLUME_BARS_CONFIG_FILE = 'pixelcast-boursorama-without-volume-bars.yaml';
     private const string MARKET_TIMEZONE = 'Europe/Paris';
     private const string INSTANT_INSIDE_EVERY_WINDOW = '2026-08-03 16:00:00';
     private const string INSTANT_BEFORE_THE_AMERICAN_OPENING = '2026-08-03 10:00:00';
@@ -148,6 +149,40 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertCount(24, $worldEtfPayload->sparklinePoints);
         self::assertSame(6.0, $worldEtfPayload->sparklinePoints[0]);
         self::assertSame(6.262, $worldEtfPayload->sparklinePoints[23]);
+    }
+
+    public function testTheVolumeSeriesCarriesTheVolumeOfEveryBarOfTheResponse(): void
+    {
+        $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-dcam.json', 'boursorama-ticks-cw8.json'));
+
+        [$worldEtfPayload] = $provider->fetchTrackers(self::insideEveryWindow());
+
+        self::assertCount(24, $worldEtfPayload->volumePoints);
+        self::assertSame(1489358.0, $worldEtfPayload->volumePoints[0]);
+        self::assertSame(1517809.0, $worldEtfPayload->volumePoints[23]);
+    }
+
+    public function testABarWithoutAVolumeLeavesTheChartWithoutBarsButKeepsTheCurve(): void
+    {
+        $provider = $this->buildProvider($this->fixtureClient('boursorama-ticks-missing-volume.json', 'boursorama-ticks-cw8.json'));
+
+        [$worldEtfPayload] = $provider->fetchTrackers(self::insideEveryWindow());
+
+        self::assertCount(3, $worldEtfPayload->sparklinePoints);
+        self::assertSame([], $worldEtfPayload->volumePoints);
+    }
+
+    public function testAnItemRefusingTheVolumeBarsCarriesNoVolumeSeries(): void
+    {
+        $provider = $this->buildProvider(
+            $this->fixtureClient('boursorama-ticks-dcam.json'),
+            configFileName: self::WITHOUT_VOLUME_BARS_CONFIG_FILE,
+        );
+
+        [$worldEtfPayload] = $provider->fetchTrackers(self::insideEveryWindow());
+
+        self::assertCount(24, $worldEtfPayload->sparklinePoints);
+        self::assertSame([], $worldEtfPayload->volumePoints);
     }
 
     public function testTheSparklinePeriodStatesTheCalendarSpannedRatherThanTheCloseCount(): void

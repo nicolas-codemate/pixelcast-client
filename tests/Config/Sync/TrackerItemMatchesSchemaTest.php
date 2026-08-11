@@ -48,6 +48,14 @@ final class TrackerItemMatchesSchemaTest extends TestCase
         self::assertSame(TrackerPayload::MAXIMUM_BOTTOM_TEXT_LENGTH, $trackerUpdateProperties['bottomText']['maxLength'] ?? null);
     }
 
+    public function testTheDeviceContractBoundsBothSeriesToTheChartColumnsTheClientFillsThem(): void
+    {
+        $trackerUpdateProperties = self::trackerUpdateRequestPropertiesDeclaredByDeviceContract();
+
+        self::assertSame(TrackerPayload::MAXIMUM_SPARKLINE_POINTS, $trackerUpdateProperties['sparkline']['maxItems'] ?? null);
+        self::assertSame(TrackerPayload::MAXIMUM_SPARKLINE_POINTS, $trackerUpdateProperties['volumes']['maxItems'] ?? null);
+    }
+
     public function testTheSchemaBoundsTheTextFieldsToTheLengthsTheDeviceAccepts(): void
     {
         $trackerItemProperties = self::trackerItemPropertiesDeclaredBySchema();

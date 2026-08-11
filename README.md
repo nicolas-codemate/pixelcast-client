@@ -224,6 +224,27 @@ On `boursorama` the row only tells the whole story once `app:tracker:ath` has
 run: until then it shows the highest of the last thirty sessions, which is all
 the sync cycle downloads.
 
+`volumeBars` decides whether the device draws the traded volume as bars behind
+the price curve. Without the key the bars are drawn wherever the provider serves
+one volume per point of the curve; the firmware scales each series against its
+own largest value, a price in hundreds of euros and a volume in millions of
+units sharing no axis. Boursorama and Twelve Data both carry the volume on the
+daily bars they already serve, so the series costs no request — except on an
+index or a forex pair, which Twelve Data quotes with a volume of zero on every
+bar and which therefore gets no bars at all. On `coingecko` the series is absent
+from the group call: it takes one request per coin, held in the cache for an
+hour, and it is the rolling 24 hour volume sampled hourly rather than one bar per
+session, so the bars read smoother than an exchange volume. A coin whose series
+comes back shorter than its price curve keeps the curve alone and says so in the
+log, the two series coming from two endpoints that need not agree on their length.
+
+That extra request is the one place where the bars cost something: 720 calls a
+month per asset, against the 10 000 of the free CoinGecko tier and the 8 600 the
+group call alone spends at the five minute interval of `pixelcast.yaml.dist`.
+Bars on more than one or two coins therefore ask for a longer interval, an API
+key on a paid tier, or `volumeBars: false` on the assets that can do without
+them.
+
 Colors follow the trend unless they are told otherwise. By default the name and
 the sparkline both turn green above zero and red below it, which paints the
 whole screen red on a variation of -0.03% even when the curve has been
@@ -237,9 +258,9 @@ price and the price of the last midnight in Paris, not the rolling 24 hour
 figure the provider serves: a reference that moves with the clock makes a rising
 price show a falling percentage, which reads as a bug on a screen. That midnight
 price is fetched once a day per asset and currency, then held in the cache until
-the next midnight, which keeps the whole group well inside the free quota of
-10 000 calls a month. An asset whose midnight price cannot be fetched is logged
-and skipped for that cycle, and the screen keeps what it already shows.
+the next midnight, so it costs thirty calls a month per asset. An asset whose
+midnight price cannot be fetched is logged and skipped for that cycle, and the
+screen keeps what it already shows.
 
 #### The `claude` group
 

@@ -20,6 +20,7 @@ final readonly class TrackerItem
         public ?string $bottomText = null,
         public ?ActiveWindow $activeWindow = null,
         public ?BottomLine $bottomLine = null,
+        public bool $volumeBars = true,
     ) {
     }
 
@@ -41,6 +42,7 @@ final readonly class TrackerItem
             bottomText: SyncOptionReader::optionalString($options, 'bottomText', $itemPath),
             activeWindow: ActiveWindow::optionalFromOptions($options, $itemPath),
             bottomLine: self::readBottomLine($options, $itemPath, $acceptedBottomLines),
+            volumeBars: SyncOptionReader::optionalBool($options, 'volumeBars', $itemPath) ?? true,
         );
     }
 

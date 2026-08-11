@@ -19,6 +19,7 @@ final readonly class TrackerPayload
 
     /**
      * @param list<float> $sparklinePoints
+     * @param list<float> $volumePoints
      */
     public function __construct(
         public string $name,
@@ -28,6 +29,7 @@ final readonly class TrackerPayload
         public ?float $currentValue = null,
         public ?float $changePercentage = null,
         public array $sparklinePoints = [],
+        public array $volumePoints = [],
         public ?Color $symbolColor = null,
         public ?Color $sparklineColor = null,
         public ?string $sparklinePeriod = null,
@@ -45,15 +47,14 @@ final readonly class TrackerPayload
         self::assertLengthWithinLimit('sparkline period', $this->sparklinePeriod, self::MAXIMUM_SPARKLINE_PERIOD_LENGTH);
         self::assertLengthWithinLimit('bottom text', $this->bottomText, self::MAXIMUM_BOTTOM_TEXT_LENGTH);
 
-        if (\count($this->sparklinePoints) > self::MAXIMUM_SPARKLINE_POINTS) {
-            throw new \InvalidArgumentException(\sprintf('A tracker sparkline holds at most %d points, got %d.', self::MAXIMUM_SPARKLINE_POINTS, \count($this->sparklinePoints)));
-        }
+        self::assertPointCountWithinLimit('sparkline', $this->sparklinePoints);
+        self::assertPointCountWithinLimit('volume series', $this->volumePoints);
     }
 
     /**
      * The name is absent on purpose: it travels as a query parameter, the only form DELETE /tracker accepts.
      *
-     * @return array{symbol?: string, icon?: string, currency?: string, value?: float, change?: float, sparkline?: list<float>, symbolColor?: string, sparklineColor?: string, sparklinePeriod?: string, bottomText?: string, duration?: int, staleAfter?: int, staleBehavior?: string}
+     * @return array{symbol?: string, icon?: string, currency?: string, value?: float, change?: float, sparkline?: list<float>, volumes?: list<float>, symbolColor?: string, sparklineColor?: string, sparklinePeriod?: string, bottomText?: string, duration?: int, staleAfter?: int, staleBehavior?: string}
      */
     public function toArray(): array
     {
@@ -81,6 +82,10 @@ final readonly class TrackerPayload
 
         if ([] !== $this->sparklinePoints) {
             $payload['sparkline'] = $this->sparklinePoints;
+        }
+
+        if ([] !== $this->volumePoints) {
+            $payload['volumes'] = $this->volumePoints;
         }
 
         if (null !== $this->symbolColor) {
@@ -118,6 +123,16 @@ final readonly class TrackerPayload
     {
         if (null !== $value && mb_strlen($value) > $maximumLength) {
             throw new \InvalidArgumentException(\sprintf('A tracker %s holds at most %d characters, got %d.', $fieldLabel, $maximumLength, mb_strlen($value)));
+        }
+    }
+
+    /**
+     * @param list<float> $points
+     */
+    private static function assertPointCountWithinLimit(string $fieldLabel, array $points): void
+    {
+        if (\count($points) > self::MAXIMUM_SPARKLINE_POINTS) {
+            throw new \InvalidArgumentException(\sprintf('A tracker %s holds at most %d points, got %d.', $fieldLabel, self::MAXIMUM_SPARKLINE_POINTS, \count($points)));
         }
     }
 }

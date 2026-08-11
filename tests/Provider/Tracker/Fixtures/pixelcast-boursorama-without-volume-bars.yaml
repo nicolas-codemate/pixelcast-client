@@ -1,0 +1,11 @@
+# Sample configuration used by BoursoramaTrackerProviderTest: one ETF refusing the volume
+# bars, to prove the series is dropped even though the response carries it.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: 1rTDCAM
+              currency: eur
+              icon: etf
+              volumeBars: false

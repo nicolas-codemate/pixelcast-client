@@ -95,6 +95,10 @@ services:
         arguments:
             $apiKey: '%env(default::PIXELCAST_COINGECKO_API_KEY)%'
 
+    App\Provider\Tracker\CoinGeckoVolumeSeriesProvider:
+        arguments:
+            $apiKey: '%env(default::PIXELCAST_COINGECKO_API_KEY)%'
+
     App\Provider\Tracker\TwelveDataTrackerProvider:
         arguments:
             $apiKey: '%env(default::PIXELCAST_TWELVEDATA_API_KEY)%'
