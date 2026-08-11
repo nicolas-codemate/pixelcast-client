@@ -64,6 +64,8 @@ syncs:
         # label: text shown on the top row instead of the text derived from symbol, optional.
         # labelColor: hex color of the label, optional. Without it the label follows the trend color.
         # bottomText: text shown under the price, optional. Here it replaces the 24 hour volume.
+        # bottomLine: what the row under the price shows when bottomText is absent, optional:
+        #   ath (all-time high) or volume (the default here, the 24 hour volume).
         items:
             - symbol: bitcoin
               currency: eur
@@ -97,6 +99,11 @@ syncs:
         # label: text shown on the top row instead of the text derived from symbol, optional.
         # labelColor: hex color of the label, optional. Without it the label follows the trend color.
         # bottomText: text shown under the price, optional.
+        # bottomLine: not accepted on this group, any value is refused at startup. Without a
+        #   verified API key this source serves no history, so an ath would only be the highest
+        #   price the client has seen since it was installed: "at the all-time high" from the
+        #   first day, with no way to correct it. To reopen once the Twelve Data API has been
+        #   tested with a real key.
         items:
             - symbol: AAPL
               currency: usd
@@ -148,6 +155,8 @@ syncs:
         # label: text shown on the top row instead of the text derived from symbol, optional.
         # labelColor: hex color of the label, optional. Without it the label follows the trend color.
         # bottomText: text shown under the price, optional.
+        # bottomLine: ath only here, this source carries no consolidated volume. Catching up on the
+        #   deep history is done with `bin/console app:tracker:ath`.
         # activeWindow: hours this asset alone is fetched during, same shape as the group key above.
         #   It overrides the group window, which lets one group hold assets quoted on markets with
         #   different opening hours. Outside them the asset is skipped and no request is spent on it.

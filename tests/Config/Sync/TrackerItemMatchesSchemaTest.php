@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Config\Sync;
 
 use App\Client\Tracker\TrackerPayload;
+use App\Config\Sync\SyncGroupRegistry;
 use App\Config\Sync\TrackerItem;
+use App\Config\Sync\TrackerSyncConfig;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Yaml\Yaml;
@@ -52,6 +54,43 @@ final class TrackerItemMatchesSchemaTest extends TestCase
 
         self::assertSame(TrackerPayload::MAXIMUM_SYMBOL_LENGTH, $trackerItemProperties['label']['maxLength'] ?? null);
         self::assertSame(TrackerPayload::MAXIMUM_BOTTOM_TEXT_LENGTH, $trackerItemProperties['bottomText']['maxLength'] ?? null);
+    }
+
+    /**
+     * The schema lists every bottom line a tracker item may carry, whatever its group, and each
+     * group narrows that list to what it can serve.
+     */
+    public function testEveryGroupOnlyAcceptsBottomLinesTheSchemaDeclares(): void
+    {
+        $bottomLineValuesFromSchema = self::trackerItemPropertiesDeclaredBySchema()['bottomLine']['enum'] ?? null;
+        self::assertIsArray($bottomLineValuesFromSchema);
+
+        $trackerSyncGroupClasses = self::trackerSyncGroupClasses();
+        self::assertNotSame([], $trackerSyncGroupClasses);
+
+        foreach ($trackerSyncGroupClasses as $trackerSyncGroupClass) {
+            foreach ($trackerSyncGroupClass::acceptedBottomLines() as $acceptedBottomLine) {
+                self::assertContains($acceptedBottomLine->value, $bottomLineValuesFromSchema);
+            }
+        }
+    }
+
+    /**
+     * @return list<class-string<TrackerSyncConfig>>
+     */
+    private static function trackerSyncGroupClasses(): array
+    {
+        $trackerSyncGroupClasses = [];
+
+        foreach (SyncGroupRegistry::syncTypes() as $syncType) {
+            $syncGroupClass = SyncGroupRegistry::syncGroupClassFor($syncType);
+
+            if (is_a($syncGroupClass, TrackerSyncConfig::class, true)) {
+                $trackerSyncGroupClasses[] = $syncGroupClass;
+            }
+        }
+
+        return $trackerSyncGroupClasses;
     }
 
     /**

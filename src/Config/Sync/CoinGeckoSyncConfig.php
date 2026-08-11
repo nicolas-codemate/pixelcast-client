@@ -10,4 +10,9 @@ final readonly class CoinGeckoSyncConfig extends TrackerSyncConfig
     {
         return 'coingecko';
     }
+
+    public static function acceptedBottomLines(): array
+    {
+        return [BottomLine::AllTimeHigh, BottomLine::TradedVolume];
+    }
 }

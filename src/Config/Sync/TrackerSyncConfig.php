@@ -26,6 +26,15 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
     ) {
     }
 
+    /**
+     * The bottom lines this group can fill. A group offers the all-time high only when it knows a
+     * high it did not observe itself, otherwise a fresh install would read "we are at the all-time
+     * high" on any asset from day one.
+     *
+     * @return list<BottomLine>
+     */
+    abstract public static function acceptedBottomLines(): array;
+
     public static function fromOptions(array $options): static
     {
         $optionsPath = 'syncs.'.static::syncType();
@@ -35,7 +44,12 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
 
         $items = [];
         foreach (SyncOptionReader::requireListOfMaps($options, 'items', $optionsPath) as $index => $itemOptions) {
-            $items[] = TrackerItem::fromOptions($itemOptions, \sprintf('%s.items[%d]', $optionsPath, $index), $staleDeclaration);
+            $items[] = TrackerItem::fromOptions(
+                $itemOptions,
+                \sprintf('%s.items[%d]', $optionsPath, $index),
+                $staleDeclaration,
+                static::acceptedBottomLines(),
+            );
         }
 
         return new static(

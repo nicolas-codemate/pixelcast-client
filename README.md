@@ -206,6 +206,20 @@ footer, as a single colored string or as up to eight colored segments, but the
 configuration exposes the plain string alone — a deliberate limit of the
 current scope rather than an omission.
 
+`bottomLine` chooses what that row shows when `bottomText` is absent: `ath`
+writes the all-time high of the asset, `volume` its 24 hour traded volume. Each
+group only accepts what it can serve, and a value it cannot serve is refused at
+startup, naming the item: `coingecko` takes both, `boursorama` takes `ath`, and
+`twelvedata` takes neither. A group offers the all-time high only when it knows
+a high it did not observe itself. Twelve Data has none here — no API key was
+available to check what it serves — and a high built from what the client alone
+has seen reads "at the all-time high" on any asset from the first day, with a
+stock split freezing a wrong value for good; that stays open until the Twelve
+Data API is tested with a real key. Without `bottomLine` nothing changes:
+`coingecko` keeps showing the 24 hour volume and the other two groups keep
+showing nothing. Ten characters of that row are read at a glance and the device
+contract accepts 31, anything longer scrolling rather than being cut.
+
 Colors follow the trend unless they are told otherwise. By default the name and
 the sparkline both turn green above zero and red below it, which paints the
 whole screen red on a variation of -0.03% even when the curve has been

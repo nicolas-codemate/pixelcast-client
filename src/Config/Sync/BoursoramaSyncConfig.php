@@ -10,4 +10,9 @@ final readonly class BoursoramaSyncConfig extends TrackerSyncConfig
     {
         return 'boursorama';
     }
+
+    public static function acceptedBottomLines(): array
+    {
+        return [BottomLine::AllTimeHigh];
+    }
 }

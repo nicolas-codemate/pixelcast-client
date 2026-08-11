@@ -1,0 +1,10 @@
+# Sample configuration used by SyncsConfigLoaderTest: the twelvedata group serves no bottom line
+# at all, so even a value the schema declares is refused.
+syncs:
+    twelvedata:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: AAPL
+              currency: usd
+              bottomLine: ath

@@ -6,6 +6,7 @@ namespace App\Tests\Config\Sync;
 
 use App\Client\StaleBehavior;
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sync\BottomLine;
 use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Config\Sync\TrackerSyncConfig;
@@ -83,6 +84,71 @@ final class TrackerSyncConfigTest extends TestCase
         self::assertNull($trackerSync->items[1]->label);
         self::assertNull($trackerSync->items[1]->labelColor);
         self::assertNull($trackerSync->items[1]->bottomText);
+    }
+
+    /**
+     * @param class-string<TrackerSyncConfig> $syncGroupClass
+     */
+    #[DataProvider('provideTrackerSyncGroups')]
+    public function testAnItemWithoutABottomLineKeyCarriesNoBottomLine(string $syncGroupClass, string $expectedSyncType): void
+    {
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+
+        self::assertNull($trackerSync->items[0]->bottomLine);
+        self::assertNull($trackerSync->items[1]->bottomLine);
+    }
+
+    public function testTheCoinGeckoGroupReadsBothBottomLineCases(): void
+    {
+        $withTheAllTimeHigh = CoinGeckoSyncConfig::fromOptions(self::optionsWithBottomLine('ath'));
+        $withTheTradedVolume = CoinGeckoSyncConfig::fromOptions(self::optionsWithBottomLine('volume'));
+
+        self::assertSame(BottomLine::AllTimeHigh, $withTheAllTimeHigh->items[0]->bottomLine);
+        self::assertSame(BottomLine::TradedVolume, $withTheTradedVolume->items[0]->bottomLine);
+    }
+
+    public function testTheBoursoramaGroupReadsTheAllTimeHighBottomLine(): void
+    {
+        $boursoramaSync = BoursoramaSyncConfig::fromOptions(self::optionsWithBottomLine('ath'));
+
+        self::assertSame(BottomLine::AllTimeHigh, $boursoramaSync->items[0]->bottomLine);
+    }
+
+    public function testTheBoursoramaGroupRefusesTheTradedVolumeBottomLine(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('syncs.boursorama.items[0].bottomLine');
+
+        BoursoramaSyncConfig::fromOptions(self::optionsWithBottomLine('volume'));
+    }
+
+    #[DataProvider('provideBottomLineCases')]
+    public function testTheTwelveDataGroupRefusesEveryBottomLine(BottomLine $bottomLine): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('syncs.twelvedata.items[0].bottomLine');
+
+        TwelveDataSyncConfig::fromOptions(self::optionsWithBottomLine($bottomLine->value));
+    }
+
+    /**
+     * @return iterable<string, array{BottomLine}>
+     */
+    public static function provideBottomLineCases(): iterable
+    {
+        foreach (BottomLine::cases() as $bottomLine) {
+            yield $bottomLine->value => [$bottomLine];
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function optionsWithBottomLine(string $bottomLine): array
+    {
+        return array_merge(self::validOptions(), [
+            'items' => [['symbol' => 'BTC', 'currency' => 'eur', 'bottomLine' => $bottomLine]],
+        ]);
     }
 
     /**

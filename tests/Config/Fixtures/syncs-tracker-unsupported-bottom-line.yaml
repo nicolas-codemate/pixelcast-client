@@ -1,0 +1,10 @@
+# Sample configuration used by SyncsConfigLoaderTest: a bottom line the schema declares but the
+# group cannot serve, Boursorama quoting no consolidated volume.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: 1rTDCAM
+              currency: eur
+              bottomLine: volume
