@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Scenario;
 
+use App\Provider\Claude\ClaudeUsageColors;
+
 final class ScenarioCatalog
 {
     private const string SIMULATOR_ONLY_RESET_ID = 'reset-simulator';
@@ -132,7 +134,7 @@ final class ScenarioCatalog
                 queryParams: ['name' => 'claude'],
                 body: [
                     'title' => [
-                        ['t' => 'Claude', 'c' => '#D97757'],
+                        ['t' => 'Claude', 'c' => ClaudeUsageColors::TITLE_HEX_CODE],
                     ],
                     'icon' => 'claude',
                     'duration' => 10000,
@@ -141,43 +143,41 @@ final class ScenarioCatalog
                     'rows' => [
                         [
                             'label' => [
-                                ['t' => '5h', 'c' => '#FFFFFF'],
-                                ['t' => ' reset', 'c' => '#888888'],
+                                ['t' => '5h', 'c' => ClaudeUsageColors::SESSION_LABEL_HEX_CODE],
                             ],
                             'info' => '14:50',
                             'value' => '41%',
                             'percent' => 41,
-                            'color' => '#4CAF50',
+                            'color' => ClaudeUsageColors::GREEN_HEX_CODE,
                             'note' => 'x1.2^',
-                            'noteColor' => '#FFC107',
+                            'noteColor' => ClaudeUsageColors::YELLOW_HEX_CODE,
                         ],
                         [
                             'label' => [
-                                ['t' => '7j', 'c' => '#FFFFFF'],
-                                ['t' => ' reset', 'c' => '#888888'],
+                                ['t' => '7j', 'c' => ClaudeUsageColors::WEEKLY_LABEL_HEX_CODE],
                             ],
                             'info' => '15/08 17h',
                             'value' => '28%',
                             'percent' => 28,
-                            'color' => '#4CAF50',
+                            'color' => ClaudeUsageColors::GREEN_HEX_CODE,
                             'note' => 'x1.1>',
-                            'noteColor' => '#4CAF50',
+                            'noteColor' => ClaudeUsageColors::GREEN_HEX_CODE,
                         ],
                         [
                             'label' => [
-                                ['t' => 'fable', 'c' => '#FFFFFF'],
+                                ['t' => 'fable', 'c' => ClaudeUsageColors::FABLE_LABEL_HEX_CODE],
                             ],
                             'value' => '3%',
                             'percent' => 3,
-                            'color' => '#4CAF50',
+                            'color' => ClaudeUsageColors::GREEN_HEX_CODE,
                         ],
                         [
                             'label' => [
-                                ['t' => 'credits', 'c' => '#FFFFFF'],
+                                ['t' => 'credits', 'c' => ClaudeUsageColors::CREDITS_LABEL_HEX_CODE],
                             ],
                             'value' => '1%',
                             'percent' => 1,
-                            'color' => '#4CAF50',
+                            'color' => ClaudeUsageColors::GREEN_HEX_CODE,
                         ],
                     ],
                 ],

@@ -109,7 +109,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
 
         $allTimeHigh = $this->raiseStoredAllTimeHigh($item, $quoteBars);
         $bottomText = $item->bottomText ?? match ($item->bottomLine) {
-            BottomLine::AllTimeHigh => AllTimeHighBottomText::composeFrom($allTimeHigh?->price, $item->currency),
+            BottomLine::AllTimeHigh => AllTimeHighBottomText::composeFrom($allTimeHigh),
             BottomLine::TradedVolume, null => null,
         };
 

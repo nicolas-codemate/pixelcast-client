@@ -349,7 +349,7 @@ final class BoursoramaTrackerProviderTest extends TestCase
     {
         $trackerPayloads = $this->buildBottomLineProvider()->fetchTrackers(self::insideEveryWindow());
 
-        self::assertSame('ATH 6.31', $trackerPayloads[0]->bottomText);
+        self::assertSame('ATH 6.31 07/2026', $trackerPayloads[0]->bottomText);
     }
 
     public function testWithoutABottomLineTheBottomRowStaysEmpty(): void

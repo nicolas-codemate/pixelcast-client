@@ -189,7 +189,7 @@ final readonly class CoinGeckoTrackerProvider implements TrackerProviderInterfac
 
         $allTimeHigh = $this->raiseStoredAllTimeHigh($item, $market, $currentPrice);
         $bottomText = $item->bottomText ?? match ($item->bottomLine) {
-            BottomLine::AllTimeHigh => AllTimeHighBottomText::composeFrom($allTimeHigh?->price, $item->currency),
+            BottomLine::AllTimeHigh => AllTimeHighBottomText::composeFrom($allTimeHigh),
             BottomLine::TradedVolume, null => $tradedVolumeText,
         };
 

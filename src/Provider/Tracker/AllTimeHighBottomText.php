@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Provider\Tracker;
 
 use App\Client\Tracker\TrackerPayload;
+use App\Tracker\AllTimeHigh;
 
 final class AllTimeHighBottomText
 {
@@ -16,64 +17,45 @@ final class AllTimeHighBottomText
 
     private const string LABEL = 'ATH ';
 
-    private const int TWO_DECIMALS_BELOW = 1_000;
+    private const string REACHED_AT_FORMAT = 'm/Y';
 
-    /**
-     * Reordering this breaks condense(), which returns on the first threshold reached.
-     */
-    private const array MAGNITUDE_SUFFIXES = [
-        1_000_000_000_000 => 'T',
-        1_000_000_000 => 'B',
-        1_000_000 => 'M',
-        1_000 => 'K',
-    ];
-
-    /**
-     * The device draws the bottom row with an ASCII-only font, so a currency whose sign
-     * falls outside that range carries no symbol. The price row above already names it.
-     */
-    private const array CURRENCY_SYMBOLS = [
-        'USD' => '$',
-    ];
-
-    public static function composeFrom(?float $allTimeHighPrice, ?string $currency = null): ?string
+    public static function composeFrom(?AllTimeHigh $allTimeHigh): ?string
     {
-        if (null === $allTimeHighPrice || $allTimeHighPrice <= 0.0) {
+        if (null === $allTimeHigh || $allTimeHigh->price <= 0.0) {
             return null;
         }
 
-        $currencySymbol = self::CURRENCY_SYMBOLS[mb_strtoupper($currency ?? '')] ?? '';
+        $highText = self::LABEL.self::writePrice($allTimeHigh->price).BottomTextAmount::currencySymbolOf($allTimeHigh->currency);
 
-        $fullText = self::LABEL.self::writeInFull($allTimeHighPrice).$currencySymbol;
-        if (self::fitsTheContract($fullText)) {
-            return $fullText;
+        $datedText = $highText.self::writeReachedAt($allTimeHigh->reachedAt);
+        if (self::fitsTheContract($datedText)) {
+            return $datedText;
         }
 
-        $condensedText = self::LABEL.self::condense($allTimeHighPrice).$currencySymbol;
-
-        return self::fitsTheContract($condensedText) ? $condensedText : null;
+        // The date is dropped before the price is: a high without its day still reads.
+        return self::fitsTheContract($highText) ? $highText : null;
     }
 
     /**
-     * Writes the high the way the device writes the price row above it, so that comparing the
-     * two rows is a digit against digit read.
+     * A price of a thousand or more is condensed on its magnitude, so that a six-digit high leaves
+     * the room the day it was reached needs. Below that the high keeps the two decimals the device
+     * writes the price row above it with, so that comparing the two rows is a digit against digit read.
      */
-    private static function writeInFull(float $price): string
+    private static function writePrice(float $price): string
     {
-        $decimals = $price < self::TWO_DECIMALS_BELOW ? 2 : 0;
+        [$scaledPrice, $magnitudeSuffix] = BottomTextAmount::scaleToMagnitude($price);
 
-        return number_format($price, $decimals, '.', '');
+        return number_format($scaledPrice, '' === $magnitudeSuffix ? 2 : 1, '.', '').$magnitudeSuffix;
     }
 
-    private static function condense(float $price): string
+    /**
+     * The year is written in full because two digits next to a month read as a day. The instant
+     * keeps the timezone it was stored in: only a high reached on the turn of a month would then
+     * read as the neighbouring one.
+     */
+    private static function writeReachedAt(?\DateTimeImmutable $reachedAt): string
     {
-        foreach (self::MAGNITUDE_SUFFIXES as $threshold => $suffix) {
-            if ($price >= $threshold) {
-                return self::writeInFull($price / $threshold).$suffix;
-            }
-        }
-
-        return self::writeInFull($price);
+        return null === $reachedAt ? '' : ' '.$reachedAt->format(self::REACHED_AT_FORMAT);
     }
 
     private static function fitsTheContract(string $bottomText): bool
