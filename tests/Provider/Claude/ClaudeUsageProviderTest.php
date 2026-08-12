@@ -40,6 +40,12 @@ final class ClaudeUsageProviderTest extends TestCase
      */
     private const string NOW = '2026-01-01T14:30:00+00:00';
 
+    /**
+     * The reference fixture leaves the Fable window without a reset instant, so the tests that need
+     * one on that row rebuild the fixture around this instant, the same as the 7 day window carries.
+     */
+    private const string FABLE_RESET_INSTANT = '2026-01-06T15:00:00.000000+00:00';
+
     private const string FAR_FROM_EXPIRY = '2026-01-01T18:00:00+00:00';
     private const string CLOSE_TO_EXPIRY = '2026-01-01T14:31:00+00:00';
     private const string STORED_ACCESS_TOKEN = 'access-token-on-disk';
@@ -107,7 +113,6 @@ final class ClaudeUsageProviderTest extends TestCase
                 [
                     'label' => [
                         ['t' => 'fable', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
-                        ['t' => ' reset', 'c' => ClaudeUsageColors::ROW_LABEL_SUFFIX_HEX_CODE],
                     ],
                     'value' => '3%',
                     'percent' => 3,
@@ -297,22 +302,38 @@ final class ClaudeUsageProviderTest extends TestCase
         self::assertArrayNotHasKey('noteColor', $fableRow);
     }
 
-    public function testTheFableLabelSpendsTheWholeCharacterBudgetOnItsTwoSegments(): void
+    public function testTheResetWordFollowsTheNameOnlyOnAWindowCarryingAResetInstant(): void
     {
         $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
 
-        $gauge = $this->buildProvider(self::usageClient([self::usageFixtureResponse()]))->fetchUsageGauge();
+        $gaugeWithoutTheResetInstant = $this->buildProvider(self::usageClient([self::usageFixtureResponse()]))->fetchUsageGauge();
+        self::assertNotNull($gaugeWithoutTheResetInstant);
+        self::assertSame(
+            [['t' => 'fable', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE]],
+            self::labelSegments($gaugeWithoutTheResetInstant->toArray()['rows'][2]['label']),
+        );
 
-        self::assertNotNull($gauge);
-        $fableSegments = self::labelSegments($gauge->toArray()['rows'][2]['label']);
+        $gaugeWithTheResetInstant = $this->buildProvider(self::usageClient([self::jsonResponse(self::decodedFixtureWithTheFableWindowResettingAt())]))->fetchUsageGauge();
+        self::assertNotNull($gaugeWithTheResetInstant);
         self::assertSame(
             [
                 ['t' => 'fable', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
                 ['t' => ' reset', 'c' => ClaudeUsageColors::ROW_LABEL_SUFFIX_HEX_CODE],
             ],
-            $fableSegments,
+            self::labelSegments($gaugeWithTheResetInstant->toArray()['rows'][2]['label']),
         );
-        self::assertSame(GaugeRow::MAXIMUM_LABEL_LENGTH, mb_strlen(implode('', array_column($fableSegments, 't'))));
+    }
+
+    public function testTheLongestWindowLabelSpendsTheWholeCharacterBudgetOnItsTwoSegments(): void
+    {
+        $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
+
+        $gauge = $this->buildProvider(self::usageClient([self::jsonResponse(self::decodedFixtureWithTheFableWindowResettingAt())]))->fetchUsageGauge();
+
+        self::assertNotNull($gauge);
+        $fableLabel = implode('', array_column(self::labelSegments($gauge->toArray()['rows'][2]['label']), 't'));
+        self::assertSame('fable reset', $fableLabel);
+        self::assertSame(GaugeRow::MAXIMUM_LABEL_LENGTH, mb_strlen($fableLabel));
     }
 
     public function testTheCreditsRowCarriesASingleSegmentWithoutTheResetWord(): void
@@ -476,6 +497,19 @@ final class ClaudeUsageProviderTest extends TestCase
         }
 
         return $limitEntries;
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
+    private static function decodedFixtureWithTheFableWindowResettingAt(): array
+    {
+        $limitEntries = self::fixtureLimitEntries();
+        $limitEntries[2]['resets_at'] = self::FABLE_RESET_INSTANT;
+        $decodedFixture = self::decodedUsageFixture();
+        $decodedFixture['limits'] = $limitEntries;
+
+        return $decodedFixture;
     }
 
     /**

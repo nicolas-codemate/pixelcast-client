@@ -166,7 +166,6 @@ final class ScenarioCatalog
                         [
                             'label' => [
                                 ['t' => 'fable', 'c' => '#FFFFFF'],
-                                ['t' => ' reset', 'c' => '#888888'],
                             ],
                             'value' => '3%',
                             'percent' => 3,

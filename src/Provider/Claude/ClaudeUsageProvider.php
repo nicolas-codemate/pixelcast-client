@@ -183,10 +183,12 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
 
         try {
             return GaugeRow::create(
-                label: PolymorphicTextField::fromSegments(
-                    TextSegment::create($label->value, ClaudeUsageColors::rowLabelColor()),
-                    TextSegment::create(self::RESET_LABEL_SUFFIX, ClaudeUsageColors::rowLabelSuffixColor()),
-                ),
+                label: null === $window->resetsAt
+                    ? PolymorphicTextField::fromColoredText($label->value, ClaudeUsageColors::rowLabelColor())
+                    : PolymorphicTextField::fromSegments(
+                        TextSegment::create($label->value, ClaudeUsageColors::rowLabelColor()),
+                        TextSegment::create(self::RESET_LABEL_SUFFIX, ClaudeUsageColors::rowLabelSuffixColor()),
+                    ),
                 percent: $displayedPercent,
                 info: self::formatResetInstant($window->resetsAt, $resetFormat),
                 value: \sprintf(self::PERCENT_VALUE_FORMAT, $displayedPercent),
