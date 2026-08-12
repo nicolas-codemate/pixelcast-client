@@ -54,6 +54,7 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
     public function __construct(
         private readonly ?\Throwable $failure = null,
         private readonly array $trackerFailures = [],
+        private readonly ?\Throwable $sleepStateFailure = null,
     ) {
     }
 
@@ -112,6 +113,10 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
 
     public function fetchSleepState(): SleepState
     {
+        if (null !== $this->sleepStateFailure) {
+            throw $this->sleepStateFailure;
+        }
+
         $this->failIfConfigured();
 
         return $this->sleepStateToReturn ?? SleepState::fromResponseBody(['sleeping' => false, 'config' => []]);
