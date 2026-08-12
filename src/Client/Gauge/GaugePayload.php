@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Client\Gauge;
 
 use App\Client\StaleBehavior;
+use App\Client\Text\PolymorphicTextField;
 
 final readonly class GaugePayload
 {
     public const int MAXIMUM_NAME_LENGTH = 15;
     public const int MAXIMUM_TITLE_LENGTH = 31;
+    public const int MAXIMUM_TITLE_SEGMENTS = 4;
     public const int MAXIMUM_ROWS = 9;
 
     /**
@@ -18,7 +20,7 @@ final readonly class GaugePayload
     private function __construct(
         public string $name,
         public array $rows,
-        public ?string $title,
+        public ?PolymorphicTextField $title,
         public ?string $iconName,
         public ?int $displayDurationMilliseconds,
         public ?int $staleAfterInSeconds,
@@ -32,7 +34,7 @@ final readonly class GaugePayload
     public static function create(
         string $name,
         array $rows,
-        ?string $title = null,
+        string|PolymorphicTextField|null $title = null,
         ?string $iconName = null,
         ?int $displayDurationMilliseconds = null,
         ?int $staleAfterInSeconds = null,
@@ -43,7 +45,9 @@ final readonly class GaugePayload
         }
 
         self::assertLengthWithinLimit('name', $name, self::MAXIMUM_NAME_LENGTH);
-        self::assertLengthWithinLimit('title', $title, self::MAXIMUM_TITLE_LENGTH);
+
+        $titleField = \is_string($title) ? PolymorphicTextField::fromPlainText($title) : $title;
+        $titleField?->assertFitsWithin('gauge title', self::MAXIMUM_TITLE_LENGTH, self::MAXIMUM_TITLE_SEGMENTS);
 
         if (\count($rows) > self::MAXIMUM_ROWS) {
             throw new \InvalidArgumentException(\sprintf('A gauge carries at most %d rows, got %d.', self::MAXIMUM_ROWS, \count($rows)));
@@ -52,7 +56,7 @@ final readonly class GaugePayload
         return new self(
             name: $name,
             rows: $rows,
-            title: $title,
+            title: $titleField,
             iconName: $iconName,
             displayDurationMilliseconds: $displayDurationMilliseconds,
             staleAfterInSeconds: $staleAfterInSeconds,
@@ -63,14 +67,14 @@ final readonly class GaugePayload
     /**
      * The name is absent on purpose: it travels as a query parameter, the only form DELETE /gauge accepts.
      *
-     * @return array{title?: string, icon?: string, rows: list<array{label: string, info?: string, value?: string, percent: int, note?: string, color?: string, noteColor?: string}>, duration?: int, staleAfter?: int, staleBehavior?: string}
+     * @return array{title?: string|list<array{t: string, c: string}>, icon?: string, rows: list<array{label: string|list<array{t: string, c: string}>, info?: string, value?: string, percent: int, note?: string, color?: string, noteColor?: string}>, duration?: int, staleAfter?: int, staleBehavior?: string}
      */
     public function toArray(): array
     {
         $payload = [];
 
         if (null !== $this->title) {
-            $payload['title'] = $this->title;
+            $payload['title'] = $this->title->toPayloadValue();
         }
 
         if (null !== $this->iconName) {

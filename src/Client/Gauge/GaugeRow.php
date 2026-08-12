@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Client\Gauge;
 
 use App\Client\Color;
+use App\Client\Text\PolymorphicTextField;
 
 final readonly class GaugeRow
 {
     public const int MAXIMUM_LABEL_LENGTH = 11;
+    public const int MAXIMUM_LABEL_SEGMENTS = 3;
     public const int MAXIMUM_INFO_LENGTH = 15;
     public const int MAXIMUM_VALUE_LENGTH = 7;
     public const int MAXIMUM_NOTE_LENGTH = 7;
@@ -16,7 +18,7 @@ final readonly class GaugeRow
     public const int MAXIMUM_PERCENT = 100;
 
     private function __construct(
-        public string $label,
+        public PolymorphicTextField $label,
         public int $percent,
         public ?string $info,
         public ?string $value,
@@ -27,7 +29,7 @@ final readonly class GaugeRow
     }
 
     public static function create(
-        string $label,
+        string|PolymorphicTextField $label,
         int $percent,
         ?string $info = null,
         ?string $value = null,
@@ -35,7 +37,9 @@ final readonly class GaugeRow
         ?Color $barColor = null,
         ?Color $noteColor = null,
     ): self {
-        self::assertLengthWithinLimit('label', $label, self::MAXIMUM_LABEL_LENGTH);
+        $labelField = \is_string($label) ? PolymorphicTextField::fromPlainText($label) : $label;
+        $labelField->assertFitsWithin('gauge row label', self::MAXIMUM_LABEL_LENGTH, self::MAXIMUM_LABEL_SEGMENTS);
+
         self::assertLengthWithinLimit('info', $info, self::MAXIMUM_INFO_LENGTH);
         self::assertLengthWithinLimit('value', $value, self::MAXIMUM_VALUE_LENGTH);
         self::assertLengthWithinLimit('note', $note, self::MAXIMUM_NOTE_LENGTH);
@@ -45,7 +49,7 @@ final readonly class GaugeRow
         $clampedPercent = max(self::MINIMUM_PERCENT, min(self::MAXIMUM_PERCENT, $percent));
 
         return new self(
-            label: $label,
+            label: $labelField,
             percent: $clampedPercent,
             info: $info,
             value: $value,
@@ -56,11 +60,11 @@ final readonly class GaugeRow
     }
 
     /**
-     * @return array{label: string, info?: string, value?: string, percent: int, note?: string, color?: string, noteColor?: string}
+     * @return array{label: string|list<array{t: string, c: string}>, info?: string, value?: string, percent: int, note?: string, color?: string, noteColor?: string}
      */
     public function toArray(): array
     {
-        $payload = ['label' => $this->label];
+        $payload = ['label' => $this->label->toPayloadValue()];
 
         if (null !== $this->info) {
             $payload['info'] = $this->info;

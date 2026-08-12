@@ -6,6 +6,8 @@ namespace App\Tests\Client\Gauge;
 
 use App\Client\Color;
 use App\Client\Gauge\GaugeRow;
+use App\Client\Text\PolymorphicTextField;
+use App\Client\Text\TextSegment;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -96,6 +98,61 @@ final class GaugeRowTest extends TestCase
             'color' => '#4CAF50',
             'noteColor' => '#FFC107',
         ], $row->toArray());
+    }
+
+    public function testASegmentedLabelIsSerializedAsColoredPairs(): void
+    {
+        $row = GaugeRow::create(
+            label: PolymorphicTextField::fromSegments(
+                TextSegment::create('5h', Color::fromHexCode('#FFFFFF')),
+                TextSegment::create(' reset', Color::fromHexCode('#888888')),
+            ),
+            percent: 41,
+        );
+
+        self::assertSame([
+            'label' => [['t' => '5h', 'c' => '#FFFFFF'], ['t' => ' reset', 'c' => '#888888']],
+            'percent' => 41,
+        ], $row->toArray());
+    }
+
+    public function testASegmentedLabelExactlyAtTheCharacterLimitIsAcceptedWhole(): void
+    {
+        $row = GaugeRow::create(
+            label: PolymorphicTextField::fromSegments(
+                TextSegment::create('fable', Color::fromHexCode('#FFFFFF')),
+                TextSegment::create(' reset', Color::fromHexCode('#888888')),
+            ),
+            percent: 3,
+        );
+
+        self::assertSame(
+            [['t' => 'fable', 'c' => '#FFFFFF'], ['t' => ' reset', 'c' => '#888888']],
+            $row->toArray()['label'],
+        );
+    }
+
+    public function testASegmentedLabelOneSegmentOverTheLimitIsRejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/label holds at most '.GaugeRow::MAXIMUM_LABEL_SEGMENTS.' colored segments/');
+
+        GaugeRow::create(label: self::buildSegmentedField(GaugeRow::MAXIMUM_LABEL_SEGMENTS + 1, 1), percent: 41);
+    }
+
+    public function testSegmentsOfALabelShareTheSameCharacterBudget(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/label holds at most '.GaugeRow::MAXIMUM_LABEL_LENGTH.' characters, got 12/');
+
+        GaugeRow::create(label: self::buildSegmentedField(2, 6), percent: 41);
+    }
+
+    private static function buildSegmentedField(int $segmentCount, int $charactersPerSegment): PolymorphicTextField
+    {
+        $segment = TextSegment::create(str_repeat('a', $charactersPerSegment), Color::fromHexCode('#FFFFFF'));
+
+        return PolymorphicTextField::fromSegments(...array_fill(0, $segmentCount, $segment));
     }
 
     private static function buildRowWithTextField(string $fieldName, string $value): GaugeRow

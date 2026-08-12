@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Client\Gauge;
 
+use App\Client\Color;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
 use App\Client\StaleBehavior;
+use App\Client\Text\PolymorphicTextField;
+use App\Client\Text\TextSegment;
 use PHPUnit\Framework\TestCase;
 
 final class GaugePayloadTest extends TestCase
@@ -97,6 +100,54 @@ final class GaugePayloadTest extends TestCase
             'staleAfter' => 2700,
             'staleBehavior' => 'dim',
         ], $gauge->toArray());
+    }
+
+    public function testASegmentedTitleIsSerializedAsColoredPairs(): void
+    {
+        $gauge = GaugePayload::create(
+            name: 'claude',
+            rows: [self::buildRow()],
+            title: PolymorphicTextField::fromSegments(
+                TextSegment::create('Claude', Color::fromHexCode('#D97757')),
+                TextSegment::create(' Max', Color::fromHexCode('#ffffff')),
+            ),
+        );
+
+        self::assertSame(
+            [['t' => 'Claude', 'c' => '#D97757'], ['t' => ' Max', 'c' => '#FFFFFF']],
+            $gauge->toArray()['title'] ?? null,
+        );
+    }
+
+    public function testASegmentedTitleOneSegmentOverTheLimitIsRejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/title holds at most '.GaugePayload::MAXIMUM_TITLE_SEGMENTS.' colored segments/');
+
+        GaugePayload::create(
+            name: 'claude',
+            rows: [self::buildRow()],
+            title: self::buildSegmentedField(GaugePayload::MAXIMUM_TITLE_SEGMENTS + 1, 1),
+        );
+    }
+
+    public function testSegmentsOfATitleShareTheSameCharacterBudget(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/title holds at most '.GaugePayload::MAXIMUM_TITLE_LENGTH.' characters, got 32/');
+
+        GaugePayload::create(
+            name: 'claude',
+            rows: [self::buildRow()],
+            title: self::buildSegmentedField(2, 16),
+        );
+    }
+
+    private static function buildSegmentedField(int $segmentCount, int $charactersPerSegment): PolymorphicTextField
+    {
+        $segment = TextSegment::create(str_repeat('a', $charactersPerSegment), Color::fromHexCode('#FFFFFF'));
+
+        return PolymorphicTextField::fromSegments(...array_fill(0, $segmentCount, $segment));
     }
 
     private static function buildRow(): GaugeRow

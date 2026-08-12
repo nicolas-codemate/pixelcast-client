@@ -8,6 +8,7 @@ use App\Claude\ClaudeCredentials;
 use App\Claude\ClaudeCredentialsStore;
 use App\Claude\ClaudeOAuthClient;
 use App\Claude\StoredClaudeCredentials;
+use App\Client\Gauge\GaugeRow;
 use App\Client\StaleBehavior;
 use App\Provider\Claude\ClaudeUsageColors;
 use App\Provider\Claude\ClaudeUsageProvider;
@@ -38,6 +39,12 @@ final class ClaudeUsageProviderTest extends TestCase
      * its 604800: both far enough in for a pace to be drawn, neither past its reset.
      */
     private const string NOW = '2026-01-01T14:30:00+00:00';
+
+    /**
+     * The reference fixture leaves the Fable window without a reset instant, so the tests that need
+     * one on that row rebuild the fixture around this instant, the same as the 7 day window carries.
+     */
+    private const string FABLE_RESET_INSTANT = '2026-01-06T15:00:00.000000+00:00';
 
     private const string FAR_FROM_EXPIRY = '2026-01-01T18:00:00+00:00';
     private const string CLOSE_TO_EXPIRY = '2026-01-01T14:31:00+00:00';
@@ -71,7 +78,7 @@ final class ClaudeUsageProviderTest extends TestCase
 
         self::assertNotNull($gauge);
         self::assertSame('claude', $gauge->name);
-        self::assertSame('Claude', $gauge->title);
+        self::assertSame([['t' => 'Claude', 'c' => ClaudeUsageColors::TITLE_HEX_CODE]], $gauge->toArray()['title'] ?? null);
         self::assertSame('claude', $gauge->iconName);
         self::assertNull($gauge->displayDurationMilliseconds);
         self::assertSame(2700, $gauge->staleAfterInSeconds);
@@ -80,7 +87,10 @@ final class ClaudeUsageProviderTest extends TestCase
         self::assertSame(
             [
                 [
-                    'label' => '5h',
+                    'label' => [
+                        ['t' => '5h', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
+                        ['t' => ' reset', 'c' => ClaudeUsageColors::ROW_LABEL_SUFFIX_HEX_CODE],
+                    ],
                     'info' => '18:50',
                     'value' => '41%',
                     'percent' => 41,
@@ -89,7 +99,10 @@ final class ClaudeUsageProviderTest extends TestCase
                     'noteColor' => ClaudeUsageColors::YELLOW_HEX_CODE,
                 ],
                 [
-                    'label' => '7j',
+                    'label' => [
+                        ['t' => '7j', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
+                        ['t' => ' reset', 'c' => ClaudeUsageColors::ROW_LABEL_SUFFIX_HEX_CODE],
+                    ],
                     'info' => '06/01 16h',
                     'value' => '28%',
                     'percent' => 28,
@@ -98,13 +111,17 @@ final class ClaudeUsageProviderTest extends TestCase
                     'noteColor' => ClaudeUsageColors::GREEN_HEX_CODE,
                 ],
                 [
-                    'label' => 'fable',
+                    'label' => [
+                        ['t' => 'fable', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
+                    ],
                     'value' => '3%',
                     'percent' => 3,
                     'color' => ClaudeUsageColors::GREEN_HEX_CODE,
                 ],
                 [
-                    'label' => 'credits',
+                    'label' => [
+                        ['t' => 'credits', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
+                    ],
                     'info' => '2.5/170 EUR',
                     'value' => '1%',
                     'percent' => 1,
@@ -285,6 +302,53 @@ final class ClaudeUsageProviderTest extends TestCase
         self::assertArrayNotHasKey('noteColor', $fableRow);
     }
 
+    public function testTheResetWordFollowsTheNameOnlyOnAWindowCarryingAResetInstant(): void
+    {
+        $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
+
+        $gaugeWithoutTheResetInstant = $this->buildProvider(self::usageClient([self::usageFixtureResponse()]))->fetchUsageGauge();
+        self::assertNotNull($gaugeWithoutTheResetInstant);
+        self::assertSame(
+            [['t' => 'fable', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE]],
+            self::labelSegments($gaugeWithoutTheResetInstant->toArray()['rows'][2]['label']),
+        );
+
+        $gaugeWithTheResetInstant = $this->buildProvider(self::usageClient([self::jsonResponse(self::decodedFixtureWithTheFableWindowResettingAt())]))->fetchUsageGauge();
+        self::assertNotNull($gaugeWithTheResetInstant);
+        self::assertSame(
+            [
+                ['t' => 'fable', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
+                ['t' => ' reset', 'c' => ClaudeUsageColors::ROW_LABEL_SUFFIX_HEX_CODE],
+            ],
+            self::labelSegments($gaugeWithTheResetInstant->toArray()['rows'][2]['label']),
+        );
+    }
+
+    public function testTheLongestWindowLabelSpendsTheWholeCharacterBudgetOnItsTwoSegments(): void
+    {
+        $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
+
+        $gauge = $this->buildProvider(self::usageClient([self::jsonResponse(self::decodedFixtureWithTheFableWindowResettingAt())]))->fetchUsageGauge();
+
+        self::assertNotNull($gauge);
+        $fableLabel = implode('', array_column(self::labelSegments($gauge->toArray()['rows'][2]['label']), 't'));
+        self::assertSame('fable reset', $fableLabel);
+        self::assertSame(GaugeRow::MAXIMUM_LABEL_LENGTH, mb_strlen($fableLabel));
+    }
+
+    public function testTheCreditsRowCarriesASingleSegmentWithoutTheResetWord(): void
+    {
+        $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
+
+        $gauge = $this->buildProvider(self::usageClient([self::usageFixtureResponse()]))->fetchUsageGauge();
+
+        self::assertNotNull($gauge);
+        self::assertSame(
+            [['t' => 'credits', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE]],
+            self::labelSegments($gauge->toArray()['rows'][3]['label']),
+        );
+    }
+
     public function testACreditBalanceWithoutAUsableLimitCostsItsRowOnly(): void
     {
         $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
@@ -438,6 +502,19 @@ final class ClaudeUsageProviderTest extends TestCase
     /**
      * @return array<array-key, mixed>
      */
+    private static function decodedFixtureWithTheFableWindowResettingAt(): array
+    {
+        $limitEntries = self::fixtureLimitEntries();
+        $limitEntries[2]['resets_at'] = self::FABLE_RESET_INSTANT;
+        $decodedFixture = self::decodedUsageFixture();
+        $decodedFixture['limits'] = $limitEntries;
+
+        return $decodedFixture;
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
     private static function fixtureSpend(): array
     {
         $spend = self::decodedUsageFixture()['spend'] ?? null;
@@ -449,13 +526,30 @@ final class ClaudeUsageProviderTest extends TestCase
     }
 
     /**
-     * @param list<array{label: string, info?: string, value?: string, percent: int, note?: string, color?: string, noteColor?: string}> $rows
+     * @param string|list<array{t: string, c: string}> $label
+     *
+     * @return list<array{t: string, c: string}>
+     */
+    private static function labelSegments(string|array $label): array
+    {
+        if (\is_string($label)) {
+            self::fail('The row label travels as a plain string rather than as colored segments.');
+        }
+
+        return $label;
+    }
+
+    /**
+     * @param list<array{label: string|list<array{t: string, c: string}>, info?: string, value?: string, percent: int, note?: string, color?: string, noteColor?: string}> $rows
      *
      * @return list<string>
      */
     private static function rowLabels(array $rows): array
     {
-        return array_map(static fn (array $row): string => $row['label'], $rows);
+        return array_map(
+            static fn (array $row): string => \is_string($row['label']) ? $row['label'] : $row['label'][0]['t'],
+            $rows,
+        );
     }
 
     /**

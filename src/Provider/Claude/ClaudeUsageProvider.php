@@ -9,6 +9,8 @@ use App\Claude\Exception\ClaudeCredentialsException;
 use App\Claude\Exception\ClaudeOAuthException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
+use App\Client\Text\PolymorphicTextField;
+use App\Client\Text\TextSegment;
 use App\Config\Sync\ClaudeSyncConfig;
 use App\Config\Sync\ClaudeUsageRowLabel;
 use App\Config\Sync\StaleDeclaration;
@@ -44,6 +46,7 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
 
     private const string SESSION_RESET_FORMAT = 'H:i';
     private const string WEEKLY_RESET_FORMAT = 'd/m H\h';
+    private const string RESET_LABEL_SUFFIX = ' reset';
     private const string PERCENT_VALUE_FORMAT = '%d%%';
     private const string CREDIT_BALANCE_FORMAT = '%s/%s %s';
     private const string DECIMAL_SEPARATOR = '.';
@@ -140,7 +143,7 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
             return GaugePayload::create(
                 name: self::GAUGE_NAME,
                 rows: $rows,
-                title: self::GAUGE_TITLE,
+                title: PolymorphicTextField::fromColoredText(self::GAUGE_TITLE, ClaudeUsageColors::titleColor()),
                 iconName: self::GAUGE_ICON_NAME,
                 staleAfterInSeconds: $staleDeclaration->staleAfterInSeconds,
                 staleBehavior: $staleDeclaration->staleBehavior,
@@ -180,7 +183,12 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
 
         try {
             return GaugeRow::create(
-                label: $label->value,
+                label: null === $window->resetsAt
+                    ? PolymorphicTextField::fromColoredText($label->value, ClaudeUsageColors::rowLabelColor())
+                    : PolymorphicTextField::fromSegments(
+                        TextSegment::create($label->value, ClaudeUsageColors::rowLabelColor()),
+                        TextSegment::create(self::RESET_LABEL_SUFFIX, ClaudeUsageColors::rowLabelSuffixColor()),
+                    ),
                 percent: $displayedPercent,
                 info: self::formatResetInstant($window->resetsAt, $resetFormat),
                 value: \sprintf(self::PERCENT_VALUE_FORMAT, $displayedPercent),
@@ -212,7 +220,8 @@ final readonly class ClaudeUsageProvider implements ClaudeUsageProviderInterface
 
         try {
             return GaugeRow::create(
-                label: ClaudeUsageRowLabel::Credits->value,
+                // No reset word: the credits row announces a balance in euros, not a window that renews.
+                label: PolymorphicTextField::fromColoredText(ClaudeUsageRowLabel::Credits->value, ClaudeUsageColors::rowLabelColor()),
                 percent: $displayedPercent,
                 info: self::formatCreditBalance($spend),
                 value: \sprintf(self::PERCENT_VALUE_FORMAT, $displayedPercent),
