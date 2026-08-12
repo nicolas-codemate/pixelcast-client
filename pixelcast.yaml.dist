@@ -223,3 +223,28 @@ syncs:
         # none shows no sign. Without this key the firmware default applies, which the gauge sets
         # to dim: the last known counters stay readable behind a STALE badge.
         # staleBehavior: dim
+
+# Hours during which the device turns its panel off. This section is stored by the device and
+# pushed only by `bin/console app:device:sleep`, never by the scheduler, so editing it here changes
+# nothing until that command has run. It does not suspend the sync groups either: the cycles keep
+# pushing to a panel that is off. Not to be confused with the activeWindow of a group, which stops
+# a group from running but leaves the last pushed image on the screen.
+sleep:
+    # A disabled schedule leaves the panel on, whatever the windows below say.
+    enabled: true
+
+    # What the panel shows while asleep: black blanks it, clock leaves a dimmed clock, which in a
+    # dark room is still a source of light. Without this key the panel is blanked.
+    # displayMode: black
+
+    # Days the panel goes off, among mon, tue, wed, thu, fri, sat, sun. Without this key, every day.
+    # A day left out is sent to the device with no window at all, so it clears what that day held.
+    # days: [mon, tue, wed, thu, fri]
+
+    # Stretches of the day the panel stays off, the same on every declared day, two at most.
+    # from and to: HH:MM. A "to" earlier than "from" runs past midnight into the next day, so
+    #   from '22:00' to '07:00' is a single night. This is the opposite of a group activeWindow,
+    #   which refuses a window spanning midnight.
+    windows:
+        - from: '00:00'
+          to: '07:00'

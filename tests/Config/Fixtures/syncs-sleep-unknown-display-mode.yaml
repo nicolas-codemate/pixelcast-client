@@ -1,0 +1,16 @@
+# Sample configuration used by SyncsConfigLoaderTest: a display mode the panel does not know.
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
+
+sleep:
+    enabled: true
+    displayMode: dimmed
+    windows:
+        - from: '00:00'
+          to: '07:00'

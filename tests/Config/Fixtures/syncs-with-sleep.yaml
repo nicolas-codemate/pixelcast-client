@@ -1,0 +1,15 @@
+# Sample configuration used by SyncsConfigLoaderTest: the sleep schedule next to the sync groups.
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
+
+sleep:
+    enabled: true
+    windows:
+        - from: '00:00'
+          to: '07:00'

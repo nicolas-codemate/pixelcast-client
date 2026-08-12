@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace App\Config;
 
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sleep\DeviceSleepConfig;
 use App\Config\Sync\SyncGroupConfig;
 use App\Config\Sync\TrackerSyncConfig;
 
+/**
+ * Everything pixelcast.yaml declares, which is more than its sync groups: the sleep schedule is a
+ * device setting no group ever runs.
+ */
 final readonly class SyncsConfig
 {
     /**
@@ -15,6 +20,7 @@ final readonly class SyncsConfig
      */
     public function __construct(
         private array $syncGroups,
+        public ?DeviceSleepConfig $deviceSleep = null,
     ) {
     }
 
