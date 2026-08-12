@@ -18,9 +18,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * The device stores the schedule itself and keeps applying it across a reboot, so this is run once,
- * when the section is written or changed, and not on a cycle like a sync group. Run it again if the
- * device ever comes back without its schedule.
+ * The device stores the schedule itself and goes on applying it, so this is run once, when the
+ * section is written or changed, and not on a cycle like a sync group. Run it again if the device
+ * ever comes back without its schedule.
  */
 #[AsCommand(
     name: 'app:device:sleep',
@@ -139,12 +139,12 @@ final class DeviceSleepCommand extends Command
 
     private static function describePanel(SleepState $sleepState): string
     {
-        if (!$sleepState->sleeping) {
-            return 'awake';
-        }
+        // An awake device still names a reason when it refuses to apply the schedule, which is the
+        // only way to learn the panel will stay lit tonight.
+        $panelState = $sleepState->sleeping ? 'asleep' : 'awake';
 
         return null === $sleepState->reason
-            ? 'asleep'
-            : \sprintf('asleep, reason "%s"', $sleepState->reason);
+            ? $panelState
+            : \sprintf('%s, reason "%s"', $panelState, $sleepState->reason);
     }
 }

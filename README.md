@@ -388,8 +388,8 @@ read hours after the close is worth nothing, so it is not caught up.
 The `sleep:` section, at the top level of the file rather than inside a group,
 turns the panel off between hours of the day: `black` blanks it, `clock` leaves
 a dimmed clock on it, which in a dark room is still a source of light. The
-device stores the schedule and goes on applying it across a reboot, and nothing
-in the scheduler ever sends it — only `bin/console app:device:sleep` does, so
+device stores the schedule and goes on applying it on its own, and nothing in
+the scheduler ever sends it — only `bin/console app:device:sleep` does, so
 editing the section changes nothing on the screen until that command has run,
 and running it again is the repair if the device ever comes back without its
 schedule. `days` is optional there too, the seven of the week otherwise, and a

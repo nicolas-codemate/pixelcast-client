@@ -79,6 +79,21 @@ final class DeviceSleepCommandTest extends TestCase
         self::assertStringContainsString('all day', $display);
     }
 
+    public function testADeviceRefusingToApplyTheScheduleNamesItsReasonWhileStillAwake(): void
+    {
+        $client = new RecordingPixelcastClientStub();
+        $client->sleepStateToReturn = SleepState::fromResponseBody([
+            'sleeping' => false,
+            'reason' => 'ntp_not_synced',
+            'config' => ['enabled' => true, 'display_mode' => 'black', 'schedule' => []],
+        ]);
+
+        $tester = self::createTester(self::FILE_WITH_A_SLEEP_SECTION, $client);
+
+        self::assertSame(Command::SUCCESS, $tester->execute([]));
+        self::assertStringContainsString('awake, reason "ntp_not_synced"', $tester->getDisplay());
+    }
+
     public function testAFileWithoutASleepSectionPushesNothingAndNamesTheSection(): void
     {
         $client = new RecordingPixelcastClientStub();
