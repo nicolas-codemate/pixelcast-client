@@ -8,7 +8,6 @@ use App\Claude\ClaudeCredentials;
 use App\Claude\ClaudeCredentialsStore;
 use App\Claude\ClaudeOAuthClient;
 use App\Claude\StoredClaudeCredentials;
-use App\Client\Gauge\GaugeRow;
 use App\Client\StaleBehavior;
 use App\Provider\Claude\ClaudeUsageColors;
 use App\Provider\Claude\ClaudeUsageProvider;
@@ -88,8 +87,7 @@ final class ClaudeUsageProviderTest extends TestCase
             [
                 [
                     'label' => [
-                        ['t' => '5h', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
-                        ['t' => ' reset', 'c' => ClaudeUsageColors::ROW_LABEL_SUFFIX_HEX_CODE],
+                        ['t' => '5h', 'c' => ClaudeUsageColors::SESSION_LABEL_HEX_CODE],
                     ],
                     'info' => '18:50',
                     'value' => '41%',
@@ -100,8 +98,7 @@ final class ClaudeUsageProviderTest extends TestCase
                 ],
                 [
                     'label' => [
-                        ['t' => '7j', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
-                        ['t' => ' reset', 'c' => ClaudeUsageColors::ROW_LABEL_SUFFIX_HEX_CODE],
+                        ['t' => '7j', 'c' => ClaudeUsageColors::WEEKLY_LABEL_HEX_CODE],
                     ],
                     'info' => '06/01 16h',
                     'value' => '28%',
@@ -112,7 +109,7 @@ final class ClaudeUsageProviderTest extends TestCase
                 ],
                 [
                     'label' => [
-                        ['t' => 'fable', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
+                        ['t' => 'fable', 'c' => ClaudeUsageColors::FABLE_LABEL_HEX_CODE],
                     ],
                     'value' => '3%',
                     'percent' => 3,
@@ -120,7 +117,7 @@ final class ClaudeUsageProviderTest extends TestCase
                 ],
                 [
                     'label' => [
-                        ['t' => 'credits', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
+                        ['t' => 'credits', 'c' => ClaudeUsageColors::CREDITS_LABEL_HEX_CODE],
                     ],
                     'info' => '2.5/170 EUR',
                     'value' => '1%',
@@ -302,50 +299,21 @@ final class ClaudeUsageProviderTest extends TestCase
         self::assertArrayNotHasKey('noteColor', $fableRow);
     }
 
-    public function testTheResetWordFollowsTheNameOnlyOnAWindowCarryingAResetInstant(): void
-    {
-        $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
-
-        $gaugeWithoutTheResetInstant = $this->buildProvider(self::usageClient([self::usageFixtureResponse()]))->fetchUsageGauge();
-        self::assertNotNull($gaugeWithoutTheResetInstant);
-        self::assertSame(
-            [['t' => 'fable', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE]],
-            self::labelSegments($gaugeWithoutTheResetInstant->toArray()['rows'][2]['label']),
-        );
-
-        $gaugeWithTheResetInstant = $this->buildProvider(self::usageClient([self::jsonResponse(self::decodedFixtureWithTheFableWindowResettingAt())]))->fetchUsageGauge();
-        self::assertNotNull($gaugeWithTheResetInstant);
-        self::assertSame(
-            [
-                ['t' => 'fable', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE],
-                ['t' => ' reset', 'c' => ClaudeUsageColors::ROW_LABEL_SUFFIX_HEX_CODE],
-            ],
-            self::labelSegments($gaugeWithTheResetInstant->toArray()['rows'][2]['label']),
-        );
-    }
-
-    public function testTheLongestWindowLabelSpendsTheWholeCharacterBudgetOnItsTwoSegments(): void
+    /**
+     * The label is the field the row cuts short once the value and the info are served, so a name
+     * followed by a second word loses that word on the last glyph that fits. The name stands alone
+     * even on the window that announces a reset instant, which the info column next to it carries.
+     */
+    public function testAWindowAnnouncingAResetInstantKeepsItsNameAlone(): void
     {
         $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
 
         $gauge = $this->buildProvider(self::usageClient([self::jsonResponse(self::decodedFixtureWithTheFableWindowResettingAt())]))->fetchUsageGauge();
 
         self::assertNotNull($gauge);
-        $fableLabel = implode('', array_column(self::labelSegments($gauge->toArray()['rows'][2]['label']), 't'));
-        self::assertSame('fable reset', $fableLabel);
-        self::assertSame(GaugeRow::MAXIMUM_LABEL_LENGTH, mb_strlen($fableLabel));
-    }
-
-    public function testTheCreditsRowCarriesASingleSegmentWithoutTheResetWord(): void
-    {
-        $this->storeCredentialsExpiringAt(self::FAR_FROM_EXPIRY);
-
-        $gauge = $this->buildProvider(self::usageClient([self::usageFixtureResponse()]))->fetchUsageGauge();
-
-        self::assertNotNull($gauge);
         self::assertSame(
-            [['t' => 'credits', 'c' => ClaudeUsageColors::ROW_LABEL_HEX_CODE]],
-            self::labelSegments($gauge->toArray()['rows'][3]['label']),
+            [['t' => 'fable', 'c' => ClaudeUsageColors::FABLE_LABEL_HEX_CODE]],
+            self::labelSegments($gauge->toArray()['rows'][2]['label']),
         );
     }
 

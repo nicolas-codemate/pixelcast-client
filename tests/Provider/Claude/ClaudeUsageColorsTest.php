@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Provider\Claude;
 
+use App\Config\Sync\ClaudeUsageRowLabel;
 use App\Provider\Claude\ClaudeUsageColors;
 use App\Provider\Claude\UsagePace;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -12,6 +13,11 @@ use Symfony\Component\Clock\MockClock;
 
 final class ClaudeUsageColorsTest extends TestCase
 {
+    /**
+     * What the panel writes text it was given no colour for in, which is why no row name may take it.
+     */
+    private const string UNTINTED_TEXT_HEX_CODE = '#FFFFFF';
+
     private const string READING_INSTANT = '2026-01-05T12:00:00+00:00';
     private const int WEEKLY_WINDOW_IN_SECONDS = 604800;
     private const int HALF_OF_THE_WEEKLY_WINDOW_IN_SECONDS = 302400;
@@ -56,6 +62,21 @@ final class ClaudeUsageColorsTest extends TestCase
     public function testTheNoteColorIsDrawnFromThePaceAlone(int $percent, string $expectedHexCode): void
     {
         self::assertSame($expectedHexCode, ClaudeUsageColors::noteColorFor(self::paceAtHalfOfTheWeeklyWindow($percent))->hexCode);
+    }
+
+    /**
+     * The rows are told apart by the tint of their name alone, so two rows sharing one, or one
+     * drawn in the untinted white, would read as a row that was given no name of its own.
+     */
+    public function testEveryRowNameCarriesATintOfItsOwn(): void
+    {
+        $nameHexCodes = array_map(
+            static fn (ClaudeUsageRowLabel $label): string => ClaudeUsageColors::rowLabelColorFor($label)->hexCode,
+            ClaudeUsageRowLabel::cases(),
+        );
+
+        self::assertSame($nameHexCodes, array_unique($nameHexCodes));
+        self::assertNotContains(self::UNTINTED_TEXT_HEX_CODE, $nameHexCodes);
     }
 
     public function testTheColorLadderAndTheArrowLadderDisagreeJustAboveBudget(): void

@@ -220,6 +220,14 @@ Data API is tested with a real key. Without `bottomLine` nothing changes:
 showing nothing. Ten characters of that row are read at a glance and the device
 contract accepts 31, anything longer scrolling rather than being cut.
 
+The all-time high is written with the month and the year it was reached, as in
+`ATH 107.7K$ 10/2025`. A high of a thousand or more is condensed on its
+magnitude — `K`, `M`, `B`, `T` — so that a six-digit price leaves the date the
+room it needs; below that it keeps the two decimals the price row above it
+shows. A high the source never dated carries no date, and one so wide that the
+date no longer fits drops the date rather than the price. That row scrolls: only
+an undated high stays under the ten characters read at a glance.
+
 On `boursorama` the row only tells the whole story once `app:tracker:ath` has
 run: until then it shows the highest of the last thirty sessions, which is all
 the sync cycle downloads.
@@ -274,13 +282,18 @@ Above `x1.0` the window is being spent faster than it renews. The first hour of 
 window carries no pace at all, because a divisor that small says nothing.
 
 The header and the labels carry colours of their own, none of them configurable.
-The title reads `Claude` in the Anthropic orange `#D97757`. A window row that
-announces a reset instant splits its label in two, the name in white and the
-` reset` that follows it in grey `#888888`, so that the time shown next to it
-reads as a reset instant rather than as the hour of the day. A window the answer
-gives no reset instant for shows no time at all, so it keeps its name alone in
-white, and so does the credits row: it counts a balance in euros, not a window
-that renews.
+The title reads `Claude` in the Anthropic orange `#D97757`. Each row name then
+carries a tint of its own, so that a row is recognised before it is read: `5h`
+in cyan `#4DD0E1`, `7j` in slate blue `#7C9CB0`, `fable` in the violet `#AF5FFF`
+the Claude Code statusline writes that same word in, and `credits` in pink
+`#E86AA6`. None of the four is the green, yellow or red the bars and the pace
+notes own, so a name is never read as a level.
+
+The reset instant sits next to the name, in the `info` column, which the device
+contract declares as a plain string: it carries no colour of its own and none can
+be given to it. The name is also the only field the row cuts short once the value
+and the info are served, so it stands alone rather than being followed by a word
+that would lose its last letters.
 
 The counters are account-wide, not machine-wide. So the host reports the usage of
 every machine signed in to that account, and it keeps the reading correct around

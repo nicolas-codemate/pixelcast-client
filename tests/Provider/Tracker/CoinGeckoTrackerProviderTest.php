@@ -432,8 +432,8 @@ final class CoinGeckoTrackerProviderTest extends TestCase
     {
         $trackerPayloads = $this->buildBottomLineProvider()->fetchTrackers(self::syncInstant());
 
-        self::assertSame('ATH 107662', $trackerPayloads[0]->bottomText);
-        self::assertSame('ATH 107662$', $trackerPayloads[2]->bottomText);
+        self::assertSame('ATH 107.7K 10/2025', $trackerPayloads[0]->bottomText);
+        self::assertSame('ATH 107.7K$ 10/2025', $trackerPayloads[2]->bottomText);
     }
 
     public function testBottomLineVolumeFillsTheBottomRowWithTheTradedVolume(): void
