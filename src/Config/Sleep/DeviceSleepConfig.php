@@ -85,7 +85,7 @@ final readonly class DeviceSleepConfig
      *
      * @return array<string, list<SleepWindow>>
      */
-    public function sleepWindowsByFirmwareDayName(): array
+    private function sleepWindowsByFirmwareDayName(): array
     {
         $windowsByFirmwareDayName = [];
 

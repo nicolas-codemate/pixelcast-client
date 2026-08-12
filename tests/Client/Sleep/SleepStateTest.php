@@ -27,10 +27,18 @@ final class SleepStateTest extends TestCase
 
         self::assertTrue($sleepState->sleeping);
         self::assertSame('schedule', $sleepState->reason);
-        self::assertNull($sleepState->overrideExpiryEpoch);
         self::assertTrue($sleepState->scheduleEnabled);
         self::assertSame('black', $sleepState->displayMode);
-        self::assertSame(['monday' => ['20:00-07:00'], 'tuesday' => []], $sleepState->sleepWindowsByDayName);
+        self::assertSame(['monday', 'tuesday'], array_keys($sleepState->sleepScheduleByDayName));
+
+        $monday = $sleepState->sleepScheduleByDayName['monday'];
+        self::assertFalse($monday->allDay);
+        self::assertCount(1, $monday->sleepSlots);
+        self::assertSame('20:00', $monday->sleepSlots[0]->start);
+        self::assertSame('07:00', $monday->sleepSlots[0]->end);
+
+        self::assertFalse($sleepState->sleepScheduleByDayName['tuesday']->allDay);
+        self::assertSame([], $sleepState->sleepScheduleByDayName['tuesday']->sleepSlots);
     }
 
     public function testAnAwakeDeviceAnswersWithoutAReason(): void
@@ -42,10 +50,10 @@ final class SleepStateTest extends TestCase
 
         self::assertFalse($sleepState->sleeping);
         self::assertNull($sleepState->reason);
-        self::assertSame([], $sleepState->sleepWindowsByDayName);
+        self::assertSame([], $sleepState->sleepScheduleByDayName);
     }
 
-    public function testAManualOverrideCarriesTheEpochItExpiresAt(): void
+    public function testAManualOverrideIsReportedAsTheReasonOfTheSleep(): void
     {
         $sleepState = SleepState::fromResponseBody([
             'sleeping' => true,
@@ -55,7 +63,6 @@ final class SleepStateTest extends TestCase
         ]);
 
         self::assertSame('override', $sleepState->reason);
-        self::assertSame(4102444800, $sleepState->overrideExpiryEpoch);
     }
 
     public function testADayMarkedAsWholeIsReadAsSuch(): void
@@ -65,7 +72,7 @@ final class SleepStateTest extends TestCase
             'config' => ['schedule' => ['sunday' => ['all_day' => true, 'slots' => [['start' => '20:00', 'end' => '07:00']]]]],
         ]);
 
-        self::assertSame(['sunday' => ['all day']], $sleepState->sleepWindowsByDayName);
+        self::assertTrue($sleepState->sleepScheduleByDayName['sunday']->allDay);
     }
 
     public function testAnEmptyConfigurationStaysReadable(): void
@@ -75,6 +82,6 @@ final class SleepStateTest extends TestCase
         self::assertFalse($sleepState->sleeping);
         self::assertNull($sleepState->scheduleEnabled);
         self::assertNull($sleepState->displayMode);
-        self::assertSame([], $sleepState->sleepWindowsByDayName);
+        self::assertSame([], $sleepState->sleepScheduleByDayName);
     }
 }

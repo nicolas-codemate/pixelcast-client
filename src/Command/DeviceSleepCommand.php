@@ -6,6 +6,8 @@ namespace App\Command;
 
 use App\Client\Exception\PixelcastClientException;
 use App\Client\PixelcastClientInterface;
+use App\Client\Sleep\SleepScheduleDay;
+use App\Client\Sleep\SleepSlot;
 use App\Client\Sleep\SleepState;
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\SyncsConfigLoader;
@@ -16,13 +18,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Hands the sleep schedule of pixelcast.yaml to the device.
- *
  * The device stores the schedule itself and keeps applying it across a reboot, so this is run once,
  * when the section is written or changed, and not on a cycle like a sync group. Run it again if the
  * device ever comes back without its schedule.
- *
- * Nothing about the sync groups changes: they keep pushing while the panel is off.
  */
 #[AsCommand(
     name: 'app:device:sleep',
@@ -92,9 +90,11 @@ final class DeviceSleepCommand extends Command
 
         $rows = [];
 
-        foreach ($sleepState->sleepWindowsByDayName as $dayName => $sleepWindows) {
-            if ([] !== $sleepWindows) {
-                $rows[] = [$dayName, implode(', ', $sleepWindows)];
+        foreach ($sleepState->sleepScheduleByDayName as $dayName => $scheduleDay) {
+            $panelOff = self::describeWhenThePanelIsOff($scheduleDay);
+
+            if (null !== $panelOff) {
+                $rows[] = [$dayName, $panelOff];
             }
         }
 
@@ -105,6 +105,25 @@ final class DeviceSleepCommand extends Command
         }
 
         $io->table(['Day', 'Panel off'], $rows);
+    }
+
+    /**
+     * Null for a day the device never turns its panel off, which then carries no row.
+     */
+    private static function describeWhenThePanelIsOff(SleepScheduleDay $scheduleDay): ?string
+    {
+        if ($scheduleDay->allDay) {
+            return 'all day';
+        }
+
+        if ([] === $scheduleDay->sleepSlots) {
+            return null;
+        }
+
+        return implode(', ', array_map(
+            static fn (SleepSlot $sleepSlot): string => $sleepSlot->start.'-'.$sleepSlot->end,
+            $scheduleDay->sleepSlots,
+        ));
     }
 
     private static function describeSchedule(SleepState $sleepState): string

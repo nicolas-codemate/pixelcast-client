@@ -49,6 +49,7 @@ final class DeviceSleepCommandTest extends TestCase
                 'display_mode' => 'black',
                 'schedule' => [
                     'monday' => ['all_day' => false, 'slots' => [['start' => '00:00', 'end' => '07:00']]],
+                    'sunday' => ['all_day' => true, 'slots' => []],
                 ],
             ],
         ]);
@@ -75,6 +76,7 @@ final class DeviceSleepCommandTest extends TestCase
         self::assertStringContainsString('black', $display);
         self::assertStringContainsString('monday', $display);
         self::assertStringContainsString('00:00-07:00', $display);
+        self::assertStringContainsString('all day', $display);
     }
 
     public function testAFileWithoutASleepSectionPushesNothingAndNamesTheSection(): void

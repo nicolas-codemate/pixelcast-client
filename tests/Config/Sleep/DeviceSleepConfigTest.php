@@ -9,28 +9,31 @@ use PHPUnit\Framework\TestCase;
 
 final class DeviceSleepConfigTest extends TestCase
 {
+    private const array DAY_CARRYING_THE_WINDOW = ['all_day' => false, 'slots' => [['start' => '00:00', 'end' => '07:00']]];
+    private const array DAY_WITHOUT_ANY_WINDOW = ['all_day' => false, 'slots' => []];
+
     public function testTheDaysLeftOutOfTheSectionAreStillSentWithoutAnyWindow(): void
     {
-        $sleepConfig = self::sleepConfig(['days' => ['mon', 'tue']]);
+        $schedule = self::sleepConfig(['days' => ['mon', 'tue']])->toSleepPayload()->toArray()['schedule'];
 
         self::assertSame([
-            'monday' => ['00:00-07:00'],
-            'tuesday' => ['00:00-07:00'],
-            'wednesday' => [],
-            'thursday' => [],
-            'friday' => [],
-            'saturday' => [],
-            'sunday' => [],
-        ], self::windowsAsStrings($sleepConfig));
+            'monday' => self::DAY_CARRYING_THE_WINDOW,
+            'tuesday' => self::DAY_CARRYING_THE_WINDOW,
+            'wednesday' => self::DAY_WITHOUT_ANY_WINDOW,
+            'thursday' => self::DAY_WITHOUT_ANY_WINDOW,
+            'friday' => self::DAY_WITHOUT_ANY_WINDOW,
+            'saturday' => self::DAY_WITHOUT_ANY_WINDOW,
+            'sunday' => self::DAY_WITHOUT_ANY_WINDOW,
+        ], $schedule);
     }
 
     public function testWithoutDeclaredDaysEverySevenDayCarriesTheWindows(): void
     {
-        $sleepConfig = self::sleepConfig([]);
+        $schedule = self::sleepConfig([])->toSleepPayload()->toArray()['schedule'];
 
         self::assertSame(
-            array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], ['00:00-07:00']),
-            self::windowsAsStrings($sleepConfig),
+            array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], self::DAY_CARRYING_THE_WINDOW),
+            $schedule,
         );
     }
 
@@ -40,11 +43,8 @@ final class DeviceSleepConfigTest extends TestCase
 
         self::assertTrue($payload->enabled);
         self::assertSame('clock', $payload->displayMode);
-        self::assertSame(
-            ['all_day' => false, 'slots' => [['start' => '00:00', 'end' => '07:00']]],
-            $payload->toArray()['schedule']['monday'],
-        );
-        self::assertSame(['all_day' => false, 'slots' => []], $payload->toArray()['schedule']['sunday']);
+        self::assertSame(self::DAY_CARRYING_THE_WINDOW, $payload->toArray()['schedule']['monday']);
+        self::assertSame(self::DAY_WITHOUT_ANY_WINDOW, $payload->toArray()['schedule']['sunday']);
     }
 
     /**
@@ -62,16 +62,5 @@ final class DeviceSleepConfigTest extends TestCase
         self::assertNotNull($sleepConfig);
 
         return $sleepConfig;
-    }
-
-    /**
-     * @return array<string, list<string>>
-     */
-    private static function windowsAsStrings(DeviceSleepConfig $sleepConfig): array
-    {
-        return array_map(
-            static fn (array $windows): array => array_map(strval(...), $windows),
-            $sleepConfig->sleepWindowsByFirmwareDayName(),
-        );
     }
 }

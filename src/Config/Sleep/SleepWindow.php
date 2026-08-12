@@ -18,7 +18,6 @@ final readonly class SleepWindow implements \Stringable
 {
     private const string FROM_OPTION_KEY = 'from';
     private const string TO_OPTION_KEY = 'to';
-    private const string TIME_OF_DAY_PATTERN = '/^([01]\d|2[0-3]):[0-5]\d$/';
 
     private function __construct(
         public string $fromTimeOfDay,
@@ -31,8 +30,8 @@ final readonly class SleepWindow implements \Stringable
      */
     public static function fromOptions(array $options, string $parentPath): self
     {
-        $fromTimeOfDay = self::readTimeOfDay($options, self::FROM_OPTION_KEY, $parentPath);
-        $toTimeOfDay = self::readTimeOfDay($options, self::TO_OPTION_KEY, $parentPath);
+        $fromTimeOfDay = SyncOptionReader::requireTimeOfDay($options, self::FROM_OPTION_KEY, $parentPath);
+        $toTimeOfDay = SyncOptionReader::requireTimeOfDay($options, self::TO_OPTION_KEY, $parentPath);
 
         if ($fromTimeOfDay === $toTimeOfDay) {
             throw PixelCastConfigException::invalidValue($parentPath.'.'.self::TO_OPTION_KEY, \sprintf('expected a time other than "%s": a window opening and closing at the same minute covers nothing', $fromTimeOfDay));
@@ -44,19 +43,5 @@ final readonly class SleepWindow implements \Stringable
     public function __toString(): string
     {
         return $this->fromTimeOfDay.'-'.$this->toTimeOfDay;
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    private static function readTimeOfDay(array $options, string $key, string $parentPath): string
-    {
-        $timeOfDay = SyncOptionReader::requireString($options, $key, $parentPath);
-
-        if (1 !== preg_match(self::TIME_OF_DAY_PATTERN, $timeOfDay)) {
-            throw PixelCastConfigException::invalidValue($parentPath.'.'.$key, \sprintf('expected a time of day like "00:00", got "%s"', $timeOfDay));
-        }
-
-        return $timeOfDay;
     }
 }

@@ -187,7 +187,12 @@ final class PixelcastClientTest extends TestCase
         self::assertTrue($sleepState->sleeping);
         self::assertSame('schedule', $sleepState->reason);
         self::assertSame('black', $sleepState->displayMode);
-        self::assertSame(['monday' => ['20:00-07:00']], $sleepState->sleepWindowsByDayName);
+        self::assertSame(['monday'], array_keys($sleepState->sleepScheduleByDayName));
+
+        $mondaySlots = $sleepState->sleepScheduleByDayName['monday']->sleepSlots;
+        self::assertCount(1, $mondaySlots);
+        self::assertSame('20:00', $mondaySlots[0]->start);
+        self::assertSame('07:00', $mondaySlots[0]->end);
     }
 
     public function testFetchSleepStateRefusesABodyThatIsNotAJsonObject(): void

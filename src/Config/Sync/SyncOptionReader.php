@@ -9,6 +9,8 @@ use App\Config\Exception\PixelCastConfigException;
 
 final class SyncOptionReader
 {
+    private const string TIME_OF_DAY_PATTERN = '/^([01]\d|2[0-3]):[0-5]\d$/';
+
     /**
      * A key left out of the file and a key written with no value both mean the option is absent.
      *
@@ -67,6 +69,20 @@ final class SyncOptionReader
         } catch (\InvalidArgumentException $conversionError) {
             throw PixelCastConfigException::invalidValue(self::optionPath($parentPath, $key), 'expected a hex color like "#00D4FF"', $conversionError);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    public static function requireTimeOfDay(array $options, string $key, string $parentPath): string
+    {
+        $timeOfDay = self::requireString($options, $key, $parentPath);
+
+        if (1 !== preg_match(self::TIME_OF_DAY_PATTERN, $timeOfDay)) {
+            throw PixelCastConfigException::invalidValue(self::optionPath($parentPath, $key), \sprintf('expected a time of day like "09:00", got "%s"', $timeOfDay));
+        }
+
+        return $timeOfDay;
     }
 
     /**
