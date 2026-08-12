@@ -10,6 +10,8 @@ use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
+use App\Client\Sleep\SleepPayload;
+use App\Client\Sleep\SleepState;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
 use App\Scenario\Validation\OutboundPayloadValidator;
@@ -24,6 +26,7 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     private const string GAUGE_SPEC_PATH = '/gauge';
     private const string NOTIFICATION_SPEC_PATH = '/notify';
     private const string NOTIFICATION_DISMISS_SPEC_PATH = '/notify/dismiss';
+    private const string SLEEP_SPEC_PATH = '/sleep';
 
     public function __construct(
         #[Target('device.client')]
@@ -62,11 +65,38 @@ final readonly class PixelcastClient implements PixelcastClientInterface
         $this->sendValidated('POST', self::NOTIFICATION_DISMISS_SPEC_PATH);
     }
 
+    public function pushSleepConfiguration(SleepPayload $sleep): void
+    {
+        $this->sendValidated('POST', self::SLEEP_SPEC_PATH, body: $sleep->toArray());
+    }
+
+    public function fetchSleepState(): SleepState
+    {
+        $responseBody = $this->requestValidated('GET', self::SLEEP_SPEC_PATH);
+        $decodedBody = json_decode($responseBody, true);
+
+        if (!\is_array($decodedBody)) {
+            throw InvalidPayloadException::fromUnreadableDeviceResponse(self::SLEEP_SPEC_PATH, $responseBody);
+        }
+
+        /** @var array<string, mixed> $decodedBody */
+        return SleepState::fromResponseBody($decodedBody);
+    }
+
     /**
      * @param array<string, string> $queryParameters
      * @param array<string, mixed>|null $body
      */
     private function sendValidated(string $httpMethod, string $specPath, array $queryParameters = [], ?array $body = null): void
+    {
+        $this->requestValidated($httpMethod, $specPath, $queryParameters, $body);
+    }
+
+    /**
+     * @param array<string, string> $queryParameters
+     * @param array<string, mixed>|null $body
+     */
+    private function requestValidated(string $httpMethod, string $specPath, array $queryParameters = [], ?array $body = null): string
     {
         $validation = $this->outboundPayloadValidator->validateRequest($httpMethod, $specPath, $queryParameters, $body);
 
@@ -94,6 +124,8 @@ final readonly class PixelcastClient implements PixelcastClientInterface
         }
 
         $this->assertAccepted($specPath, $httpStatus, $responseBody);
+
+        return $responseBody;
     }
 
     private function assertAccepted(string $specPath, int $httpStatus, string $responseBody): void

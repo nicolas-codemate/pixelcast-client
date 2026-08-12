@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Config\Sleep;
 
+use App\Client\Sleep\SleepPayload;
+use App\Client\Sleep\SleepSlot;
 use App\Config\Sync\ActiveWindowDay;
 use App\Config\Sync\SyncOptionReader;
 
@@ -61,6 +63,20 @@ final readonly class DeviceSleepConfig
             [] === $declaredDays ? ActiveWindowDay::cases() : $declaredDays,
             self::readWindows($options),
         );
+    }
+
+    public function toSleepPayload(): SleepPayload
+    {
+        $sleepSlotsByDayName = [];
+
+        foreach ($this->sleepWindowsByFirmwareDayName() as $firmwareDayName => $windows) {
+            $sleepSlotsByDayName[$firmwareDayName] = array_map(
+                static fn (SleepWindow $window): SleepSlot => new SleepSlot($window->fromTimeOfDay, $window->toTimeOfDay),
+                $windows,
+            );
+        }
+
+        return new SleepPayload($this->enabled, $this->displayMode->value, $sleepSlotsByDayName);
     }
 
     /**

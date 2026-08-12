@@ -7,6 +7,8 @@ namespace App\Tests\Stub;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClientInterface;
+use App\Client\Sleep\SleepPayload;
+use App\Client\Sleep\SleepState;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
 
@@ -36,6 +38,13 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
      * @var list<NotificationPayload>
      */
     public array $pushedNotifications = [];
+
+    /**
+     * @var list<SleepPayload>
+     */
+    public array $pushedSleepPayloads = [];
+
+    public ?SleepState $sleepStateToReturn = null;
 
     public int $dismissedNotificationCount = 0;
 
@@ -92,6 +101,20 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         $this->failIfConfigured();
 
         ++$this->dismissedNotificationCount;
+    }
+
+    public function pushSleepConfiguration(SleepPayload $sleep): void
+    {
+        $this->failIfConfigured();
+
+        $this->pushedSleepPayloads[] = $sleep;
+    }
+
+    public function fetchSleepState(): SleepState
+    {
+        $this->failIfConfigured();
+
+        return $this->sleepStateToReturn ?? SleepState::fromResponseBody(['sleeping' => false, 'config' => []]);
     }
 
     private function failIfConfigured(): void
