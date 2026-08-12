@@ -45,7 +45,10 @@ final class TrackerItemMatchesSchemaTest extends TestCase
         $trackerUpdateProperties = self::trackerUpdateRequestPropertiesDeclaredByDeviceContract();
 
         self::assertSame(TrackerPayload::MAXIMUM_SYMBOL_LENGTH, $trackerUpdateProperties['symbol']['maxLength'] ?? null);
-        self::assertSame(TrackerPayload::MAXIMUM_BOTTOM_TEXT_LENGTH, $trackerUpdateProperties['bottomText']['maxLength'] ?? null);
+        self::assertSame(
+            TrackerPayload::MAXIMUM_BOTTOM_TEXT_LENGTH,
+            self::plainStringLengthBoundOf($trackerUpdateProperties['bottomText']),
+        );
     }
 
     public function testTheDeviceContractBoundsBothSeriesToTheChartColumnsTheClientFillsThem(): void
@@ -146,6 +149,56 @@ final class TrackerItemMatchesSchemaTest extends TestCase
         self::assertIsArray($deviceContract['TrackerUpdateRequest']['properties']);
 
         return self::asPropertyMap($deviceContract['TrackerUpdateRequest']['properties']);
+    }
+
+    /**
+     * A field the device accepts as a plain string, a colored string or colored segments points at
+     * a shared definition holding one branch per form, each with the bound that form is measured
+     * by. The character bound is therefore read from the plain string branch.
+     *
+     * @param array<mixed> $fieldSchema
+     */
+    private static function plainStringLengthBoundOf(array $fieldSchema): int
+    {
+        $acceptedForms = self::acceptedFormsOfPolymorphicTextField($fieldSchema);
+
+        foreach ($acceptedForms as $acceptedForm) {
+            if (!\is_array($acceptedForm) || 'string' !== ($acceptedForm['type'] ?? null)) {
+                continue;
+            }
+
+            $lengthBound = $acceptedForm['maxLength'] ?? null;
+            self::assertIsInt($lengthBound);
+
+            return $lengthBound;
+        }
+
+        self::fail('The polymorphic text field declares no plain string form.');
+    }
+
+    /**
+     * @param array<mixed> $fieldSchema
+     *
+     * @return array<mixed>
+     */
+    private static function acceptedFormsOfPolymorphicTextField(array $fieldSchema): array
+    {
+        $referencedDefinitions = $fieldSchema['allOf'] ?? null;
+        self::assertIsArray($referencedDefinitions);
+        self::assertIsArray($referencedDefinitions[0]);
+
+        $definitionReference = $referencedDefinitions[0]['$ref'] ?? null;
+        self::assertIsString($definitionReference);
+
+        $definitionName = substr($definitionReference, (int) strpos($definitionReference, '#/') + 2);
+
+        $commonDefinitions = Yaml::parseFile(SyncsConfigLoaderFactory::projectFilePath('sync/schemas/common.yaml'));
+        self::assertIsArray($commonDefinitions);
+        self::assertArrayHasKey($definitionName, $commonDefinitions);
+        self::assertIsArray($commonDefinitions[$definitionName]);
+        self::assertIsArray($commonDefinitions[$definitionName]['oneOf']);
+
+        return $commonDefinitions[$definitionName]['oneOf'];
     }
 
     /**
