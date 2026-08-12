@@ -131,14 +131,19 @@ final class ScenarioCatalog
                 path: '/gauge',
                 queryParams: ['name' => 'claude'],
                 body: [
-                    'title' => 'Claude',
+                    'title' => [
+                        ['t' => 'Claude', 'c' => '#D97757'],
+                    ],
                     'icon' => 'claude',
                     'duration' => 10000,
                     'staleAfter' => 2700,
                     'staleBehavior' => 'dim',
                     'rows' => [
                         [
-                            'label' => '5h',
+                            'label' => [
+                                ['t' => '5h', 'c' => '#FFFFFF'],
+                                ['t' => ' reset', 'c' => '#888888'],
+                            ],
                             'info' => '14:50',
                             'value' => '41%',
                             'percent' => 41,
@@ -147,7 +152,10 @@ final class ScenarioCatalog
                             'noteColor' => '#FFC107',
                         ],
                         [
-                            'label' => '7j',
+                            'label' => [
+                                ['t' => '7j', 'c' => '#FFFFFF'],
+                                ['t' => ' reset', 'c' => '#888888'],
+                            ],
                             'info' => '15/08 17h',
                             'value' => '28%',
                             'percent' => 28,
@@ -156,13 +164,18 @@ final class ScenarioCatalog
                             'noteColor' => '#4CAF50',
                         ],
                         [
-                            'label' => 'fable',
+                            'label' => [
+                                ['t' => 'fable', 'c' => '#FFFFFF'],
+                                ['t' => ' reset', 'c' => '#888888'],
+                            ],
                             'value' => '3%',
                             'percent' => 3,
                             'color' => '#4CAF50',
                         ],
                         [
-                            'label' => 'credits',
+                            'label' => [
+                                ['t' => 'credits', 'c' => '#FFFFFF'],
+                            ],
                             'value' => '1%',
                             'percent' => 1,
                             'color' => '#4CAF50',

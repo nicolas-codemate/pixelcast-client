@@ -12,17 +12,38 @@ use App\Client\Color;
  *
  * The hex codes are the ones the firmware documentation uses in its own example of this gauge, so
  * that the device and the specification agree on what "green" is.
+ *
+ * Next to the two ladders sit three fixed tints, which no reading moves: the Anthropic brand orange
+ * of the title, and the white and grey that split a row label between its name and its reset word.
  */
 final class ClaudeUsageColors
 {
     public const string GREEN_HEX_CODE = '#4CAF50';
     public const string YELLOW_HEX_CODE = '#FFC107';
     public const string RED_HEX_CODE = '#F44336';
+    public const string TITLE_HEX_CODE = '#D97757';
+    public const string ROW_LABEL_HEX_CODE = '#FFFFFF';
+    public const string ROW_LABEL_SUFFIX_HEX_CODE = '#888888';
 
     private const int YELLOW_PERCENT_THRESHOLD = 50;
     private const int RED_PERCENT_THRESHOLD = 80;
     private const float YELLOW_PACE_THRESHOLD = 1.0;
     private const float RED_PACE_THRESHOLD = 1.3;
+
+    public static function titleColor(): Color
+    {
+        return Color::fromHexCode(self::TITLE_HEX_CODE);
+    }
+
+    public static function rowLabelColor(): Color
+    {
+        return Color::fromHexCode(self::ROW_LABEL_HEX_CODE);
+    }
+
+    public static function rowLabelSuffixColor(): Color
+    {
+        return Color::fromHexCode(self::ROW_LABEL_SUFFIX_HEX_CODE);
+    }
 
     public static function barColorFor(int $percent): Color
     {

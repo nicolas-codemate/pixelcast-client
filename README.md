@@ -273,6 +273,13 @@ would use the window up exactly at its reset, with an arrow for the direction.
 Above `x1.0` the window is being spent faster than it renews. The first hour of a
 window carries no pace at all, because a divisor that small says nothing.
 
+The header and the labels carry colours of their own, none of them configurable.
+The title reads `Claude` in the Anthropic orange `#D97757`. Each window row splits
+its label in two, the name in white and the ` reset` that follows it in grey
+`#888888`, so that the time shown next to it reads as a reset instant rather than
+as the hour of the day. The credits row keeps a single white `credits`: it counts
+a balance in euros, not a window that renews.
+
 The counters are account-wide, not machine-wide. So the host reports the usage of
 every machine signed in to that account, and it keeps the reading correct around
 the clock — a window that resets at three in the morning is drawn right at three
