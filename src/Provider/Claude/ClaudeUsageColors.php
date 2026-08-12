@@ -13,8 +13,7 @@ use App\Client\Color;
  * The hex codes are the ones the firmware documentation uses in its own example of this gauge, so
  * that the device and the specification agree on what "green" is.
  *
- * Next to the two ladders sit three fixed tints, which no reading moves: the Anthropic brand orange
- * of the title, and the white and grey that split a row label between its name and its reset word.
+ * Next to the two ladders sit three tints that no reading moves.
  */
 final class ClaudeUsageColors
 {

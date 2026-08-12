@@ -8,9 +8,9 @@ use App\Client\Tracker\TrackerPayload;
 use App\Config\Sync\SyncGroupRegistry;
 use App\Config\Sync\TrackerItem;
 use App\Config\Sync\TrackerSyncConfig;
+use App\Tests\Factory\SchemaPropertyReader;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Yaml\Yaml;
 
 /**
  * The fields of a tracker item are declared twice, in pixelcast.schema.json and in TrackerItem.
@@ -47,7 +47,7 @@ final class TrackerItemMatchesSchemaTest extends TestCase
         self::assertSame(TrackerPayload::MAXIMUM_SYMBOL_LENGTH, $trackerUpdateProperties['symbol']['maxLength'] ?? null);
         self::assertSame(
             TrackerPayload::MAXIMUM_BOTTOM_TEXT_LENGTH,
-            self::plainStringLengthBoundOf($trackerUpdateProperties['bottomText']),
+            SchemaPropertyReader::plainStringLengthBoundOf($trackerUpdateProperties['bottomText']),
         );
     }
 
@@ -135,7 +135,7 @@ final class TrackerItemMatchesSchemaTest extends TestCase
         self::assertIsArray($schema['definitions']['trackerItem']);
         self::assertIsArray($schema['definitions']['trackerItem']['properties']);
 
-        return self::asPropertyMap($schema['definitions']['trackerItem']['properties']);
+        return SchemaPropertyReader::asPropertyMap($schema['definitions']['trackerItem']['properties']);
     }
 
     /**
@@ -143,78 +143,7 @@ final class TrackerItemMatchesSchemaTest extends TestCase
      */
     private static function trackerUpdateRequestPropertiesDeclaredByDeviceContract(): array
     {
-        $deviceContract = Yaml::parseFile(SyncsConfigLoaderFactory::projectFilePath('sync/schemas/tracker.yaml'));
-        self::assertIsArray($deviceContract);
-        self::assertIsArray($deviceContract['TrackerUpdateRequest']);
-        self::assertIsArray($deviceContract['TrackerUpdateRequest']['properties']);
-
-        return self::asPropertyMap($deviceContract['TrackerUpdateRequest']['properties']);
-    }
-
-    /**
-     * A field the device accepts as a plain string, a colored string or colored segments points at
-     * a shared definition holding one branch per form, each with the bound that form is measured
-     * by. The character bound is therefore read from the plain string branch.
-     *
-     * @param array<mixed> $fieldSchema
-     */
-    private static function plainStringLengthBoundOf(array $fieldSchema): int
-    {
-        $acceptedForms = self::acceptedFormsOfPolymorphicTextField($fieldSchema);
-
-        foreach ($acceptedForms as $acceptedForm) {
-            if (!\is_array($acceptedForm) || 'string' !== ($acceptedForm['type'] ?? null)) {
-                continue;
-            }
-
-            $lengthBound = $acceptedForm['maxLength'] ?? null;
-            self::assertIsInt($lengthBound);
-
-            return $lengthBound;
-        }
-
-        self::fail('The polymorphic text field declares no plain string form.');
-    }
-
-    /**
-     * @param array<mixed> $fieldSchema
-     *
-     * @return array<mixed>
-     */
-    private static function acceptedFormsOfPolymorphicTextField(array $fieldSchema): array
-    {
-        $referencedDefinitions = $fieldSchema['allOf'] ?? null;
-        self::assertIsArray($referencedDefinitions);
-        self::assertIsArray($referencedDefinitions[0]);
-
-        $definitionReference = $referencedDefinitions[0]['$ref'] ?? null;
-        self::assertIsString($definitionReference);
-
-        $definitionName = substr($definitionReference, (int) strpos($definitionReference, '#/') + 2);
-
-        $commonDefinitions = Yaml::parseFile(SyncsConfigLoaderFactory::projectFilePath('sync/schemas/common.yaml'));
-        self::assertIsArray($commonDefinitions);
-        self::assertArrayHasKey($definitionName, $commonDefinitions);
-        self::assertIsArray($commonDefinitions[$definitionName]);
-        self::assertIsArray($commonDefinitions[$definitionName]['oneOf']);
-
-        return $commonDefinitions[$definitionName]['oneOf'];
-    }
-
-    /**
-     * @param array<mixed> $properties
-     *
-     * @return array<string, array<mixed>>
-     */
-    private static function asPropertyMap(array $properties): array
-    {
-        $propertyMap = [];
-        foreach ($properties as $fieldName => $fieldSchema) {
-            self::assertIsArray($fieldSchema);
-            $propertyMap[(string) $fieldName] = $fieldSchema;
-        }
-
-        return $propertyMap;
+        return SchemaPropertyReader::deviceContractPropertiesOf('tracker.yaml', 'TrackerUpdateRequest');
     }
 
     /**

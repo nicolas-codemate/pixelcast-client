@@ -506,9 +506,6 @@ final class ClaudeUsageProviderTest extends TestCase
     }
 
     /**
-     * The name of a row is the text of its first segment, the reset word that may follow being the
-     * same on every window row.
-     *
      * @param list<array{label: string|list<array{t: string, c: string}>, info?: string, value?: string, percent: int, note?: string, color?: string, noteColor?: string}> $rows
      *
      * @return list<string>

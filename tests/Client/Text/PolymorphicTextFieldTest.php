@@ -22,7 +22,6 @@ final class PolymorphicTextFieldTest extends TestCase
 
         self::assertSame('5h', $field->toPayloadValue());
         self::assertSame('5h', $field->toPlainText());
-        self::assertSame(1, $field->segmentCount());
     }
 
     public function testAColoredTextFieldIsSerializedAsASingleSegment(): void
@@ -31,7 +30,6 @@ final class PolymorphicTextFieldTest extends TestCase
 
         self::assertSame([['t' => 'Claude', 'c' => '#D97757']], $field->toPayloadValue());
         self::assertSame('Claude', $field->toPlainText());
-        self::assertSame(1, $field->segmentCount());
     }
 
     public function testASegmentedFieldKeepsTheSegmentsInOrder(): void
@@ -49,7 +47,6 @@ final class PolymorphicTextFieldTest extends TestCase
             $field->toPayloadValue(),
         );
         self::assertSame('fable reset', $field->toPlainText());
-        self::assertSame(2, $field->segmentCount());
     }
 
     public function testAFieldWithoutAnySegmentIsRejected(): void
@@ -126,7 +123,7 @@ final class PolymorphicTextFieldTest extends TestCase
 
         $field->assertFitsWithin(self::FIELD_DESCRIPTION, self::MAXIMUM_CHARACTERS, self::MAXIMUM_SEGMENTS);
 
-        self::assertSame(3, $field->segmentCount());
+        self::assertCount(3, (array) $field->toPayloadValue());
     }
 
     public function testAFieldOneSegmentOverTheLimitIsRejected(): void
