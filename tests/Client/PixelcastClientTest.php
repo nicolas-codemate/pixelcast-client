@@ -14,6 +14,8 @@ use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClient;
+use App\Client\Sleep\SleepPayload;
+use App\Client\Sleep\SleepSlot;
 use App\Client\StaleBehavior;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\CurrentWeather;
@@ -37,6 +39,11 @@ final class PixelcastClientTest extends TestCase
     private const string EXPECTED_GAUGE_URL = 'http://device.test/api/gauge?name=claude';
     private const string EXPECTED_NOTIFY_URL = 'http://device.test/api/notify';
     private const string EXPECTED_DISMISS_URL = 'http://device.test/api/notify/dismiss';
+    private const string EXPECTED_SLEEP_URL = 'http://device.test/api/sleep';
+    private const array FIRMWARE_DAY_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+    // The "scheduleActive" example of sync/openapi.yaml.
+    private const string SCHEDULE_ACTIVE_SLEEP_BODY = '{"sleeping":true,"reason":"schedule","config":{"enabled":true,"display_mode":"black","schedule":{"monday":{"all_day":false,"slots":[{"start":"20:00","end":"07:00"}]}},"sleep_until":0}}';
 
     // Parsing the vendored spec costs more than every test of this class combined.
     private static RequestValidator $requestValidator;
@@ -152,6 +159,50 @@ final class PixelcastClientTest extends TestCase
         self::assertSame('POST', $response->getRequestMethod());
         self::assertSame(self::EXPECTED_DISMISS_URL, $response->getRequestUrl());
         self::assertNull($response->getRequestOptions()['body'] ?? null);
+    }
+
+    public function testPushSleepConfigurationSendsEveryDayAndNeverTheManualSleep(): void
+    {
+        $response = new MockResponse('{"success":true}');
+        $sleep = self::buildSleepPayload();
+
+        $this->buildClient($response)->pushSleepConfiguration($sleep);
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_SLEEP_URL, $response->getRequestUrl());
+        $sentBody = self::decodedRequestBody($response);
+
+        self::assertSame($sleep->toArray(), $sentBody);
+        self::assertArrayNotHasKey('sleep_until', $sentBody);
+    }
+
+    public function testFetchSleepStateReadsTheStateAndTheScheduleTheDeviceHolds(): void
+    {
+        $response = new MockResponse(self::SCHEDULE_ACTIVE_SLEEP_BODY);
+
+        $sleepState = $this->buildClient($response)->fetchSleepState();
+
+        self::assertSame('GET', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_SLEEP_URL, $response->getRequestUrl());
+        self::assertTrue($sleepState->sleeping);
+        self::assertSame('schedule', $sleepState->reason);
+        self::assertSame('black', $sleepState->displayMode);
+        self::assertSame(['monday'], array_keys($sleepState->sleepScheduleByDayName));
+
+        $mondaySlots = $sleepState->sleepScheduleByDayName['monday']->sleepSlots;
+        self::assertCount(1, $mondaySlots);
+        self::assertSame('20:00', $mondaySlots[0]->start);
+        self::assertSame('07:00', $mondaySlots[0]->end);
+    }
+
+    public function testFetchSleepStateRefusesABodyThatIsNotAJsonObject(): void
+    {
+        $client = $this->buildClient(new MockResponse('device is rebooting'));
+
+        $this->expectException(InvalidPayloadException::class);
+        $this->expectExceptionMessageMatches('/not a JSON object/');
+
+        $client->fetchSleepState();
     }
 
     public function testLocallyRejectedPayloadIsNotSentAtAll(): void
@@ -285,6 +336,15 @@ final class PixelcastClientTest extends TestCase
             textColor: Color::fromHexCode('#0096FF'),
             holdUntilDismissed: true,
             urgent: true,
+        );
+    }
+
+    private static function buildSleepPayload(): SleepPayload
+    {
+        return new SleepPayload(
+            enabled: true,
+            displayMode: 'black',
+            sleepSlotsByDayName: array_fill_keys(self::FIRMWARE_DAY_NAMES, [new SleepSlot('00:00', '07:00')]),
         );
     }
 

@@ -17,7 +17,6 @@ final readonly class ActiveWindow implements \Stringable
     private const string FROM_OPTION_KEY = 'from';
     private const string TO_OPTION_KEY = 'to';
     private const string TIMEZONE_OPTION_KEY = 'timezone';
-    private const string TIME_OF_DAY_PATTERN = '/^([01]\d|2[0-3]):[0-5]\d$/';
     private const int MINUTES_PER_HOUR = 60;
     private const int DAYS_PER_WEEK = 7;
 
@@ -44,10 +43,10 @@ final readonly class ActiveWindow implements \Stringable
         $windowPath = $parentPath.'.'.self::OPTION_KEY;
         $windowOptions = SyncOptionReader::asStringKeyedMap($options[self::OPTION_KEY], $windowPath);
 
-        $fromTime = SyncOptionReader::requireString($windowOptions, self::FROM_OPTION_KEY, $windowPath);
-        $toTime = SyncOptionReader::requireString($windowOptions, self::TO_OPTION_KEY, $windowPath);
-        $fromMinuteOfDay = self::minuteOfDayOfTime($fromTime, $windowPath.'.'.self::FROM_OPTION_KEY);
-        $toMinuteOfDay = self::minuteOfDayOfTime($toTime, $windowPath.'.'.self::TO_OPTION_KEY);
+        $fromTime = SyncOptionReader::requireTimeOfDay($windowOptions, self::FROM_OPTION_KEY, $windowPath);
+        $toTime = SyncOptionReader::requireTimeOfDay($windowOptions, self::TO_OPTION_KEY, $windowPath);
+        $fromMinuteOfDay = self::minuteOfDayOfTime($fromTime);
+        $toMinuteOfDay = self::minuteOfDayOfTime($toTime);
 
         if ($fromMinuteOfDay >= $toMinuteOfDay) {
             throw PixelCastConfigException::invalidValue($windowPath.'.'.self::TO_OPTION_KEY, \sprintf('expected a time after "%s": a window spanning midnight is not supported, declare the window in the timezone of the market, where it does not cross midnight', $fromTime));
@@ -167,12 +166,8 @@ final readonly class ActiveWindow implements \Stringable
         }
     }
 
-    private static function minuteOfDayOfTime(string $timeOfDay, string $optionPath): int
+    private static function minuteOfDayOfTime(string $timeOfDay): int
     {
-        if (1 !== preg_match(self::TIME_OF_DAY_PATTERN, $timeOfDay)) {
-            throw PixelCastConfigException::invalidValue($optionPath, \sprintf('expected a time of day like "09:00", got "%s"', $timeOfDay));
-        }
-
         $hours = (int) substr($timeOfDay, 0, 2);
         $minutes = (int) substr($timeOfDay, 3, 2);
 

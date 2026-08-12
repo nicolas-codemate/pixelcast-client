@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Config;
 
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sleep\DeviceSleepConfig;
 use App\Config\Sync\SyncGroupRegistry;
 use App\Config\Sync\SyncOptionReader;
 use JsonSchema\Validator;
@@ -47,12 +48,14 @@ final class SyncsConfigLoader
 
         $this->validateAgainstSchema($parsedTree);
 
+        $configTree = $this->associativeTree($parsedTree);
+
         $syncGroups = [];
-        foreach ($this->syncGroupOptions($parsedTree) as $syncType => $options) {
+        foreach (self::syncGroupOptions($configTree) as $syncType => $options) {
             $syncGroups[$syncType] = SyncGroupRegistry::syncGroupClassFor($syncType)::fromOptions($options);
         }
 
-        return new SyncsConfig($syncGroups);
+        return new SyncsConfig($syncGroups, DeviceSleepConfig::optionalFromConfigTree($configTree));
     }
 
     private function validateAgainstSchema(mixed $parsedTree): void
@@ -114,9 +117,9 @@ final class SyncsConfigLoader
     }
 
     /**
-     * @return array<string, array<string, mixed>>
+     * @return array<string, mixed>
      */
-    private function syncGroupOptions(mixed $parsedTree): array
+    private function associativeTree(mixed $parsedTree): array
     {
         try {
             $associativeTree = json_decode(json_encode($parsedTree, \JSON_THROW_ON_ERROR), true, 512, \JSON_THROW_ON_ERROR);
@@ -124,8 +127,16 @@ final class SyncsConfigLoader
             throw PixelCastConfigException::invalidYaml($this->configFilePath, $conversionError);
         }
 
-        $configTree = SyncOptionReader::asStringKeyedMap($associativeTree, '<root>');
+        return SyncOptionReader::asStringKeyedMap($associativeTree, '<root>');
+    }
 
+    /**
+     * @param array<string, mixed> $configTree
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private static function syncGroupOptions(array $configTree): array
+    {
         $syncGroupOptions = [];
         foreach (SyncOptionReader::asStringKeyedMap($configTree['syncs'] ?? null, 'syncs') as $syncType => $options) {
             $syncGroupOptions[$syncType] = SyncOptionReader::asStringKeyedMap($options, 'syncs.'.$syncType);

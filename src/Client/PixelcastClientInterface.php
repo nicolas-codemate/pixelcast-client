@@ -10,6 +10,8 @@ use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
+use App\Client\Sleep\SleepPayload;
+use App\Client\Sleep\SleepState;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
 
@@ -39,4 +41,8 @@ interface PixelcastClientInterface
      * @throws ResourceNotFoundException there is no notification to dismiss
      */
     public function dismissNotification(): void;
+
+    public function pushSleepConfiguration(SleepPayload $sleep): void;
+
+    public function fetchSleepState(): SleepState;
 }

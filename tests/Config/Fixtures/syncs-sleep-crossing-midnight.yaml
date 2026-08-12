@@ -1,0 +1,18 @@
+# Sample configuration used by SyncsConfigLoaderTest: a sleep window running past midnight, which
+# activeWindow refuses but the panel accepts.
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
+
+sleep:
+    enabled: true
+    displayMode: clock
+    days: [fri, sat]
+    windows:
+        - from: '22:00'
+          to: '07:00'

@@ -385,6 +385,25 @@ after it closed pushes nothing at that restart: the cycles missed in between are
 dropped and the group waits for its first run following the reopening. A quote
 read hours after the close is worth nothing, so it is not caught up.
 
+The `sleep:` section, at the top level of the file rather than inside a group,
+turns the panel off between hours of the day: `black` blanks it, `clock` leaves
+a dimmed clock on it, which in a dark room is still a source of light. The
+device stores the schedule and goes on applying it on its own, and nothing in
+the scheduler ever sends it — only `bin/console app:device:sleep` does, so
+editing the section changes nothing on the screen until that command has run,
+and running it again is the repair if the device ever comes back without its
+schedule. `days` is optional there too, the seven of the week otherwise, and a
+window whose `to` is earlier than its `from` runs past midnight into the next
+day, so `from '22:00'` to `'07:00'` is a single night — the exact opposite of a
+group `activeWindow`, which is refused at startup when it spans midnight. The
+two keys do not do the same thing, and the confusion is worth naming: an
+`activeWindow` stops a group from running outside its hours but turns nothing
+off, so the screen keeps showing the last image that was pushed to it, while
+`sleep` turns the panel off without changing the cycles at all, which keep
+fetching and pushing into the dark. Suspending the pushes during the sleep
+window is a separate question and is not done today: a night of blank panel
+spends the same provider quota as a night of lit one.
+
 The same three keys — `activeWindow`, `staleAfter` and `staleBehavior` — also
 exist on a tracker item, where each overrides the value of the group. A single
 provider covers markets that do not open together: a Euronext ETF trades from
@@ -443,6 +462,22 @@ only `enabled: true` in the local `pixelcast.yaml`.
 the request log carries one `POST /api/tracker` per asset. `make inspect` reads
 the local simulator, on `PIXELCAST_SIMULATOR_HOST_PORT` (8088 by default), never
 a real screen.
+
+The sleep schedule is sent by hand as well, to whatever
+`PIXELCAST_DEVICE_BASE_URL` names — the local simulator from the repository, the
+screen on a host:
+
+```
+docker compose run --rm php bin/console app:device:sleep
+```
+
+The command reads the `sleep:` section, pushes the seven days of the week, then
+reads the device back and prints what it now holds: whether the panel is awake
+or asleep and for what reason, whether the schedule is enabled and in which
+display mode, and one line per day carrying a window. A device that takes the
+push but cannot be read back leaves a warning and a successful run, since the
+schedule did leave. Against the simulator, `make inspect` shows the same
+schedule under `state.sleep`.
 
 The all-time high a `bottomLine: ath` row shows is caught up by hand, outside
 the scheduler: Boursorama serves it as twenty years of daily bars, a few hundred

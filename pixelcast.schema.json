@@ -31,9 +31,82 @@
                     "$ref": "#/definitions/claudeSync"
                 }
             }
+        },
+        "sleep": {
+            "$ref": "#/definitions/deviceSleep"
         }
     },
     "definitions": {
+        "deviceSleep": {
+            "description": "Hours during which the device turns its panel off. Pushed on demand by `bin/console app:device:sleep`, never by the scheduler, so the section has no effect until that command has run. Without it the device keeps whatever schedule it already holds.",
+            "type": "object",
+            "required": [
+                "enabled",
+                "windows"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Master toggle of the schedule on the device. A disabled schedule leaves the panel on.",
+                    "type": "boolean"
+                },
+                "displayMode": {
+                    "description": "What the panel shows while asleep. \"black\" blanks it, \"clock\" leaves a dimmed clock. Without it the panel is blanked.",
+                    "type": "string",
+                    "enum": [
+                        "black",
+                        "clock"
+                    ]
+                },
+                "days": {
+                    "description": "Days the panel goes off. Without it every day is covered. A day left out is sent to the device with no window at all, so it clears whatever that day held.",
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                        ]
+                    }
+                },
+                "windows": {
+                    "description": "Stretches of the day the panel stays off, the same for every declared day. The firmware takes at most two per day.",
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 2,
+                    "items": {
+                        "$ref": "#/definitions/sleepWindow"
+                    }
+                }
+            }
+        },
+        "sleepWindow": {
+            "type": "object",
+            "required": [
+                "from",
+                "to"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "from": {
+                    "description": "Time the panel goes off, as HH:MM.",
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "to": {
+                    "description": "Time the panel comes back on, as HH:MM. A \"to\" earlier than \"from\" runs past midnight into the next day, the opposite of activeWindow.to, which refuses it.",
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                }
+            }
+        },
         "weatherSync": {
             "description": "Weather forecast pushed to the device.",
             "type": "object",

@@ -6,6 +6,8 @@ namespace App\Tests\Config;
 
 use App\Client\StaleBehavior;
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sleep\SleepDisplayMode;
+use App\Config\Sync\ActiveWindowDay;
 use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\CoinGeckoSyncConfig;
 use App\Config\Sync\TwelveDataSyncConfig;
@@ -88,6 +90,34 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertSame('mon,tue,wed,thu,fri 15:30-22:00 Europe/Paris', (string) $boursoramaSync->items[1]->activeWindow);
     }
 
+    public function testAFileDeclaringASleepScheduleKeepsItsWindowItsDaysAndItsDisplayMode(): void
+    {
+        $config = self::loaderFor('syncs-with-sleep.yaml')->load();
+
+        self::assertNotNull($config->deviceSleep);
+        self::assertTrue($config->deviceSleep->enabled);
+        self::assertSame(SleepDisplayMode::Black, $config->deviceSleep->displayMode);
+        self::assertSame(ActiveWindowDay::cases(), $config->deviceSleep->days);
+        self::assertSame(['00:00-07:00'], array_map(strval(...), $config->deviceSleep->windows));
+    }
+
+    public function testAFileWithoutASleepSectionCarriesNoSchedule(): void
+    {
+        $config = self::loaderFor('syncs-valid.yaml')->load();
+
+        self::assertNull($config->deviceSleep);
+    }
+
+    public function testASleepWindowIsAllowedToRunPastMidnight(): void
+    {
+        $config = self::loaderFor('syncs-sleep-crossing-midnight.yaml')->load();
+
+        self::assertNotNull($config->deviceSleep);
+        self::assertSame(SleepDisplayMode::Clock, $config->deviceSleep->displayMode);
+        self::assertSame([ActiveWindowDay::Friday, ActiveWindowDay::Saturday], $config->deviceSleep->days);
+        self::assertSame(['22:00-07:00'], array_map(strval(...), $config->deviceSleep->windows));
+    }
+
     public function testOnlyTheEnabledGroupsAreKept(): void
     {
         $config = self::loaderFor('syncs-valid.yaml')->load();
@@ -164,6 +194,8 @@ final class SyncsConfigLoaderTest extends TestCase
         yield 'bottom line the schema does not declare' => ['syncs-tracker-unknown-bottom-line.yaml', 'syncs.coingecko.items[0].bottomLine'];
         yield 'bottom line the group cannot serve' => ['syncs-tracker-unsupported-bottom-line.yaml', 'syncs.boursorama.items[0].bottomLine'];
         yield 'bottom line on the group that serves none' => ['syncs-twelvedata-bottom-line.yaml', 'syncs.twelvedata.items[0].bottomLine'];
+        yield 'sleep window with equal bounds' => ['syncs-sleep-equal-bounds.yaml', 'sleep.windows[0].to'];
+        yield 'sleep display mode the schema does not declare' => ['syncs-sleep-unknown-display-mode.yaml', 'sleep.displayMode'];
     }
 
     #[DataProvider('provideRejectedFileCases')]
