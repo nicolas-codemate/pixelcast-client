@@ -71,7 +71,7 @@ final class ClaudeUsageProviderTest extends TestCase
 
         self::assertNotNull($gauge);
         self::assertSame('claude', $gauge->name);
-        self::assertSame('Claude', $gauge->title);
+        self::assertSame('Claude', $gauge->toArray()['title'] ?? null);
         self::assertSame('claude', $gauge->iconName);
         self::assertNull($gauge->displayDurationMilliseconds);
         self::assertSame(2700, $gauge->staleAfterInSeconds);
@@ -449,13 +449,16 @@ final class ClaudeUsageProviderTest extends TestCase
     }
 
     /**
-     * @param list<array{label: string, info?: string, value?: string, percent: int, note?: string, color?: string, noteColor?: string}> $rows
+     * @param list<array{label: string|list<array{t: string, c: string}>, info?: string, value?: string, percent: int, note?: string, color?: string, noteColor?: string}> $rows
      *
      * @return list<string>
      */
     private static function rowLabels(array $rows): array
     {
-        return array_map(static fn (array $row): string => $row['label'], $rows);
+        return array_map(
+            static fn (array $row): string => \is_string($row['label']) ? $row['label'] : implode('', array_column($row['label'], 't')),
+            $rows,
+        );
     }
 
     /**
