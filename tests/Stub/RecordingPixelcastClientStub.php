@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Stub;
 
+use App\Client\CustomApp\CustomAppPayload;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClientInterface;
@@ -33,6 +34,11 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
      * @var list<GaugePayload>
      */
     public array $pushedGauges = [];
+
+    /**
+     * @var list<CustomAppPayload>
+     */
+    public array $pushedCustomApps = [];
 
     /**
      * @var list<NotificationPayload>
@@ -88,6 +94,13 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         $this->failIfConfigured();
 
         $this->pushedGauges[] = $gauge;
+    }
+
+    public function pushCustomApp(CustomAppPayload $customApp): void
+    {
+        $this->failIfConfigured();
+
+        $this->pushedCustomApps[] = $customApp;
     }
 
     public function pushNotification(NotificationPayload $notification): void

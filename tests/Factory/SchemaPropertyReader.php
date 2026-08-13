@@ -97,18 +97,38 @@ final class SchemaPropertyReader extends Assert
 
     /**
      * @param array<mixed> $fieldSchema
+     */
+    public static function declaredDefaultOf(array $fieldSchema): mixed
+    {
+        self::assertArrayHasKey('default', $fieldSchema);
+
+        return $fieldSchema['default'];
+    }
+
+    /**
+     * @param array<mixed> $fieldSchema
+     *
+     * @return array{int, int}
+     */
+    public static function itemCountBoundsOf(array $fieldSchema): array
+    {
+        $minimumItemCount = $fieldSchema['minItems'] ?? null;
+        self::assertIsInt($minimumItemCount);
+
+        $maximumItemCount = $fieldSchema['maxItems'] ?? null;
+        self::assertIsInt($maximumItemCount);
+
+        return [$minimumItemCount, $maximumItemCount];
+    }
+
+    /**
+     * @param array<mixed> $fieldSchema
      *
      * @return array<mixed>
      */
     private static function acceptedFormsOfPolymorphicTextField(array $fieldSchema): array
     {
-        $referencedDefinitions = $fieldSchema['allOf'] ?? null;
-        self::assertIsArray($referencedDefinitions);
-        self::assertIsArray($referencedDefinitions[0]);
-
-        $definitionReference = $referencedDefinitions[0]['$ref'] ?? null;
-        self::assertIsString($definitionReference);
-
+        $definitionReference = self::sharedDefinitionReferenceOf($fieldSchema);
         $definitionName = substr($definitionReference, (int) strpos($definitionReference, '#/') + 2);
 
         $sharedDefinitions = Yaml::parseFile(self::deviceContractFilePath(self::SHARED_DEFINITIONS_FILE));
@@ -118,6 +138,32 @@ final class SchemaPropertyReader extends Assert
         self::assertIsArray($sharedDefinitions[$definitionName]['oneOf']);
 
         return $sharedDefinitions[$definitionName]['oneOf'];
+    }
+
+    /**
+     * A field adding something of its own next to the reference wraps it in an `allOf`, a field
+     * carrying nothing but the reference states it bare.
+     *
+     * @param array<mixed> $fieldSchema
+     */
+    private static function sharedDefinitionReferenceOf(array $fieldSchema): string
+    {
+        $bareReference = $fieldSchema['$ref'] ?? null;
+
+        if (null !== $bareReference) {
+            self::assertIsString($bareReference);
+
+            return $bareReference;
+        }
+
+        $referencedDefinitions = $fieldSchema['allOf'] ?? null;
+        self::assertIsArray($referencedDefinitions);
+        self::assertIsArray($referencedDefinitions[0]);
+
+        $wrappedReference = $referencedDefinitions[0]['$ref'] ?? null;
+        self::assertIsString($wrappedReference);
+
+        return $wrappedReference;
     }
 
     private static function deviceContractFilePath(string $contractFileName): string

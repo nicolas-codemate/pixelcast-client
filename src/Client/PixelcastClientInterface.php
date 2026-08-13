@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Client;
 
+use App\Client\CustomApp\CustomAppPayload;
 use App\Client\Exception\DeviceBusyException;
 use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Exception\InvalidPayloadException;
@@ -34,6 +35,8 @@ interface PixelcastClientInterface
     public function deleteTracker(string $trackerName): void;
 
     public function pushGauge(GaugePayload $gauge): void;
+
+    public function pushCustomApp(CustomAppPayload $customApp): void;
 
     public function pushNotification(NotificationPayload $notification): void;
 
