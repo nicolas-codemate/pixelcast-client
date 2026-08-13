@@ -1,5 +1,5 @@
 # Sample configuration used by SyncsConfigLoaderTest and ScheduleTest: a sleep section covering the
-# night but switched off, which must leave the cycles strictly unchanged.
+# night but switched off, which must leave the cycles strictly unchanged and needs no timezone.
 syncs:
     weather:
         enabled: true
@@ -11,7 +11,6 @@ syncs:
 
 sleep:
     enabled: false
-    timezone: Europe/Paris
     windows:
         - from: '00:00'
           to: '07:00'

@@ -223,7 +223,11 @@ final class SyncCommandTest extends TestCase
         );
     }
 
-    public function testAGroupSuspendedByTheSleepWindowCanStillBeDispatchedByHand(): void
+    /**
+     * The suspension lives in the trigger of the scheduler, so the dispatch path never reads the
+     * sleep schedule: a group under a sleep window is handed to the bus whatever the hour.
+     */
+    public function testTheManualDispatchOfAGroupNeverConsultsTheSleepSchedule(): void
     {
         $tester = $this->createTesterForConfigFile(self::SLEEPING_CONFIG_FILE, [SyncOutcome::Pushed]);
 

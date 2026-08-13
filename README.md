@@ -481,15 +481,16 @@ first minutes of the morning and a night of sleep never turns the container
 `unhealthy`. A section carrying `enabled: false`, or no `sleep:` section at all,
 suspends nothing and leaves the cycles strictly as they were.
 
-`timezone` is required as soon as the section is declared, and must name the
+`timezone` is required as soon as the section is enabled, and must name the
 timezone the device itself is set to. The container clock runs on UTC, so a
 Paris night written `00:00` to `07:00` and read as UTC would suspend the cycles
 from 02:00 to 09:00 local in summer: the panel dark and the cycles still running
 for two hours, then the panel lit and the cycles suspended for two more, which
 is the very wall of STALE badges the wake-up push exists to avoid, moved to the
 morning. The client does not guess it, so an existing `pixelcast.yaml` carrying
-a `sleep:` section needs that one line added — without it the consumer stops at
-startup naming `sleep.timezone`. The file is what the client obeys: it suspends
+an enabled `sleep:` section needs that one line added — without it the consumer
+stops at startup naming `sleep.timezone`. A section left on `enabled: false`
+suspends nothing and is asked for nothing, so it loads untouched. The file is what the client obeys: it suspends
 its cycles whether or not `app:device:sleep` has ever run, while the panel
 itself only goes off once that command has pushed the schedule to the device.
 

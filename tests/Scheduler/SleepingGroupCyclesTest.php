@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Scheduler;
 
+use App\Message\SyncClaudeMessage;
 use App\Message\SyncTrackerMessage;
 use App\Message\SyncWeatherMessage;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
@@ -22,6 +23,7 @@ use Symfony\Contracts\Cache\CacheInterface;
 final class SleepingGroupCyclesTest extends TestCase
 {
     private const string SLEEPING_CONFIG_FILE = 'syncs-with-sleep.yaml';
+    private const string TWO_SLEEPING_GROUPS_CONFIG_FILE = 'syncs-sleep-two-open-groups.yaml';
     private const string SLEEPING_WINDOWED_CONFIG_FILE = 'syncs-sleep-and-active-window.yaml';
     private const string SLEEP_ENDING_AFTER_THE_WINDOW_CONFIG_FILE = 'syncs-sleep-ending-outside-the-active-window.yaml';
     private const string DEVICE_TIMEZONE = 'Europe/Paris';
@@ -45,15 +47,15 @@ final class SleepingGroupCyclesTest extends TestCase
     public function testEveryEnabledGroupPushesAtTheInstantThePanelComesBackOn(): void
     {
         $clock = new MockClock(self::EVENING_BEFORE_THE_NIGHT, self::DEVICE_TIMEZONE);
-        $runningConsumer = self::createMessageGenerator(self::SLEEPING_CONFIG_FILE, new ArrayAdapter(), $clock);
+        $runningConsumer = self::createMessageGenerator(self::TWO_SLEEPING_GROUPS_CONFIG_FILE, new ArrayAdapter(), $clock);
         self::groupRunsOf($runningConsumer);
 
         $clock->modify(self::WAKE_UP);
 
         self::assertSame(
-            [[SyncWeatherMessage::class, self::WAKE_UP]],
+            [[SyncWeatherMessage::class, self::WAKE_UP], [SyncClaudeMessage::class, self::WAKE_UP]],
             self::groupRunsOf($runningConsumer),
-            'the group pushes at the wake-up rather than at its next cycle',
+            'both groups push at the wake-up rather than at their next cycle',
         );
     }
 

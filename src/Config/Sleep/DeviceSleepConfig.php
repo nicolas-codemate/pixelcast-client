@@ -6,7 +6,6 @@ namespace App\Config\Sleep;
 
 use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepSlot;
-use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sync\ActiveWindowDay;
 use App\Config\Sync\SyncOptionReader;
 
@@ -43,7 +42,7 @@ final readonly class DeviceSleepConfig
         public SleepDisplayMode $displayMode,
         public array $days,
         public array $windows,
-        public \DateTimeZone $timezone,
+        public ?\DateTimeZone $timezone,
     ) {
     }
 
@@ -58,27 +57,25 @@ final readonly class DeviceSleepConfig
 
         $options = SyncOptionReader::asStringKeyedMap($configTree[self::OPTION_KEY], self::OPTION_KEY);
         $declaredDays = SyncOptionReader::optionalEnumList($options, self::DAYS_OPTION_KEY, self::OPTION_KEY, ActiveWindowDay::class);
-        $days = [] === $declaredDays ? ActiveWindowDay::cases() : $declaredDays;
-        $windows = self::readWindows($options);
-
-        self::refuseWindowsLeavingNoWakingMinute($days, $windows);
+        $enabled = SyncOptionReader::requireBool($options, self::ENABLED_OPTION_KEY, self::OPTION_KEY);
 
         return new self(
-            SyncOptionReader::requireBool($options, self::ENABLED_OPTION_KEY, self::OPTION_KEY),
+            $enabled,
             SyncOptionReader::optionalEnum($options, self::DISPLAY_MODE_OPTION_KEY, self::OPTION_KEY, SleepDisplayMode::cases()) ?? SleepDisplayMode::Black,
-            $days,
-            $windows,
-            SyncOptionReader::requireTimezone($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY),
+            [] === $declaredDays ? ActiveWindowDay::cases() : $declaredDays,
+            self::readWindows($options),
+            $enabled ? SyncOptionReader::requireTimezone($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY) : null,
         );
     }
 
     /**
      * The same hours read as a planning the client can reason about, null while the schedule is off:
-     * a disabled section leaves the panel on and suspends nothing.
+     * a disabled section leaves the panel on, suspends nothing, and is not even asked which timezone
+     * its hours are written in.
      */
     public function sleepSchedule(): ?SleepSchedule
     {
-        if (!$this->enabled) {
+        if (!$this->enabled || null === $this->timezone) {
             return null;
         }
 
@@ -115,46 +112,6 @@ final readonly class DeviceSleepConfig
         }
 
         return $windowsByFirmwareDayName;
-    }
-
-    /**
-     * Windows tiling the whole day on each of the seven days would never let the panel come back on:
-     * the scheduler moves every run date to the next wake-up, finds none, and the cycles stop for
-     * good on a screen frozen on its last payload. Left out of the seven days, a day carries no
-     * window at all and always ends the darkness, however the windows are written.
-     *
-     * @param list<ActiveWindowDay> $days
-     * @param list<SleepWindow> $windows
-     */
-    private static function refuseWindowsLeavingNoWakingMinute(array $days, array $windows): void
-    {
-        if (\count($days) < \count(ActiveWindowDay::cases())) {
-            return;
-        }
-
-        $darkenedMinuteRanges = [];
-        foreach ($windows as $window) {
-            foreach ($window->darkenedMinuteRangesOfADay() as $darkenedMinuteRange) {
-                $darkenedMinuteRanges[] = $darkenedMinuteRange;
-            }
-        }
-
-        usort($darkenedMinuteRanges, static fn (array $range, array $otherRange): int => $range[0] <=> $otherRange[0]);
-
-        $firstMinuteNotYetDarkened = 0;
-        foreach ($darkenedMinuteRanges as [$firstDarkenedMinute, $firstMinuteLitAgain]) {
-            if ($firstDarkenedMinute > $firstMinuteNotYetDarkened) {
-                return;
-            }
-
-            $firstMinuteNotYetDarkened = max($firstMinuteNotYetDarkened, $firstMinuteLitAgain);
-        }
-
-        if ($firstMinuteNotYetDarkened < SleepWindow::MINUTES_PER_DAY) {
-            return;
-        }
-
-        throw PixelCastConfigException::invalidValue(self::OPTION_KEY.'.'.self::WINDOWS_OPTION_KEY, 'expected at least one minute of the day left out of the windows: these ones cover the day whole, so the panel would never come back on and the sync groups would never run again');
     }
 
     /**

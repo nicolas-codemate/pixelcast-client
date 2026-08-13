@@ -1,0 +1,21 @@
+# Sample configuration used by SleepingGroupCyclesTest: two groups without any activeWindow under a
+# sleep schedule covering the night, so both of them are due to push at the wake-up.
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
+
+    claude:
+        enabled: true
+        interval: '15 minutes'
+
+sleep:
+    enabled: true
+    timezone: Europe/Paris
+    windows:
+        - from: '00:00'
+          to: '07:00'

@@ -1,5 +1,5 @@
-# Sample configuration used by SyncsConfigLoaderTest: a sleep section that does not say which
-# timezone its windows are written in.
+# Sample configuration used by SyncsConfigLoaderTest: an enabled sleep section that does not say
+# which timezone its windows are written in.
 syncs:
     weather:
         enabled: true

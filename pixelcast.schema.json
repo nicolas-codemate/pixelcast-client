@@ -45,8 +45,21 @@
             "type": "object",
             "required": [
                 "enabled",
-                "windows",
-                "timezone"
+                "windows"
+            ],
+            "anyOf": [
+                {
+                    "properties": {
+                        "enabled": {
+                            "const": false
+                        }
+                    }
+                },
+                {
+                    "required": [
+                        "timezone"
+                    ]
+                }
             ],
             "additionalProperties": false,
             "properties": {
@@ -55,7 +68,7 @@
                     "type": "boolean"
                 },
                 "timezone": {
-                    "description": "Timezone the window bounds are read in, e.g. \"Europe/Paris\". Name the timezone the device itself is set to: it applies the schedule in its own local time, which the container clock does not share.",
+                    "description": "Timezone the window bounds are read in, e.g. \"Europe/Paris\". Required as soon as the schedule is enabled, useless while it is off. Name the timezone the device itself is set to: it applies the schedule in its own local time, which the container clock does not share.",
                     "type": "string",
                     "minLength": 1
                 },

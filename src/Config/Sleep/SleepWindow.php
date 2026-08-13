@@ -16,11 +16,8 @@ use App\Config\Sync\SyncOptionReader;
  */
 final readonly class SleepWindow implements \Stringable
 {
-    public const int MINUTES_PER_DAY = 1440;
-
     private const string FROM_OPTION_KEY = 'from';
     private const string TO_OPTION_KEY = 'to';
-    private const int MINUTES_PER_HOUR = 60;
 
     private function __construct(
         public string $fromTimeOfDay,
@@ -61,25 +58,6 @@ final readonly class SleepWindow implements \Stringable
         return SleepStretch::of($panelGoesOff, $panelComesBackOn);
     }
 
-    /**
-     * The minutes of a day this window darkens, split in two around midnight when it runs past it:
-     * repeated on the day after, such a window also darkens the small hours of the day it opens on.
-     *
-     * @return list<array{int, int}> each range holds its first darkened minute and the first minute
-     *                               lit again after it
-     */
-    public function darkenedMinuteRangesOfADay(): array
-    {
-        $fromMinuteOfDay = self::minuteOfDayOfTime($this->fromTimeOfDay);
-        $toMinuteOfDay = self::minuteOfDayOfTime($this->toTimeOfDay);
-
-        if ($toMinuteOfDay > $fromMinuteOfDay) {
-            return [[$fromMinuteOfDay, $toMinuteOfDay]];
-        }
-
-        return [[$fromMinuteOfDay, self::MINUTES_PER_DAY], [0, $toMinuteOfDay]];
-    }
-
     public function __toString(): string
     {
         return $this->fromTimeOfDay.'-'.$this->toTimeOfDay;
@@ -88,10 +66,5 @@ final readonly class SleepWindow implements \Stringable
     private static function atTimeOfDay(\DateTimeImmutable $localDay, string $timeOfDay): \DateTimeImmutable
     {
         return $localDay->setTime((int) substr($timeOfDay, 0, 2), (int) substr($timeOfDay, 3, 2));
-    }
-
-    private static function minuteOfDayOfTime(string $timeOfDay): int
-    {
-        return self::MINUTES_PER_HOUR * (int) substr($timeOfDay, 0, 2) + (int) substr($timeOfDay, 3, 2);
     }
 }
