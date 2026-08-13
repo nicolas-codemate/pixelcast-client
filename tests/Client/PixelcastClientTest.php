@@ -155,6 +155,17 @@ final class PixelcastClientTest extends TestCase
         self::assertArrayNotHasKey('name', $sentBody);
     }
 
+    public function testDeleteCustomAppSendsNoBody(): void
+    {
+        $response = new MockResponse('{"success":true}');
+
+        $this->buildClient($response)->deleteCustomApp('demo');
+
+        self::assertSame('DELETE', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_CUSTOM_APP_URL, $response->getRequestUrl());
+        self::assertNull($response->getRequestOptions()['body'] ?? null);
+    }
+
     public function testPushNotificationSendsTheSerializedPayload(): void
     {
         $response = new MockResponse('{"success":true}');

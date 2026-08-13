@@ -38,6 +38,11 @@ interface PixelcastClientInterface
 
     public function pushCustomApp(CustomAppPayload $customApp): void;
 
+    /**
+     * @throws ResourceNotFoundException no custom app carries this name
+     */
+    public function deleteCustomApp(string $customAppName): void;
+
     public function pushNotification(NotificationPayload $notification): void;
 
     /**

@@ -161,6 +161,13 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         $this->buildPixelcastClient()->dismissNotification();
     }
 
+    public function testDeletingACustomAppThatWasNeverPushedThrowsResourceNotFound(): void
+    {
+        $this->expectException(ResourceNotFoundException::class);
+
+        $this->buildPixelcastClient()->deleteCustomApp('github');
+    }
+
     /**
      * @param array<string, mixed> $inspectPayload
      *

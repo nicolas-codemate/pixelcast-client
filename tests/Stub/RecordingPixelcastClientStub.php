@@ -41,6 +41,11 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
     public array $pushedCustomApps = [];
 
     /**
+     * @var list<string>
+     */
+    public array $deletedCustomAppNames = [];
+
+    /**
      * @var list<NotificationPayload>
      */
     public array $pushedNotifications = [];
@@ -101,6 +106,13 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         $this->failIfConfigured();
 
         $this->pushedCustomApps[] = $customApp;
+    }
+
+    public function deleteCustomApp(string $customAppName): void
+    {
+        $this->failIfConfigured();
+
+        $this->deletedCustomAppNames[] = $customAppName;
     }
 
     public function pushNotification(NotificationPayload $notification): void
