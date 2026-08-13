@@ -79,6 +79,8 @@ services:
 
     App\Provider\Claude\ClaudeUsageProviderInterface: '@App\Provider\Claude\ClaudeUsageProvider'
 
+    App\Provider\GitHub\GitHubPullRequestProviderInterface: '@App\Provider\GitHub\GitHubPullRequestProvider'
+
     App\Claude\ClaudeCredentialsStore:
         arguments:
             $credentialsFilePath: '%app.claude.credentials_file%'
@@ -102,6 +104,10 @@ services:
     App\Provider\Tracker\TwelveDataTrackerProvider:
         arguments:
             $apiKey: '%env(default::PIXELCAST_TWELVEDATA_API_KEY)%'
+
+    App\Provider\GitHub\GitHubPullRequestProvider:
+        arguments:
+            $token: '%env(default::PIXELCAST_GITHUB_TOKEN)%'
 
     App\Scheduler\SyncMessageRegistry: '@App\Schedule'
 

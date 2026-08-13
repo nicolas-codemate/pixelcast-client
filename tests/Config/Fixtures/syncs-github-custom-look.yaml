@@ -1,0 +1,10 @@
+# Sample configuration used by GitHubPullRequestProviderTest: the icon and the colour are declared.
+syncs:
+    github:
+        enabled: true
+        interval: '5 minutes'
+        query: 'is:open is:pr review-requested:@me'
+        label: 'A relire'
+        icon: bell
+        color: '#00D4FF'
+        staleBehavior: hide

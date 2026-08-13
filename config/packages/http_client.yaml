@@ -69,3 +69,15 @@ framework:
                     # 423, 425 and 429 are left out on purpose: this is an internal endpoint called
                     # once per asset, and retrying after a throttling is the surest way to lose access.
                     http_codes: [0, 500, 502, 503, 504, 507, 510]
+
+            github.client:
+                # Trailing slash required: without it, resolving a relative path against
+                # the base URI drops its last segment.
+                base_uri: 'https://api.github.com/'
+                timeout: 5
+                retry_failed:
+                    max_retries: 2
+                    # Every 4xx is left out on purpose, 403 and 429 first of all: the search endpoint
+                    # carries a budget of its own, far smaller than the rest of the API, and retrying
+                    # a throttled search spends what is left of it.
+                    http_codes: [0, 500, 502, 503, 504, 507, 510]
