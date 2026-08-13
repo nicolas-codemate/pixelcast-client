@@ -9,6 +9,7 @@ use App\Config\Sleep\DeviceSleepConfig;
 use App\Config\Sync\SyncGroupRegistry;
 use App\Config\Sync\SyncOptionReader;
 use JsonSchema\Validator;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
@@ -16,21 +17,64 @@ use Symfony\Component\Yaml\Yaml;
 final class SyncsConfigLoader
 {
     private ?SyncsConfig $loadedConfig = null;
+    private ?int $lastReadModificationTime = null;
 
     public function __construct(
-        #[Autowire('%kernel.project_dir%/pixelcast.yaml')]
+        #[Autowire('%app.config.file%')]
         private readonly string $configFilePath,
         #[Autowire('%kernel.project_dir%/pixelcast.schema.json')]
         private readonly string $schemaFilePath,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
     /**
-     * The file is read once: editing it on the host only takes effect when the process restarts.
+     * Each version of the file is read once, so an edit on the host takes effect on the next sync
+     * cycle. A reload that fails keeps the configuration already in use: a typo must not take down
+     * groups that were running. The first read has nothing to fall back on and throws, which is what
+     * stops the consumer on an invalid configuration.
      */
     public function load(): SyncsConfig
     {
-        return $this->loadedConfig ??= $this->readConfigFile();
+        $modificationTime = $this->configFileModificationTime();
+
+        if (null !== $this->loadedConfig && $modificationTime === $this->lastReadModificationTime) {
+            return $this->loadedConfig;
+        }
+
+        // Recorded before the read, so a version that fails is not read again either, and load()
+        // running several times per sync cycle reports a broken file once rather than hundreds of
+        // times an hour.
+        $this->lastReadModificationTime = $modificationTime;
+
+        try {
+            return $this->loadedConfig = $this->readConfigFile();
+        } catch (PixelCastConfigException $configError) {
+            if (null === $this->loadedConfig) {
+                throw $configError;
+            }
+
+            $this->logger->warning('The PixelCast configuration could not be reloaded, the previous one stays in use', [
+                'config_file' => $this->configFilePath,
+                'error' => $configError->getMessage(),
+            ]);
+
+            return $this->loadedConfig;
+        }
+    }
+
+    /**
+     * The consumer is a long-running process and PHP caches stat results for its whole lifetime, so
+     * without clearing this entry the first answer would be served forever and no edit would ever be
+     * seen.
+     */
+    private function configFileModificationTime(): ?int
+    {
+        clearstatcache(true, $this->configFilePath);
+
+        $modificationTime = @filemtime($this->configFilePath);
+
+        return false === $modificationTime ? null : $modificationTime;
     }
 
     private function readConfigFile(): SyncsConfig
