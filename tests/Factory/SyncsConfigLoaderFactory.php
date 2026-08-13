@@ -18,9 +18,9 @@ final class SyncsConfigLoaderFactory
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string SCHEDULE_NAME = 'default';
 
-    public static function forConfigFile(string $configFilePath, ?LoggerInterface $logger = null): SyncsConfigLoader
+    public static function forConfigFile(string $configFilePath, LoggerInterface $logger = new NullLogger()): SyncsConfigLoader
     {
-        return new SyncsConfigLoader($configFilePath, self::projectFilePath(self::SCHEMA_FILE_NAME), $logger ?? new NullLogger());
+        return new SyncsConfigLoader($configFilePath, self::projectFilePath(self::SCHEMA_FILE_NAME), $logger);
     }
 
     /**

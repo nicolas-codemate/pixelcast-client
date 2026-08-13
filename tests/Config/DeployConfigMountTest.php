@@ -6,13 +6,13 @@ namespace App\Tests\Config;
 
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Dotenv\Dotenv;
 use Symfony\Component\Yaml\Yaml;
 
 /**
  * A bind mount of a single file is pinned to the inode it was created with, and editors save
- * pixelcast.yaml by renaming a temporary file over it. Mounting the file itself would therefore
- * leave the container reading the version from before the edit, with nothing for the reload to pick
- * up.
+ * pixelcast.yaml by renaming a temporary file over it, so mounting the file itself would leave the
+ * container reading the version from before the edit.
  */
 final class DeployConfigMountTest extends TestCase
 {
@@ -24,12 +24,12 @@ final class DeployConfigMountTest extends TestCase
     {
         $mountModesByTarget = [];
 
-        foreach ($this->phpServiceVolumeDeclarations() as $volumeDeclaration) {
-            [$mountSource, $mountTarget, $mountMode] = array_pad(explode(':', $volumeDeclaration), 3, '');
+        foreach ($this->phpServiceMounts() as $mount) {
+            [$mountSource, $mountTarget, $mountMode] = array_pad(explode(':', $mount), 3, '');
 
             self::assertFalse(
                 str_ends_with($mountSource, '.yaml') || str_ends_with($mountSource, '.yml'),
-                \sprintf('Mount "%s" of %s mounts a YAML file: mount the directory holding it instead.', $volumeDeclaration, self::DEPLOY_COMPOSE_FILE),
+                \sprintf('Mount "%s" of %s mounts a YAML file: mount the directory holding it instead.', $mount, self::DEPLOY_COMPOSE_FILE),
             );
 
             $mountModesByTarget[$mountTarget] = $mountMode;
@@ -52,7 +52,7 @@ final class DeployConfigMountTest extends TestCase
     /**
      * @return list<string>
      */
-    private function phpServiceVolumeDeclarations(): array
+    private function phpServiceMounts(): array
     {
         $composeTree = Yaml::parseFile(SyncsConfigLoaderFactory::projectFilePath(self::DEPLOY_COMPOSE_FILE));
         self::assertIsArray($composeTree);
@@ -63,33 +63,36 @@ final class DeployConfigMountTest extends TestCase
         $phpService = $declaredServices['php'] ?? null;
         self::assertIsArray($phpService);
 
-        $volumeDeclarations = $phpService['volumes'] ?? null;
-        self::assertIsArray($volumeDeclarations);
-        self::assertNotEmpty($volumeDeclarations);
+        $declaredMounts = $phpService['volumes'] ?? null;
+        self::assertIsArray($declaredMounts);
 
-        $declaredMounts = [];
-        foreach ($volumeDeclarations as $volumeDeclaration) {
-            self::assertIsString($volumeDeclaration);
+        $mounts = [];
+        foreach ($declaredMounts as $mount) {
+            self::assertIsString($mount);
 
-            $declaredMounts[] = $volumeDeclaration;
+            $mounts[] = $mount;
         }
 
-        return $declaredMounts;
+        return $mounts;
     }
 
     private function configuredConfigFilePath(): string
     {
-        $environmentFileContent = file_get_contents(SyncsConfigLoaderFactory::projectFilePath(self::DEPLOY_ENVIRONMENT_FILE));
+        $environmentFilePath = SyncsConfigLoaderFactory::projectFilePath(self::DEPLOY_ENVIRONMENT_FILE);
+        $environmentFileContent = file_get_contents($environmentFilePath);
         self::assertIsString($environmentFileContent);
 
-        $activeAssignmentPrefix = self::CONFIG_FILE_VARIABLE.'=';
+        $assignedVariables = new Dotenv()->parse($environmentFileContent, $environmentFilePath);
 
-        foreach (explode("\n", $environmentFileContent) as $environmentLine) {
-            if (str_starts_with($environmentLine, $activeAssignmentPrefix)) {
-                return trim(substr($environmentLine, \strlen($activeAssignmentPrefix)));
-            }
-        }
+        self::assertArrayHasKey(
+            self::CONFIG_FILE_VARIABLE,
+            $assignedVariables,
+            \sprintf('%s must set %s rather than leave it commented out: its built-in default sits outside the mounted directory.', self::DEPLOY_ENVIRONMENT_FILE, self::CONFIG_FILE_VARIABLE),
+        );
 
-        self::fail(\sprintf('%s must set %s rather than leave it commented out: its built-in default sits outside the mounted directory.', self::DEPLOY_ENVIRONMENT_FILE, self::CONFIG_FILE_VARIABLE));
+        $configFilePath = $assignedVariables[self::CONFIG_FILE_VARIABLE];
+        self::assertIsString($configFilePath);
+
+        return $configFilePath;
     }
 }

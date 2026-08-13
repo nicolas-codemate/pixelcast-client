@@ -17,9 +17,7 @@ use Symfony\Component\Yaml\Yaml;
 final class SyncsConfigLoader
 {
     private ?SyncsConfig $loadedConfig = null;
-    private ?int $loadedConfigModificationTime = null;
-    private bool $aReloadFailureWasAlreadyLogged = false;
-    private ?int $reportedFailureModificationTime = null;
+    private ?int $lastReadModificationTime = null;
 
     public function __construct(
         #[Autowire('%app.config.file%')]
@@ -31,74 +29,51 @@ final class SyncsConfigLoader
     }
 
     /**
-     * The file is read again as soon as its modification time moves, so an edit on the host takes
-     * effect on the next sync cycle. A reload that fails keeps the configuration already in use: a
-     * typo must not take down groups that were running. The first read has nothing to fall back on
-     * and throws, which is what stops the consumer on an invalid configuration.
+     * A reload that fails keeps the configuration already in use: a typo must not take down groups
+     * that were running. The first read has nothing to fall back on and throws, which is what stops
+     * the consumer on an invalid configuration.
      */
     public function load(): SyncsConfig
     {
         $modificationTime = $this->configFileModificationTime();
-        $configInUse = $this->loadedConfig;
 
-        if (null !== $configInUse && $modificationTime === $this->loadedConfigModificationTime) {
-            return $configInUse;
+        if (null !== $this->loadedConfig && $modificationTime === $this->lastReadModificationTime) {
+            return $this->loadedConfig;
         }
 
+        // Recorded before the read, so a version that fails is not read again either, and load()
+        // running several times per sync cycle reports a broken file once rather than hundreds of
+        // times an hour.
+        $this->lastReadModificationTime = $modificationTime;
+
         try {
-            $reloadedConfig = $this->readConfigFile();
+            return $this->loadedConfig = $this->readConfigFile();
         } catch (PixelCastConfigException $configError) {
-            if (null === $configInUse) {
+            if (null === $this->loadedConfig) {
                 throw $configError;
             }
 
-            $this->reportReloadFailure($configError, $modificationTime);
+            $this->logger->warning('The PixelCast configuration could not be reloaded, the previous one stays in use', [
+                'config_file' => $this->configFilePath,
+                'error' => $configError->getMessage(),
+            ]);
 
-            return $configInUse;
+            return $this->loadedConfig;
         }
-
-        $this->loadedConfigModificationTime = $modificationTime;
-        $this->aReloadFailureWasAlreadyLogged = false;
-
-        return $this->loadedConfig = $reloadedConfig;
     }
 
     /**
      * The consumer is a long-running process and PHP caches stat results for its whole lifetime, so
      * without clearing this entry the first answer would be served forever and no edit would ever be
-     * seen. A file that is gone has no modification time, which differs from any recorded one: the
-     * read is then attempted, fails, and lands in the usual keep-the-last-valid path.
+     * seen.
      */
     private function configFileModificationTime(): ?int
     {
         clearstatcache(true, $this->configFilePath);
 
-        if (!is_file($this->configFilePath)) {
-            return null;
-        }
-
         $modificationTime = @filemtime($this->configFilePath);
 
         return false === $modificationTime ? null : $modificationTime;
-    }
-
-    /**
-     * load() runs several times per sync cycle, so a file left broken would write hundreds of
-     * identical warnings an hour. Each version of the file is reported once; fixing it arms this again.
-     */
-    private function reportReloadFailure(PixelCastConfigException $configError, ?int $modificationTime): void
-    {
-        if ($this->aReloadFailureWasAlreadyLogged && $modificationTime === $this->reportedFailureModificationTime) {
-            return;
-        }
-
-        $this->aReloadFailureWasAlreadyLogged = true;
-        $this->reportedFailureModificationTime = $modificationTime;
-
-        $this->logger->warning('The PixelCast configuration could not be reloaded, the previous one stays in use', [
-            'config_file' => $this->configFilePath,
-            'error' => $configError->getMessage(),
-        ]);
     }
 
     private function readConfigFile(): SyncsConfig
