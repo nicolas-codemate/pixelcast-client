@@ -393,6 +393,37 @@ silently forever would be worse than one that goes red. Confirm with
 `docker compose exec php bin/console app:health`, which names the group, then
 re-authorise with `app:claude:login`.
 
+#### The `github` group
+
+The `github` group counts the pull requests whose review is asked of one account
+and draws that count as a single-zone custom app named `github`: the number, a
+label under it, and nothing else. The count is the `total_count` of one search
+query, `query` in the file, sent to `GET /search/issues` as it stands — which is
+what makes it adjustable without a redeployment, and what makes a malformed
+query visible only when the group runs. Reviews asked of a team are not counted:
+`team-review-requested:` is a second query the group does not run. The app name
+is fixed, so a second GitHub group would overwrite the first.
+
+`label` is required and drawn under the count, 31 characters at most. `icon` and
+`color` are optional and default to the `github` icon and the GitHub purple
+`#8957E5`, both applied when the configuration loads rather than written in the file.
+
+Nothing left to review leaves no app on the screen at all, rather than an app
+showing a zero: a count of zero deletes the app through
+`DELETE /api/custom?name=github`. The first quiet cycle on a device that was
+never pushed to gets a 404 back, and that is the state the group wanted anyway,
+so it counts as a done cycle rather than a failure. A deletion also records a
+successful sync, so a quiet week does not turn the group stale in the
+healthcheck.
+
+The token is read from `PIXELCAST_GITHUB_TOKEN`, never from `pixelcast.yaml`. A
+classic token needs the `repo` scope to see the pull requests of private
+repositories, a fine-grained one read access to their pull requests. Without the
+variable the group logs a warning naming it, pushes nothing, and does not fail
+the cycle — the same behaviour as a tracker group without its API key. The group
+ships `enabled: false` in `pixelcast.yaml.dist`, since a group enabled before its
+token exists warns at every cycle.
+
 Any group may declare an `activeWindow` — `days`, `from`, `to` and a `timezone`
 — and is then scheduled during those hours only: outside them no provider is
 called and the healthcheck does not watch the group. Both bounds are inclusive,
@@ -447,9 +478,9 @@ group declares one. Without a `staleAfter` key the value is three times the
 interval — the same rule as the healthcheck, so 45 minutes for a 15-minute cycle
 — capped at seven days, and `0` tells the device to never age the app out.
 `staleBehavior` is `hide`, `dim`, `badge` or `none` on a tracker group and on the
-`claude` group, and `hide` or `none` on the weather group, the two others being
-drawn by the tracker and gauge layouts alone; without the key the firmware default
-applies. `pixelcast.yaml.dist` carries the exact shape of the three keys.
+`claude` group, and `hide` or `none` on the weather and `github` groups, the two
+others being drawn by the tracker and gauge layouts alone; without the key the
+firmware default applies. `pixelcast.yaml.dist` carries the exact shape of the three keys.
 
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host
@@ -551,4 +582,17 @@ make inspect
 
 `state.gauges.claude.rows` then holds up to four entries and the request log
 carries one `POST /api/gauge`.
+
+`github` is checked the same way, with `enabled: true` in the local
+`pixelcast.yaml` and `PIXELCAST_GITHUB_TOKEN` reaching the `php` container.
+
+```
+make sync ARGS="github"
+make inspect
+```
+
+`state.customApps.apps.github` then holds the count and the request log carries
+one `POST /api/custom`. Running it again with a query nobody answers — appending
+`is:draft` to the configured one empties it on purpose — leaves no
+`state.customApps.apps.github` at all and one `DELETE /api/custom` in the log.
 

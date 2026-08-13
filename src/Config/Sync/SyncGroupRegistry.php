@@ -18,6 +18,7 @@ final class SyncGroupRegistry
         TwelveDataSyncConfig::class,
         BoursoramaSyncConfig::class,
         ClaudeSyncConfig::class,
+        GitHubSyncConfig::class,
     ];
 
     /**

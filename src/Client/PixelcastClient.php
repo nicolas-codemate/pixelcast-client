@@ -62,6 +62,11 @@ final readonly class PixelcastClient implements PixelcastClientInterface
         $this->sendValidated('POST', self::CUSTOM_APP_SPEC_PATH, queryParameters: ['name' => $customApp->name], body: $customApp->toArray());
     }
 
+    public function deleteCustomApp(string $customAppName): void
+    {
+        $this->sendValidated('DELETE', self::CUSTOM_APP_SPEC_PATH, queryParameters: ['name' => $customAppName]);
+    }
+
     public function pushNotification(NotificationPayload $notification): void
     {
         $this->sendValidated('POST', self::NOTIFICATION_SPEC_PATH, body: $notification->toArray());

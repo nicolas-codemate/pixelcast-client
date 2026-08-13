@@ -224,6 +224,55 @@ syncs:
         # to dim: the last known counters stay readable behind a STALE badge.
         # staleBehavior: dim
 
+    # The pull requests whose review is asked of this account, drawn as one custom app: the count,
+    # a label under it, and nothing else. Nothing left to review leaves no app on the screen at
+    # all, rather than an app showing a zero.
+    #
+    # The token is read from PIXELCAST_GITHUB_TOKEN, never from this file, which rejects any key it
+    # does not declare. A classic token needs the repo scope to see the pull requests of private
+    # repositories, a fine-grained one read access to their pull requests. Without that variable the
+    # group logs a warning on every cycle and pushes nothing.
+    github:
+        # A disabled group is never scheduled and cannot be dispatched by hand.
+        enabled: false
+
+        # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
+        interval: '5 minutes'
+
+        # The search query the count comes from, sent as it stands to the GitHub search endpoint.
+        # Reviews asked of a team are not counted: they need a second query this group does not run.
+        query: 'is:open is:pr review-requested:@me'
+
+        # Text drawn under the count, 31 characters at most.
+        label: 'A relire'
+
+        # Icon drawn next to the count, by the name the device knows it under. Without this key the
+        # app shows the github icon.
+        # icon: github
+
+        # Colour of the count, as a hex code. Without this key the count is drawn in the GitHub
+        # purple #8957E5.
+        # color: '#8957E5'
+
+        # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
+        # 604800 (7 days) at most. Without this key the value is three times the interval, the same
+        # rule the healthcheck applies, so '5 minutes' gives 900.
+        # staleAfter: 900
+
+        # What the device does with the app once stale: hide leaves the rotation until the next push,
+        # none keeps showing the last count. dim and badge are drawn by the tracker and gauge layouts
+        # only, and the device answers 400 on them here. Without this key the firmware default applies.
+        # staleBehavior: hide
+
+        # Hours during which the group is scheduled: outside them nothing is fetched and the
+        # healthcheck does not watch the group. A review asked at 22h is read the next morning
+        # anyway, so the cycles stop with the working day.
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '19:00'
+            timezone: Europe/Paris
+
 # Hours during which the device turns its panel off. This section is stored by the device and
 # pushed only by `bin/console app:device:sleep`, never by the scheduler, so editing it here changes
 # nothing until that command has run. It does not suspend the sync groups either: the cycles keep
