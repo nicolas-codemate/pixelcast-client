@@ -1,0 +1,8 @@
+# Sample configuration used by GitHubPullRequestProviderTest: no tracker group at all.
+syncs:
+    github:
+        enabled: true
+        interval: '5 minutes'
+        query: 'is:open is:pr review-requested:@me'
+        label: 'A relire'
+        staleBehavior: hide

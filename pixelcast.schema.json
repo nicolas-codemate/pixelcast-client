@@ -29,6 +29,9 @@
                 },
                 "claude": {
                     "$ref": "#/definitions/claudeSync"
+                },
+                "github": {
+                    "$ref": "#/definitions/githubSync"
                 }
             }
         },
@@ -271,6 +274,72 @@
                         "hide",
                         "dim",
                         "badge",
+                        "none",
+                        null
+                    ]
+                },
+                "activeWindow": {
+                    "$ref": "#/definitions/activeWindow"
+                }
+            }
+        },
+        "githubSync": {
+            "description": "Pull requests waiting for a review, counted by one search query and pushed as one single-zone custom app. The token is read from PIXELCAST_GITHUB_TOKEN, never from this file.",
+            "type": "object",
+            "required": [
+                "enabled",
+                "interval",
+                "query",
+                "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "A disabled group is never scheduled and cannot be dispatched by hand.",
+                    "type": "boolean"
+                },
+                "interval": {
+                    "description": "How often the group runs, e.g. \"30 minutes\", \"1 hour\", \"PT30M\", \"1800\". At least 60 seconds.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "query": {
+                    "description": "Search query the count comes from, e.g. \"is:open is:pr review-requested:@me\". Sent as it stands to the GitHub search endpoint, so a query GitHub refuses is only seen when the group runs.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "label": {
+                    "description": "Text drawn under the count, 31 characters at most.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 31
+                },
+                "icon": {
+                    "description": "Icon drawn next to the count, by the name the device knows it under. Without it the app shows the \"github\" icon.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "color": {
+                    "description": "Colour of the count, as a hex code. Without it the count is drawn in the GitHub purple #8957E5.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                },
+                "staleAfter": {
+                    "$ref": "#/definitions/staleAfter"
+                },
+                "staleBehavior": {
+                    "description": "What the device does with the app once stale. \"hide\" leaves the rotation until the next push, \"none\" keeps showing the last count. Without it the firmware default applies.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "hide",
                         "none",
                         null
                     ]
