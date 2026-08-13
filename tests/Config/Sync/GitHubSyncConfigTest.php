@@ -41,19 +41,19 @@ final class GitHubSyncConfigTest extends TestCase
         self::assertSame('A relire', $gitHubSync->label);
     }
 
-    public function testWithoutAnIconAndAColourTheProviderDefaultsApply(): void
+    public function testWithoutAnIconAndAColourTheGroupDefaultsApply(): void
     {
         $gitHubSync = GitHubSyncConfig::fromOptions(self::validOptions());
 
-        self::assertNull($gitHubSync->iconName);
-        self::assertNull($gitHubSync->color);
+        self::assertSame('github', $gitHubSync->iconName);
+        self::assertSame('#8957E5', $gitHubSync->color->hexCode);
     }
 
     public function testADeclaredColourIsNormalisedToItsUppercaseHexCode(): void
     {
         $gitHubSync = GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['color' => '#8957e5']));
 
-        self::assertSame('#8957E5', $gitHubSync->color?->hexCode);
+        self::assertSame('#8957E5', $gitHubSync->color->hexCode);
     }
 
     public function testAColourThatIsNotAHexCodeNamesItsFullPath(): void

@@ -1,4 +1,5 @@
-# Sample configuration used by GitHubPullRequestProviderTest: no tracker group at all.
+# Sample configuration used by GitHubPullRequestProviderTest: neither icon nor colour declared,
+# so the group defaults apply.
 syncs:
     github:
         enabled: true

@@ -406,7 +406,7 @@ is fixed, so a second GitHub group would overwrite the first.
 
 `label` is required and drawn under the count, 31 characters at most. `icon` and
 `color` are optional and default to the `github` icon and the GitHub purple
-`#8957E5`, both applied when the app is built rather than written in the file.
+`#8957E5`, both applied when the configuration loads rather than written in the file.
 
 Nothing left to review leaves no app on the screen at all, rather than an app
 showing a zero: a count of zero deletes the app through

@@ -18,6 +18,9 @@ use App\Message\SyncMessage;
  */
 final readonly class GitHubSyncConfig implements SyncGroupConfig
 {
+    private const string DEFAULT_ICON_NAME = 'github';
+    private const string DEFAULT_COLOR_HEX_CODE = '#8957E5';
+
     public function __construct(
         public bool $enabled,
         public SyncInterval $interval,
@@ -25,8 +28,8 @@ final readonly class GitHubSyncConfig implements SyncGroupConfig
         public ?ActiveWindow $activeWindow,
         public string $query,
         public string $label,
-        public ?string $iconName,
-        public ?Color $color,
+        public string $iconName,
+        public Color $color,
     ) {
     }
 
@@ -49,8 +52,8 @@ final readonly class GitHubSyncConfig implements SyncGroupConfig
             activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath),
             query: SyncOptionReader::requireString($options, 'query', $optionsPath),
             label: SyncOptionReader::requireString($options, 'label', $optionsPath),
-            iconName: SyncOptionReader::optionalString($options, 'icon', $optionsPath),
-            color: SyncOptionReader::optionalColor($options, 'color', $optionsPath),
+            iconName: SyncOptionReader::optionalString($options, 'icon', $optionsPath) ?? self::DEFAULT_ICON_NAME,
+            color: SyncOptionReader::optionalColor($options, 'color', $optionsPath) ?? Color::fromHexCode(self::DEFAULT_COLOR_HEX_CODE),
         );
     }
 

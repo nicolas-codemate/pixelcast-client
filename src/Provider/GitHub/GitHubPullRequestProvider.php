@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Provider\GitHub;
 
-use App\Client\Color;
 use App\Client\CustomApp\CustomAppPayload;
 use App\Config\Sync\GitHubSyncConfig;
 use App\Config\SyncsConfigLoader;
@@ -25,8 +24,6 @@ final readonly class GitHubPullRequestProvider implements GitHubPullRequestProvi
     private const string CUSTOM_APP_NAME = 'github';
     private const string SEARCH_ISSUES_PATH = 'search/issues';
     private const string TOTAL_COUNT_KEY = 'total_count';
-    private const string DEFAULT_ICON_NAME = 'github';
-    private const string DEFAULT_COLOR_HEX_CODE = '#8957E5';
     private const string ACCEPTED_MEDIA_TYPE = 'application/vnd.github+json';
     private const string API_VERSION = '2022-11-28';
     private const string TOKEN_ENVIRONMENT_VARIABLE = 'PIXELCAST_GITHUB_TOKEN';
@@ -99,9 +96,9 @@ final readonly class GitHubPullRequestProvider implements GitHubPullRequestProvi
             $customApp = CustomAppPayload::createSingleZone(
                 name: self::CUSTOM_APP_NAME,
                 text: (string) $matchingPullRequestCount,
-                iconName: $gitHubSyncGroup->iconName ?? self::DEFAULT_ICON_NAME,
+                iconName: $gitHubSyncGroup->iconName,
                 label: $gitHubSyncGroup->label,
-                color: $gitHubSyncGroup->color ?? Color::fromHexCode(self::DEFAULT_COLOR_HEX_CODE),
+                color: $gitHubSyncGroup->color,
                 staleAfterInSeconds: $gitHubSyncGroup->staleDeclaration->staleAfterInSeconds,
                 staleBehavior: $gitHubSyncGroup->staleDeclaration->staleBehavior,
             );

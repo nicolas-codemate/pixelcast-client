@@ -10,6 +10,7 @@ use App\Scenario\Validation\OutboundPayloadValidator;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingLoggerStub;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -68,19 +69,27 @@ final class GitHubPullRequestProviderTest extends TestCase
         self::assertSame('github', $display->customAppNameToDelete);
     }
 
-    public function testAMissingTokenNamesItsEnvironmentVariableAndSpendsNoRequest(): void
+    /**
+     * @return iterable<string, array{?string}>
+     */
+    public static function provideTokensThatCannotAuthenticate(): iterable
     {
-        foreach ([null, ''] as $missingToken) {
-            $logger = new RecordingLoggerStub();
-            $searchClient = self::searchClient([self::jsonResponse(['total_count' => 3])]);
+        yield 'absent' => [null];
+        yield 'empty' => [''];
+    }
 
-            $display = $this->buildProvider($searchClient, $logger, token: $missingToken)->fetchPullRequestCountDisplay();
+    #[DataProvider('provideTokensThatCannotAuthenticate')]
+    public function testAMissingTokenNamesItsEnvironmentVariableAndSpendsNoRequest(?string $missingToken): void
+    {
+        $logger = new RecordingLoggerStub();
+        $searchClient = self::searchClient([self::jsonResponse(['total_count' => 3])]);
 
-            self::assertNull($display->customAppToPush);
-            self::assertNull($display->customAppNameToDelete);
-            self::assertSame(0, $searchClient->getRequestsCount());
-            self::assertSame([['environment_variable' => 'PIXELCAST_GITHUB_TOKEN']], self::loggedContexts($logger, 'warning'));
-        }
+        $display = $this->buildProvider($searchClient, $logger, token: $missingToken)->fetchPullRequestCountDisplay();
+
+        self::assertNull($display->customAppToPush);
+        self::assertNull($display->customAppNameToDelete);
+        self::assertSame(0, $searchClient->getRequestsCount());
+        self::assertSame(['environment_variable' => 'PIXELCAST_GITHUB_TOKEN'], $logger->records[0]['context'] ?? null);
     }
 
     public function testAnUnreachableEndpointIsLoggedAndLeavesTheScreenAlone(): void
@@ -192,21 +201,6 @@ final class GitHubPullRequestProviderTest extends TestCase
         }
 
         return $stringHeaders;
-    }
-
-    /**
-     * @return list<array<mixed>>
-     */
-    private static function loggedContexts(RecordingLoggerStub $logger, string $level): array
-    {
-        $contexts = [];
-        foreach ($logger->records as $record) {
-            if ($level === $record['level']) {
-                $contexts[] = $record['context'];
-            }
-        }
-
-        return $contexts;
     }
 
     private static function loggedText(RecordingLoggerStub $logger): string

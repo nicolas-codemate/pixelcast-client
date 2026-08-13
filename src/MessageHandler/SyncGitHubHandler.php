@@ -31,34 +31,33 @@ final readonly class SyncGitHubHandler
             $countDisplay = $this->gitHubPullRequestProvider->fetchPullRequestCountDisplay();
 
             $customAppToPush = $countDisplay->customAppToPush;
+            $customAppNameToDelete = $countDisplay->customAppNameToDelete;
+
+            if (null === $customAppToPush && null === $customAppNameToDelete) {
+                $this->logger->warning('GitHub sync skipped, the provider returned no payload');
+
+                return SyncOutcome::Skipped;
+            }
+
             if (null !== $customAppToPush) {
                 $this->pixelcastClient->pushCustomApp($customAppToPush);
-                $this->lastSuccessfulSyncStore->recordSuccess(GitHubSyncConfig::syncType());
 
                 $this->logger->info('GitHub pull request count pushed to the device', [
                     'custom_app' => $customAppToPush->name,
                 ]);
-
-                return SyncOutcome::Pushed;
-            }
-
-            $customAppNameToDelete = $countDisplay->customAppNameToDelete;
-            if (null !== $customAppNameToDelete) {
+            } else {
                 $this->removeCustomApp($customAppNameToDelete);
-                // A screen left empty on purpose is a cycle that did its job, and a long quiet week
-                // must not read as a group that stopped running.
-                $this->lastSuccessfulSyncStore->recordSuccess(GitHubSyncConfig::syncType());
 
                 $this->logger->info('No pull request waits for a review, the GitHub app left the device', [
                     'custom_app' => $customAppNameToDelete,
                 ]);
-
-                return SyncOutcome::Pushed;
             }
 
-            $this->logger->warning('GitHub sync skipped, the provider returned no payload');
+            // A screen left empty on purpose is a cycle that did its job, and a long quiet week
+            // must not read as a group that stopped running.
+            $this->lastSuccessfulSyncStore->recordSuccess(GitHubSyncConfig::syncType());
 
-            return SyncOutcome::Skipped;
+            return SyncOutcome::Pushed;
         } catch (\Throwable $syncFailure) {
             // Never rethrow: the scheduler consumer must keep running and let the next cycle retry.
             $this->logger->error('GitHub sync failed', ['exception' => $syncFailure]);
