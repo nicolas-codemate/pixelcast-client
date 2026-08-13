@@ -1,5 +1,5 @@
-# Sample configuration used by SyncsConfigLoaderTest: a sleep window running past midnight, which
-# activeWindow refuses but the panel accepts.
+# Sample configuration used by SyncsConfigLoaderTest and ScheduleTest: a sleep section covering the
+# night but switched off, which must leave the cycles strictly unchanged.
 syncs:
     weather:
         enabled: true
@@ -10,10 +10,8 @@ syncs:
         locale: fr
 
 sleep:
-    enabled: true
+    enabled: false
     timezone: Europe/Paris
-    displayMode: clock
-    days: [fri, sat]
     windows:
-        - from: '22:00'
+        - from: '00:00'
           to: '07:00'

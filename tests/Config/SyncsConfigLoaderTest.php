@@ -99,6 +99,8 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertSame(SleepDisplayMode::Black, $config->deviceSleep->displayMode);
         self::assertSame(ActiveWindowDay::cases(), $config->deviceSleep->days);
         self::assertSame(['00:00-07:00'], array_map(strval(...), $config->deviceSleep->windows));
+        self::assertSame('Europe/Paris', $config->deviceSleep->timezone->getName());
+        self::assertSame('mon,tue,wed,thu,fri,sat,sun 00:00-07:00 Europe/Paris', (string) $config->sleepSchedule());
     }
 
     public function testAFileWithoutASleepSectionCarriesNoSchedule(): void
@@ -106,6 +108,15 @@ final class SyncsConfigLoaderTest extends TestCase
         $config = self::loaderFor('syncs-valid.yaml')->load();
 
         self::assertNull($config->deviceSleep);
+        self::assertNull($config->sleepSchedule());
+    }
+
+    public function testADisabledSleepSectionCarriesNoSchedule(): void
+    {
+        $config = self::loaderFor('syncs-sleep-disabled.yaml')->load();
+
+        self::assertNotNull($config->deviceSleep);
+        self::assertNull($config->sleepSchedule());
     }
 
     public function testASleepWindowIsAllowedToRunPastMidnight(): void
@@ -196,6 +207,7 @@ final class SyncsConfigLoaderTest extends TestCase
         yield 'bottom line on the group that serves none' => ['syncs-twelvedata-bottom-line.yaml', 'syncs.twelvedata.items[0].bottomLine'];
         yield 'sleep window with equal bounds' => ['syncs-sleep-equal-bounds.yaml', 'sleep.windows[0].to'];
         yield 'sleep display mode the schema does not declare' => ['syncs-sleep-unknown-display-mode.yaml', 'sleep.displayMode'];
+        yield 'sleep section without a timezone' => ['syncs-sleep-missing-timezone.yaml', 'timezone'];
     }
 
     #[DataProvider('provideRejectedFileCases')]

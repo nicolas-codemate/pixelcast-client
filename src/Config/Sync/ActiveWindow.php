@@ -56,7 +56,7 @@ final readonly class ActiveWindow implements \Stringable
             self::readDays($windowOptions, $windowPath),
             $fromMinuteOfDay,
             $toMinuteOfDay,
-            self::readTimezone($windowOptions, $windowPath),
+            SyncOptionReader::requireTimezone($windowOptions, self::TIMEZONE_OPTION_KEY, $windowPath),
         );
     }
 
@@ -150,20 +150,6 @@ final readonly class ActiveWindow implements \Stringable
         }
 
         return $days;
-    }
-
-    /**
-     * @param array<string, mixed> $windowOptions
-     */
-    private static function readTimezone(array $windowOptions, string $windowPath): \DateTimeZone
-    {
-        $timezoneName = SyncOptionReader::requireString($windowOptions, self::TIMEZONE_OPTION_KEY, $windowPath);
-
-        try {
-            return new \DateTimeZone($timezoneName);
-        } catch (\Exception $unknownTimezone) {
-            throw PixelCastConfigException::invalidValue($windowPath.'.'.self::TIMEZONE_OPTION_KEY, \sprintf('expected a timezone identifier like "Europe/Paris", got "%s"', $timezoneName), $unknownTimezone);
-        }
     }
 
     private static function minuteOfDayOfTime(string $timeOfDay): int

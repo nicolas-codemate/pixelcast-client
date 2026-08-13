@@ -68,6 +68,10 @@ final class HealthCommand extends Command
 
     private static function describeFreshness(SyncGroupFreshness $freshness): string
     {
+        if ($freshness->asleep) {
+            return 'asleep, not watched';
+        }
+
         if (!$freshness->insideActiveWindow) {
             return 'outside its active window, not watched';
         }

@@ -85,7 +85,7 @@ final class DeviceSleepCommand extends Command
         $io->success([
             \sprintf('The sleep schedule of pixelcast.yaml is now on the device, %s.', self::describeSchedule($sleepState)),
             \sprintf('The panel is %s right now.', self::describePanel($sleepState)),
-            'The sync groups are untouched: they keep pushing while the panel is off.',
+            'The sync groups follow the same hours: they stop pushing while the panel is off and push again as it comes back on.',
         ]);
 
         $rows = [];

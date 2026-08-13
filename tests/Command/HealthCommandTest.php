@@ -99,6 +99,31 @@ final class HealthCommandTest extends TestCase
         self::assertStringContainsString('boursorama: last push 3800 min ago, window reopened 5 min ago, stale after 45 min', $tester->getDisplay());
     }
 
+    public function testASleepingGroupIsPrintedAsAsleepAndDoesNotFailTheCommand(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::PANEL_OFF_IN_THE_SMALL_HOURS);
+
+        $tester = $this->createTester('syncs-with-sleep.yaml');
+        $exitCode = $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('weather: asleep, not watched', $tester->getDisplay());
+        self::assertStringNotContainsString('No recent push for', $tester->getDisplay());
+    }
+
+    public function testAGroupJudgedFromItsWakeUpSaysSoOnItsLine(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::LAST_PUSH_BEFORE_THE_NIGHT);
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify(SyncHealthScenario::FIVE_MINUTES_AFTER_THE_WAKE_UP);
+
+        $tester = $this->createTester('syncs-with-sleep.yaml');
+        $exitCode = $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('weather: last push 440 min ago, window reopened 5 min ago, stale after 90 min', $tester->getDisplay());
+    }
+
     private function createTester(string $fixtureName): CommandTester
     {
         return new CommandTester(new HealthCommand($this->scenario->checkerFor($fixtureName)));

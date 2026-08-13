@@ -25,10 +25,16 @@ final readonly class SyncHealthChecker
     public function checkEnabledSyncGroups(): array
     {
         $now = $this->clock->now();
+        $config = $this->configLoader->load();
+        $sleepActivity = $config->sleepSchedule()?->activityAt($now);
         $freshnessPerSyncGroup = [];
 
-        foreach ($this->configLoader->load()->enabledSyncGroups() as $syncType => $syncGroup) {
+        foreach ($config->enabledSyncGroups() as $syncType => $syncGroup) {
             $activity = $syncGroup->activityAt($now);
+
+            if (null !== $sleepActivity) {
+                $activity = $activity->combinedWith($sleepActivity);
+            }
 
             $freshnessPerSyncGroup[] = new SyncGroupFreshness(
                 $syncType,
@@ -36,6 +42,7 @@ final readonly class SyncHealthChecker
                 $syncGroup->interval->toleratedSilenceInSeconds(),
                 $activity->isActive,
                 $activity->secondsSinceBecameActive,
+                null !== $sleepActivity && !$sleepActivity->isActive,
             );
         }
 

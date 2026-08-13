@@ -275,12 +275,18 @@ syncs:
 
 # Hours during which the device turns its panel off. This section is stored by the device and
 # pushed only by `bin/console app:device:sleep`, never by the scheduler, so editing it here changes
-# nothing until that command has run. It does not suspend the sync groups either: the cycles keep
-# pushing to a panel that is off. Not to be confused with the activeWindow of a group, which stops
-# a group from running but leaves the last pushed image on the screen.
+# nothing on the screen until that command has run. The client reads it from this file whatever the
+# device holds: every sync group is suspended while the panel is off, and pushes again at the
+# instant it comes back on. Not to be confused with the activeWindow of a group, which stops a
+# group from running but leaves the last pushed image on the screen.
 sleep:
-    # A disabled schedule leaves the panel on, whatever the windows below say.
+    # A disabled schedule leaves the panel on and suspends no group, whatever the windows below say.
     enabled: true
+
+    # Timezone the windows below are read in, required as soon as this section exists. Name the
+    # timezone the device itself is set to: the container clock runs on UTC and would suspend the
+    # cycles two hours late on a Paris night in summer.
+    timezone: Europe/Paris
 
     # What the panel shows while asleep: black blanks it, clock leaves a dimmed clock, which in a
     # dark room is still a source of light. Without this key the panel is blanked.

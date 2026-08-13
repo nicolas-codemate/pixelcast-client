@@ -23,6 +23,7 @@ final class SyncCommandTest extends TestCase
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string GROUP_WINDOW_CONFIG_FILE = 'syncs-active-window.yaml';
     private const string ITEM_WINDOW_CONFIG_FILE = 'syncs-item-active-window.yaml';
+    private const string SLEEPING_CONFIG_FILE = 'syncs-with-sleep.yaml';
 
     private CapturingMessageBusStub $messageBus;
 
@@ -220,6 +221,16 @@ final class SyncCommandTest extends TestCase
             [new SyncTrackerMessage('boursorama', honoursActiveWindows: false)],
             $this->messageBus->dispatchedMessages,
         );
+    }
+
+    public function testAGroupSuspendedByTheSleepWindowCanStillBeDispatchedByHand(): void
+    {
+        $tester = $this->createTesterForConfigFile(self::SLEEPING_CONFIG_FILE, [SyncOutcome::Pushed]);
+
+        $exitCode = $tester->execute(['type' => 'weather']);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertEquals([new SyncWeatherMessage()], $this->messageBus->dispatchedMessages);
     }
 
     public function testAllDispatchesEveryGroupAsAManualRunToo(): void

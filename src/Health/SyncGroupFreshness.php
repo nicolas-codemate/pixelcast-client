@@ -6,12 +6,17 @@ namespace App\Health;
 
 final readonly class SyncGroupFreshness
 {
+    /**
+     * @param bool $asleep only decides how the group is described: a group asleep and a group outside
+     *                     its active window are both simply not watched
+     */
     public function __construct(
         public string $syncType,
         public ?int $ageInSeconds,
         public int $staleAfterInSeconds,
         public bool $insideActiveWindow,
         public ?int $secondsSinceWindowOpened,
+        public bool $asleep,
     ) {
     }
 

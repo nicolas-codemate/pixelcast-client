@@ -11,8 +11,7 @@ use App\Config\Sync\SyncOptionReader;
 
 /**
  * The hours the device turns its panel off, declared once in pixelcast.yaml and pushed on demand.
- * Unlike a sync group, it changes nothing about what the client fetches: the cycles keep pushing
- * while the panel is off.
+ * The same hours drive the scheduler, which suspends every sync group while the panel is off.
  */
 final readonly class DeviceSleepConfig
 {
@@ -22,6 +21,7 @@ final readonly class DeviceSleepConfig
     private const string DISPLAY_MODE_OPTION_KEY = 'displayMode';
     private const string DAYS_OPTION_KEY = 'days';
     private const string WINDOWS_OPTION_KEY = 'windows';
+    private const string TIMEZONE_OPTION_KEY = 'timezone';
 
     private const array FIRMWARE_DAY_NAME_BY_DAY = [
         'mon' => 'monday',
@@ -42,6 +42,7 @@ final readonly class DeviceSleepConfig
         public SleepDisplayMode $displayMode,
         public array $days,
         public array $windows,
+        public \DateTimeZone $timezone,
     ) {
     }
 
@@ -62,7 +63,21 @@ final readonly class DeviceSleepConfig
             SyncOptionReader::optionalEnum($options, self::DISPLAY_MODE_OPTION_KEY, self::OPTION_KEY, SleepDisplayMode::cases()) ?? SleepDisplayMode::Black,
             [] === $declaredDays ? ActiveWindowDay::cases() : $declaredDays,
             self::readWindows($options),
+            SyncOptionReader::requireTimezone($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY),
         );
+    }
+
+    /**
+     * The same hours read as a planning the client can reason about, null while the schedule is off:
+     * a disabled section leaves the panel on and suspends nothing.
+     */
+    public function sleepSchedule(): ?SleepSchedule
+    {
+        if (!$this->enabled) {
+            return null;
+        }
+
+        return SleepSchedule::of($this->days, $this->windows, $this->timezone);
     }
 
     public function toSleepPayload(): SleepPayload

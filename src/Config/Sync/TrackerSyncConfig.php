@@ -98,10 +98,10 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
             return SyncGroupActivity::inactive();
         }
 
-        return SyncGroupActivity::activeSince(self::secondsSinceTheLaterOpening(
-            $groupWindow?->secondsSinceOpening($instant),
-            self::secondsSinceTheEarliestItemOpening($activeItems, $instant),
-        ));
+        $groupActivity = SyncGroupActivity::activeSince($groupWindow?->secondsSinceOpening($instant));
+        $itemsActivity = SyncGroupActivity::activeSince(self::secondsSinceTheEarliestItemOpening($activeItems, $instant));
+
+        return $groupActivity->combinedWith($itemsActivity);
     }
 
     /**
@@ -121,22 +121,5 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
         }
 
         return $secondsSinceTheEarliestOpening;
-    }
-
-    /**
-     * The dispatchable stretch begins at the later of the two openings, so at the smaller count of
-     * seconds. Null stands for an opening infinitely far back, which any count is later than.
-     */
-    private static function secondsSinceTheLaterOpening(?int $firstOpening, ?int $secondOpening): ?int
-    {
-        if (null === $firstOpening) {
-            return $secondOpening;
-        }
-
-        if (null === $secondOpening) {
-            return $firstOpening;
-        }
-
-        return min($firstOpening, $secondOpening);
     }
 }

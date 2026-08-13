@@ -153,6 +153,66 @@ final class SyncHealthCheckerTest extends TestCase
         self::assertTrue($boursorama->isStale());
     }
 
+    public function testAGroupIsNotWatchedWhileThePanelIsOff(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::PANEL_OFF_IN_THE_SMALL_HOURS);
+
+        $weather = self::freshnessOf($this->scenario->checkerFor('syncs-with-sleep.yaml')->checkEnabledSyncGroups(), 'weather');
+
+        self::assertTrue($weather->asleep);
+        self::assertFalse($weather->insideActiveWindow);
+        self::assertFalse($weather->isStale());
+    }
+
+    public function testAGroupIsNotStaleInTheMinutesFollowingTheWakeUp(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::LAST_PUSH_BEFORE_THE_NIGHT);
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify(SyncHealthScenario::FIVE_MINUTES_AFTER_THE_WAKE_UP);
+
+        $weather = self::freshnessOf($this->scenario->checkerFor('syncs-with-sleep.yaml')->checkEnabledSyncGroups(), 'weather');
+
+        self::assertFalse($weather->asleep);
+        self::assertTrue($weather->insideActiveWindow);
+        self::assertSame(300, $weather->secondsSinceWindowOpened);
+        self::assertSame(26400, $weather->ageInSeconds);
+        self::assertFalse($weather->isStale());
+    }
+
+    public function testAGroupIsStaleAgainOnceItHasBeenAwakeLongerThanItsTolerance(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::LAST_PUSH_BEFORE_THE_NIGHT);
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify('2026-08-05 09:00:00');
+
+        $weather = self::freshnessOf($this->scenario->checkerFor('syncs-with-sleep.yaml')->checkEnabledSyncGroups(), 'weather');
+
+        self::assertSame(7200, $weather->secondsSinceWindowOpened);
+        self::assertTrue($weather->isStale());
+    }
+
+    public function testAFileWithoutASleepSectionJudgesGroupsExactlyAsBefore(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::PANEL_OFF_IN_THE_SMALL_HOURS);
+
+        $weather = self::freshnessOf($this->scenario->checkerFor('syncs-valid.yaml')->checkEnabledSyncGroups(), 'weather');
+
+        self::assertFalse($weather->asleep);
+        self::assertTrue($weather->insideActiveWindow);
+        self::assertTrue($weather->isStale());
+    }
+
+    public function testADisabledSleepSectionWatchesTheGroupThroughTheNight(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::PANEL_OFF_IN_THE_SMALL_HOURS);
+
+        $weather = self::freshnessOf($this->scenario->checkerFor('syncs-sleep-disabled.yaml')->checkEnabledSyncGroups(), 'weather');
+
+        self::assertFalse($weather->asleep);
+        self::assertTrue($weather->insideActiveWindow);
+        self::assertTrue($weather->isStale());
+    }
+
     /**
      * @param list<SyncGroupFreshness> $freshnessPerSyncGroup
      */
