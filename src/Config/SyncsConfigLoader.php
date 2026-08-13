@@ -18,7 +18,7 @@ final class SyncsConfigLoader
     private ?SyncsConfig $loadedConfig = null;
 
     public function __construct(
-        #[Autowire('%kernel.project_dir%/pixelcast.yaml')]
+        #[Autowire('%app.config.file%')]
         private readonly string $configFilePath,
         #[Autowire('%kernel.project_dir%/pixelcast.schema.json')]
         private readonly string $schemaFilePath,

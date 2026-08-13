@@ -9,6 +9,8 @@
 parameters:
     app.simulator.default_state_file: '%kernel.project_dir%/var/simulator/state-%kernel.environment%.json'
     app.simulator.state_file: '%env(default:app.simulator.default_state_file:PIXELCAST_SIMULATOR_STATE_FILE)%'
+    app.config.default_file: '%kernel.project_dir%/pixelcast.yaml'
+    app.config.file: '%env(default:app.config.default_file:PIXELCAST_CONFIG_FILE)%'
     # Deliberately outside var/: prod persists only var/share, so a pair written under var/
     # would live in the container's own write layer and vanish on the next `up -d` after a
     # pull, costing a browser re-login. This path is the directory the prod compose file
