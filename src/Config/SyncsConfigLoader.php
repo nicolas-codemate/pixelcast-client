@@ -29,9 +29,10 @@ final class SyncsConfigLoader
     }
 
     /**
-     * A reload that fails keeps the configuration already in use: a typo must not take down groups
-     * that were running. The first read has nothing to fall back on and throws, which is what stops
-     * the consumer on an invalid configuration.
+     * Each version of the file is read once, so an edit on the host takes effect on the next sync
+     * cycle. A reload that fails keeps the configuration already in use: a typo must not take down
+     * groups that were running. The first read has nothing to fall back on and throws, which is what
+     * stops the consumer on an invalid configuration.
      */
     public function load(): SyncsConfig
     {
