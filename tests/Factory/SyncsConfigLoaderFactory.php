@@ -7,6 +7,8 @@ namespace App\Tests\Factory;
 use App\Config\SyncsConfigLoader;
 use App\Schedule;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Scheduler\Generator\MessageGenerator;
 use Symfony\Contracts\Cache\CacheInterface;
 
@@ -16,9 +18,9 @@ final class SyncsConfigLoaderFactory
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string SCHEDULE_NAME = 'default';
 
-    public static function forConfigFile(string $configFilePath): SyncsConfigLoader
+    public static function forConfigFile(string $configFilePath, ?LoggerInterface $logger = null): SyncsConfigLoader
     {
-        return new SyncsConfigLoader($configFilePath, self::projectFilePath(self::SCHEMA_FILE_NAME));
+        return new SyncsConfigLoader($configFilePath, self::projectFilePath(self::SCHEMA_FILE_NAME), $logger ?? new NullLogger());
     }
 
     /**

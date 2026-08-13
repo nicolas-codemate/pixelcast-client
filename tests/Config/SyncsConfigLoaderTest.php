@@ -16,12 +16,37 @@ use App\Config\SyncsConfigLoader;
 use App\Config\WeatherLocale;
 use App\Config\WeatherUnits;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
+use App\Tests\Stub\RecordingLoggerStub;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LogLevel;
+use Psr\Log\NullLogger;
+use Symfony\Component\Filesystem\Filesystem;
 
 final class SyncsConfigLoaderTest extends TestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/Fixtures';
+    private const int INITIAL_MODIFICATION_TIME = 1700000000;
+
+    private string $temporaryDirectory;
+    private string $configFilePath;
+    private RecordingLoggerStub $logger;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->temporaryDirectory = sys_get_temp_dir().'/pixelcast-config-reload-'.bin2hex(random_bytes(6));
+        $this->configFilePath = $this->temporaryDirectory.'/pixelcast.yaml';
+        $this->logger = new RecordingLoggerStub();
+    }
+
+    protected function tearDown(): void
+    {
+        new Filesystem()->remove($this->temporaryDirectory);
+
+        parent::tearDown();
+    }
 
     public function testAValidFileIsHydratedIntoOneGroupPerSyncType(): void
     {
@@ -161,11 +186,102 @@ final class SyncsConfigLoaderTest extends TestCase
         $config->syncGroupOfType(TwelveDataSyncConfig::class);
     }
 
-    public function testTheFileIsReadOnlyOnce(): void
+    public function testTheFileIsReadOnlyOnceWhenItDoesNotChange(): void
     {
-        $loader = self::loaderFor('syncs-valid.yaml');
+        $this->writeConfigFile('syncs-valid.yaml', self::INITIAL_MODIFICATION_TIME);
+        $loader = $this->loaderOnTheWrittenFile();
+        $firstLoad = $loader->load();
 
-        self::assertSame($loader->load(), $loader->load());
+        $this->writeConfigFile('syncs-stale-overrides.yaml', self::INITIAL_MODIFICATION_TIME);
+
+        self::assertSame($firstLoad, $loader->load());
+        self::assertSame(['weather'], array_keys($loader->load()->enabledSyncGroups()));
+    }
+
+    public function testAnEditedFileIsReadAgainOnTheNextLoad(): void
+    {
+        $this->writeConfigFile('syncs-valid.yaml', self::INITIAL_MODIFICATION_TIME);
+        $loader = $this->loaderOnTheWrittenFile();
+        $loader->load();
+
+        $this->writeConfigFile('syncs-stale-overrides.yaml', self::INITIAL_MODIFICATION_TIME + 60);
+
+        self::assertSame(['weather', 'boursorama'], array_keys($loader->load()->enabledSyncGroups()));
+        self::assertSame([], $this->logger->records);
+    }
+
+    public function testABrokenEditKeepsTheConfigurationInUseAndIsReportedOnce(): void
+    {
+        $this->writeConfigFile('syncs-valid.yaml', self::INITIAL_MODIFICATION_TIME);
+        $loader = $this->loaderOnTheWrittenFile();
+        $configInUse = $loader->load();
+
+        $this->writeConfigFile('syncs-invalid-syntax.yaml', self::INITIAL_MODIFICATION_TIME + 60);
+
+        self::assertSame($configInUse, $loader->load());
+        self::assertSame($configInUse, $loader->load());
+        self::assertSame($configInUse, $loader->load());
+
+        self::assertCount(1, $this->logger->records);
+        self::assertSame(LogLevel::WARNING, $this->logger->records[0]['level']);
+        self::assertSame($this->configFilePath, $this->logger->records[0]['context']['config_file']);
+    }
+
+    public function testASecondBrokenEditIsReportedAgain(): void
+    {
+        $this->writeConfigFile('syncs-valid.yaml', self::INITIAL_MODIFICATION_TIME);
+        $loader = $this->loaderOnTheWrittenFile();
+        $loader->load();
+
+        $this->writeConfigFile('syncs-invalid-syntax.yaml', self::INITIAL_MODIFICATION_TIME + 60);
+        $loader->load();
+
+        $this->writeConfigFile('syncs-unknown-group.yaml', self::INITIAL_MODIFICATION_TIME + 120);
+        $loader->load();
+
+        self::assertCount(2, $this->logger->records);
+    }
+
+    public function testAFileFixedAfterABrokenEditIsPickedUp(): void
+    {
+        $this->writeConfigFile('syncs-valid.yaml', self::INITIAL_MODIFICATION_TIME);
+        $loader = $this->loaderOnTheWrittenFile();
+        $loader->load();
+
+        $this->writeConfigFile('syncs-invalid-syntax.yaml', self::INITIAL_MODIFICATION_TIME + 60);
+        $loader->load();
+
+        $this->writeConfigFile('syncs-stale-overrides.yaml', self::INITIAL_MODIFICATION_TIME + 120);
+
+        self::assertSame(['weather', 'boursorama'], array_keys($loader->load()->enabledSyncGroups()));
+    }
+
+    public function testAFileThatDisappearsKeepsTheConfigurationInUse(): void
+    {
+        $this->writeConfigFile('syncs-valid.yaml', self::INITIAL_MODIFICATION_TIME);
+        $loader = $this->loaderOnTheWrittenFile();
+        $configInUse = $loader->load();
+
+        new Filesystem()->remove($this->configFilePath);
+
+        self::assertSame($configInUse, $loader->load());
+        self::assertCount(1, $this->logger->records);
+    }
+
+    public function testAnInvalidFileOnTheFirstReadStillStopsTheProcess(): void
+    {
+        $this->writeConfigFile('syncs-invalid-syntax.yaml', self::INITIAL_MODIFICATION_TIME);
+        $loader = $this->loaderOnTheWrittenFile();
+
+        try {
+            $loader->load();
+        } catch (PixelCastConfigException) {
+            self::assertSame([], $this->logger->records);
+
+            return;
+        }
+
+        self::fail('An invalid configuration was accepted on the very first read.');
     }
 
     public function testAMissingFileIsReported(): void
@@ -180,7 +296,7 @@ final class SyncsConfigLoaderTest extends TestCase
 
     public function testAMissingSchemaIsReported(): void
     {
-        $loader = new SyncsConfigLoader(self::FIXTURES_DIR.'/syncs-valid.yaml', self::FIXTURES_DIR.'/does-not-exist.json');
+        $loader = new SyncsConfigLoader(self::FIXTURES_DIR.'/syncs-valid.yaml', self::FIXTURES_DIR.'/does-not-exist.json', new NullLogger());
 
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('Failed to read the PixelCast config schema');
@@ -225,5 +341,20 @@ final class SyncsConfigLoaderTest extends TestCase
     private static function loaderFor(string $fixtureName): SyncsConfigLoader
     {
         return SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName);
+    }
+
+    /**
+     * The committed fixtures cannot have their modification time moved, so the reload cases work on
+     * a copy whose time the test owns.
+     */
+    private function writeConfigFile(string $fixtureName, int $modificationTime): void
+    {
+        new Filesystem()->copy(self::FIXTURES_DIR.'/'.$fixtureName, $this->configFilePath, true);
+        touch($this->configFilePath, $modificationTime);
+    }
+
+    private function loaderOnTheWrittenFile(): SyncsConfigLoader
+    {
+        return SyncsConfigLoaderFactory::forConfigFile($this->configFilePath, $this->logger);
     }
 }
