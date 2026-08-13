@@ -28,6 +28,15 @@ final readonly class SyncGroupActivity
     }
 
     /**
+     * The neutral element of combinedWith(): a constraint that is not declared at all never closes
+     * the group and never moves the instant it became active.
+     */
+    public static function alwaysActive(): self
+    {
+        return self::activeSince(null);
+    }
+
+    /**
      * Two constraints in play at once: the group has something to push only while both hold, and it
      * has had it only since the later of the two became true.
      */

@@ -35,11 +35,11 @@ final class SleepScheduleTrigger extends AbstractDecoratedTrigger
     {
         $nextRun = $this->innerTrigger->getNextRunDate($run);
 
-        for ($chainedSleeps = 0; $chainedSleeps < self::MAXIMUM_CHAINED_SLEEPS; ++$chainedSleeps) {
-            if (null === $nextRun) {
-                return null;
-            }
+        if (null === $nextRun) {
+            return null;
+        }
 
+        for ($chainedSleeps = 0; $chainedSleeps < self::MAXIMUM_CHAINED_SLEEPS; ++$chainedSleeps) {
             $wakeUp = $this->sleepSchedule->endOfTheSleepCovering($nextRun);
 
             if (null === $wakeUp) {

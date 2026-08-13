@@ -517,10 +517,8 @@ interval — the same rule as the healthcheck, so 45 minutes for a 15-minute cyc
 `claude` group, and `hide` or `none` on the weather and `github` groups, the two
 others being drawn by the tracker and gauge layouts alone; without the key the
 firmware default applies. `pixelcast.yaml.dist` carries the exact shape of the three keys.
-No `staleAfter` worth writing survives a sleep window — 45 minutes against seven
-hours — which is why the wake-up push is immediate: the apps are stale by the
-time the panel comes back on, and the first cycle of the morning lands within
-the minute to clear them.
+No `staleAfter` worth writing survives a sleep window, which is why the wake-up
+push described with the `sleep:` section is immediate.
 
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host

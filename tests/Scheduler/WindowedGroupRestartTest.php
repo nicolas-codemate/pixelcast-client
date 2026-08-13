@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Scheduler;
 
 use App\Message\SyncTrackerMessage;
-use App\Schedule;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
@@ -24,7 +23,6 @@ use Symfony\Contracts\Cache\CacheInterface;
 final class WindowedGroupRestartTest extends TestCase
 {
     private const string FIXTURE_FILE = 'syncs-active-window.yaml';
-    private const string SCHEDULE_NAME = 'default';
     private const string MARKET_TIMEZONE = 'Europe/Paris';
 
     public function testARestartOutsideTheWindowPushesNothingBeforeTheReopening(): void
@@ -68,11 +66,6 @@ final class WindowedGroupRestartTest extends TestCase
 
     private static function createMessageGenerator(CacheInterface $scheduleState, ClockInterface $clock): MessageGenerator
     {
-        $schedule = new Schedule(
-            $scheduleState,
-            SyncsConfigLoaderFactory::forConfigFile(\dirname(__DIR__).'/Config/Fixtures/'.self::FIXTURE_FILE),
-        );
-
-        return new MessageGenerator($schedule, self::SCHEDULE_NAME, $clock);
+        return SyncsConfigLoaderFactory::messageGeneratorForFixture(self::FIXTURE_FILE, $scheduleState, $clock);
     }
 }

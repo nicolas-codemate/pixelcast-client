@@ -14,8 +14,8 @@ use App\Config\Sync\SyncGroupActivity;
  */
 final readonly class SleepSchedule implements \Stringable
 {
-    private const int DAYS_SCANNED_FOR_THE_LAST_WAKE_UP = 8;
-    private const int DAYS_SCANNED_FOR_A_COVERING_STRETCH = 1;
+    private const int DAYS_BEFORE_THE_LAST_WAKE_UP = 8;
+    private const int DAYS_BEFORE_A_COVERING_STRETCH = 1;
 
     /**
      * @param list<ActiveWindowDay> $days
@@ -38,7 +38,6 @@ final readonly class SleepSchedule implements \Stringable
     }
 
     /**
-     * When the panel comes back on for an instant spent in the dark, null for an instant spent awake.
      * Two windows covering the same instant wake up at the later of the two ends.
      */
     public function endOfTheSleepCovering(\DateTimeImmutable $instant): ?\DateTimeImmutable
@@ -46,7 +45,7 @@ final readonly class SleepSchedule implements \Stringable
         $localInstant = $instant->setTimezone($this->timezone);
         $latestEnd = null;
 
-        foreach ($this->stretchesAnchoredWithinDaysBefore($localInstant, self::DAYS_SCANNED_FOR_A_COVERING_STRETCH) as $stretch) {
+        foreach ($this->stretchesAnchoredWithinDaysBefore($localInstant, self::DAYS_BEFORE_A_COVERING_STRETCH) as $stretch) {
             if (!$stretch->covers($localInstant)) {
                 continue;
             }
@@ -57,32 +56,6 @@ final readonly class SleepSchedule implements \Stringable
         }
 
         return $latestEnd;
-    }
-
-    /**
-     * How long the panel has been lit again, null when the schedule ends nowhere in the week behind
-     * the instant, which reads as "awake since forever".
-     */
-    public function secondsSinceTheLastWakeUp(\DateTimeImmutable $instant): ?int
-    {
-        $localInstant = $instant->setTimezone($this->timezone);
-        $lastWakeUp = null;
-
-        foreach ($this->stretchesAnchoredWithinDaysBefore($localInstant, self::DAYS_SCANNED_FOR_THE_LAST_WAKE_UP) as $stretch) {
-            if ($stretch->end > $localInstant) {
-                continue;
-            }
-
-            if (null === $lastWakeUp || $stretch->end > $lastWakeUp) {
-                $lastWakeUp = $stretch->end;
-            }
-        }
-
-        if (null === $lastWakeUp) {
-            return null;
-        }
-
-        return $localInstant->getTimestamp() - $lastWakeUp->getTimestamp();
     }
 
     public function activityAt(\DateTimeImmutable $instant): SyncGroupActivity
@@ -102,6 +75,32 @@ final readonly class SleepSchedule implements \Stringable
             implode('+', array_map(strval(...), $this->windows)),
             $this->timezone->getName(),
         );
+    }
+
+    /**
+     * How long the panel has been lit again, null when the schedule ends nowhere in the week behind
+     * the instant, which reads as "awake since forever".
+     */
+    private function secondsSinceTheLastWakeUp(\DateTimeImmutable $instant): ?int
+    {
+        $localInstant = $instant->setTimezone($this->timezone);
+        $lastWakeUp = null;
+
+        foreach ($this->stretchesAnchoredWithinDaysBefore($localInstant, self::DAYS_BEFORE_THE_LAST_WAKE_UP) as $stretch) {
+            if ($stretch->end > $localInstant) {
+                continue;
+            }
+
+            if (null === $lastWakeUp || $stretch->end > $lastWakeUp) {
+                $lastWakeUp = $stretch->end;
+            }
+        }
+
+        if (null === $lastWakeUp) {
+            return null;
+        }
+
+        return $localInstant->getTimestamp() - $lastWakeUp->getTimestamp();
     }
 
     /**
@@ -132,6 +131,6 @@ final readonly class SleepSchedule implements \Stringable
 
     private function coversTheDayOf(\DateTimeImmutable $localDay): bool
     {
-        return \in_array(ActiveWindowDay::from(strtolower($localDay->format('D'))), $this->days, true);
+        return \in_array(ActiveWindowDay::ofLocalInstant($localDay), $this->days, true);
     }
 }

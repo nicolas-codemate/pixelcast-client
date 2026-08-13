@@ -13,4 +13,12 @@ enum ActiveWindowDay: string
     case Friday = 'fri';
     case Saturday = 'sat';
     case Sunday = 'sun';
+
+    /**
+     * The single place tying the three-letter day PHP formats to the values written in the file.
+     */
+    public static function ofLocalInstant(\DateTimeImmutable $localInstant): self
+    {
+        return self::from(strtolower($localInstant->format('D')));
+    }
 }

@@ -7,22 +7,24 @@ namespace App\Health;
 final readonly class SyncGroupFreshness
 {
     /**
-     * @param bool $asleep only decides how the group is described: a group asleep and a group outside
-     *                     its active window are both simply not watched
+     * @param bool $isWatched false as soon as one of the reasons to leave the group alone holds: its
+     *                        active window is closed, or the panel is off
+     * @param bool $asleep only decides how the group is described: a group asleep and a group
+     *                     outside its active window are both simply not watched
      */
     public function __construct(
         public string $syncType,
         public ?int $ageInSeconds,
         public int $staleAfterInSeconds,
-        public bool $insideActiveWindow,
-        public ?int $secondsSinceWindowOpened,
+        public bool $isWatched,
+        public ?int $secondsSinceWatchedAgain,
         public bool $asleep,
     ) {
     }
 
     public function isStale(): bool
     {
-        if (!$this->insideActiveWindow) {
+        if (!$this->isWatched) {
             return false;
         }
 
@@ -30,22 +32,22 @@ final readonly class SyncGroupFreshness
     }
 
     /**
-     * How long the window has been open, when the group has only been watched since that opening
-     * rather than since its last push. Null when the last push is what the group is judged on.
+     * How long the group has been watched again, when it has only been watched since then rather
+     * than since its last push. Null when the last push is what the group is judged on.
      */
-    public function watchedSecondsSinceWindowOpening(): ?int
+    public function judgedSecondsSinceWatchedAgain(): ?int
     {
-        $secondsSinceWindowOpened = $this->secondsSinceWindowOpened;
+        $secondsSinceWatchedAgain = $this->secondsSinceWatchedAgain;
 
-        if (null === $secondsSinceWindowOpened || $secondsSinceWindowOpened >= ($this->ageInSeconds ?? \PHP_INT_MAX)) {
+        if (null === $secondsSinceWatchedAgain || $secondsSinceWatchedAgain >= ($this->ageInSeconds ?? \PHP_INT_MAX)) {
             return null;
         }
 
-        return $secondsSinceWindowOpened;
+        return $secondsSinceWatchedAgain;
     }
 
     private function watchedSilenceInSeconds(): int
     {
-        return $this->watchedSecondsSinceWindowOpening() ?? $this->ageInSeconds ?? \PHP_INT_MAX;
+        return $this->judgedSecondsSinceWatchedAgain() ?? $this->ageInSeconds ?? \PHP_INT_MAX;
     }
 }

@@ -6,7 +6,6 @@ namespace App\Tests\Scheduler;
 
 use App\Message\SyncTrackerMessage;
 use App\Message\SyncWeatherMessage;
-use App\Schedule;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
@@ -24,7 +23,7 @@ final class SleepingGroupCyclesTest extends TestCase
 {
     private const string SLEEPING_CONFIG_FILE = 'syncs-with-sleep.yaml';
     private const string SLEEPING_WINDOWED_CONFIG_FILE = 'syncs-sleep-and-active-window.yaml';
-    private const string SCHEDULE_NAME = 'default';
+    private const string SLEEP_ENDING_AFTER_THE_WINDOW_CONFIG_FILE = 'syncs-sleep-ending-outside-the-active-window.yaml';
     private const string DEVICE_TIMEZONE = 'Europe/Paris';
     private const string EVENING_BEFORE_THE_NIGHT = '2026-08-04 23:50:00';
     private const string WAKE_UP = '2026-08-05 07:00:00';
@@ -116,6 +115,27 @@ final class SleepingGroupCyclesTest extends TestCase
         );
     }
 
+    public function testAWakeUpFallingAfterTheClosingOfTheGroupWaitsForTheNextOpening(): void
+    {
+        $clock = new MockClock('2026-08-05 05:50:00', self::DEVICE_TIMEZONE);
+        $runningConsumer = self::createMessageGenerator(self::SLEEP_ENDING_AFTER_THE_WINDOW_CONFIG_FILE, new ArrayAdapter(), $clock);
+        self::groupRunsOf($runningConsumer);
+
+        $clock->modify('2026-08-05 08:05:00');
+        self::assertSame(
+            [],
+            self::groupRunsOf($runningConsumer),
+            'the group closed at 07:30 while the panel was still off, so the wake-up of 08:00 pushes nothing',
+        );
+
+        $clock->modify('2026-08-06 05:05:00');
+        self::assertSame(
+            [[SyncTrackerMessage::class, '2026-08-06 05:05:00']],
+            self::groupRunsOf($runningConsumer),
+            'the group comes back when its own hours open again',
+        );
+    }
+
     /**
      * The sync group of every dispatched run, next to the instant it was triggered at.
      *
@@ -134,11 +154,6 @@ final class SleepingGroupCyclesTest extends TestCase
 
     private static function createMessageGenerator(string $configFileName, CacheInterface $scheduleState, ClockInterface $clock): MessageGenerator
     {
-        $schedule = new Schedule(
-            $scheduleState,
-            SyncsConfigLoaderFactory::forConfigFile(\dirname(__DIR__).'/Config/Fixtures/'.$configFileName),
-        );
-
-        return new MessageGenerator($schedule, self::SCHEDULE_NAME, $clock);
+        return SyncsConfigLoaderFactory::messageGeneratorForFixture($configFileName, $scheduleState, $clock);
     }
 }

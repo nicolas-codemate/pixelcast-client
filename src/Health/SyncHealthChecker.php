@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Health;
 
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sync\SyncGroupActivity;
 use App\Config\SyncsConfigLoader;
 use Psr\Clock\ClockInterface;
 
@@ -26,15 +27,11 @@ final readonly class SyncHealthChecker
     {
         $now = $this->clock->now();
         $config = $this->configLoader->load();
-        $sleepActivity = $config->sleepSchedule()?->activityAt($now);
+        $sleepActivity = $config->sleepSchedule()?->activityAt($now) ?? SyncGroupActivity::alwaysActive();
         $freshnessPerSyncGroup = [];
 
         foreach ($config->enabledSyncGroups() as $syncType => $syncGroup) {
-            $activity = $syncGroup->activityAt($now);
-
-            if (null !== $sleepActivity) {
-                $activity = $activity->combinedWith($sleepActivity);
-            }
+            $activity = $syncGroup->activityAt($now)->combinedWith($sleepActivity);
 
             $freshnessPerSyncGroup[] = new SyncGroupFreshness(
                 $syncType,
@@ -42,7 +39,7 @@ final readonly class SyncHealthChecker
                 $syncGroup->interval->toleratedSilenceInSeconds(),
                 $activity->isActive,
                 $activity->secondsSinceBecameActive,
-                null !== $sleepActivity && !$sleepActivity->isActive,
+                !$sleepActivity->isActive,
             );
         }
 

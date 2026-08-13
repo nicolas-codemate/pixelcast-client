@@ -167,7 +167,7 @@ final readonly class ActiveWindow implements \Stringable
 
     private function coversTheDayOf(\DateTimeImmutable $localInstant): bool
     {
-        return \in_array(ActiveWindowDay::from(strtolower($localInstant->format('D'))), $this->days, true);
+        return \in_array(ActiveWindowDay::ofLocalInstant($localInstant), $this->days, true);
     }
 
     private function openingOfTheDayOf(\DateTimeImmutable $localDay): \DateTimeImmutable
