@@ -8,7 +8,9 @@ use App\Message\SyncTrackerMessage;
 use App\Message\SyncWeatherMessage;
 use App\Schedule;
 use App\Scheduler\ActiveWindowTrigger;
+use App\Scheduler\SleepScheduleTrigger;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Scheduler\RecurringMessage;
@@ -116,6 +118,49 @@ final class ScheduleTest extends TestCase
 
         self::assertNotNull($nextRun);
         self::assertSame('2026-08-10 09:05:00', $nextRun->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i:s'));
+    }
+
+    public function testAGroupIsWrappedInTheSleepTriggerWhenTheFileDeclaresASchedule(): void
+    {
+        $schedule = self::createSchedule('syncs-with-sleep.yaml');
+
+        $weatherTrigger = $schedule->getSchedule()->getRecurringMessages()[0]->getTrigger();
+
+        self::assertInstanceOf(SleepScheduleTrigger::class, $weatherTrigger);
+        self::assertSame('every 30 minutes, asleep mon,tue,wed,thu,fri,sat,sun 00:00-07:00 Europe/Paris', (string) $weatherTrigger);
+    }
+
+    #[DataProvider('filesLeavingTheCyclesAlone')]
+    public function testAFileThatSuspendsNothingKeepsThePlainPeriodicalTrigger(string $fixtureName): void
+    {
+        $schedule = self::createSchedule($fixtureName);
+
+        $weatherTrigger = $schedule->getSchedule()->getRecurringMessages()[0]->getTrigger();
+
+        self::assertNotInstanceOf(SleepScheduleTrigger::class, $weatherTrigger);
+        self::assertSame('every 30 minutes', (string) $weatherTrigger);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function filesLeavingTheCyclesAlone(): iterable
+    {
+        yield 'no sleep section at all' => ['syncs-valid.yaml'];
+        yield 'a sleep section switched off' => ['syncs-sleep-disabled.yaml'];
+    }
+
+    public function testAGroupWithBothAWindowAndAScheduleIsHeldToBoth(): void
+    {
+        $schedule = self::createSchedule('syncs-sleep-and-active-window.yaml');
+
+        $boursoramaTrigger = $schedule->getSchedule()->getRecurringMessages()[1]->getTrigger();
+
+        self::assertInstanceOf(ActiveWindowTrigger::class, $boursoramaTrigger);
+        self::assertSame(
+            'every 15 minutes, asleep mon,tue,wed,thu,fri,sat,sun 00:00-07:00 Europe/Paris, only mon,tue,wed,thu,fri 09:00-17:45 Europe/Paris',
+            (string) $boursoramaTrigger,
+        );
     }
 
     /**

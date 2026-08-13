@@ -76,8 +76,8 @@ final class SyncHealthCheckerTest extends TestCase
 
         $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
 
-        self::assertFalse($boursorama->insideActiveWindow);
-        self::assertNull($boursorama->secondsSinceWindowOpened);
+        self::assertFalse($boursorama->isWatched);
+        self::assertNull($boursorama->secondsSinceWatchedAgain);
         self::assertFalse($boursorama->isStale());
     }
 
@@ -87,7 +87,7 @@ final class SyncHealthCheckerTest extends TestCase
 
         $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
 
-        self::assertTrue($boursorama->insideActiveWindow);
+        self::assertTrue($boursorama->isWatched);
         self::assertNull($boursorama->ageInSeconds);
         self::assertTrue($boursorama->isStale());
     }
@@ -100,7 +100,7 @@ final class SyncHealthCheckerTest extends TestCase
 
         $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
 
-        self::assertSame(300, $boursorama->secondsSinceWindowOpened);
+        self::assertSame(300, $boursorama->secondsSinceWatchedAgain);
         self::assertSame(228000, $boursorama->ageInSeconds);
         self::assertFalse($boursorama->isStale());
     }
@@ -113,7 +113,7 @@ final class SyncHealthCheckerTest extends TestCase
 
         $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
 
-        self::assertSame(3600, $boursorama->secondsSinceWindowOpened);
+        self::assertSame(3600, $boursorama->secondsSinceWatchedAgain);
         self::assertTrue($boursorama->isStale());
     }
 
@@ -123,8 +123,8 @@ final class SyncHealthCheckerTest extends TestCase
 
         $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-item-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
 
-        self::assertFalse($boursorama->insideActiveWindow);
-        self::assertNull($boursorama->secondsSinceWindowOpened);
+        self::assertFalse($boursorama->isWatched);
+        self::assertNull($boursorama->secondsSinceWatchedAgain);
         self::assertFalse($boursorama->isStale());
     }
 
@@ -136,8 +136,8 @@ final class SyncHealthCheckerTest extends TestCase
 
         $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-item-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
 
-        self::assertTrue($boursorama->insideActiveWindow);
-        self::assertSame(300, $boursorama->secondsSinceWindowOpened);
+        self::assertTrue($boursorama->isWatched);
+        self::assertSame(300, $boursorama->secondsSinceWatchedAgain);
         self::assertFalse($boursorama->isStale());
     }
 
@@ -149,8 +149,67 @@ final class SyncHealthCheckerTest extends TestCase
 
         $boursorama = self::freshnessOf($this->scenario->checkerFor('syncs-item-active-window.yaml')->checkEnabledSyncGroups(), 'boursorama');
 
-        self::assertSame(3600, $boursorama->secondsSinceWindowOpened);
+        self::assertSame(3600, $boursorama->secondsSinceWatchedAgain);
         self::assertTrue($boursorama->isStale());
+    }
+
+    public function testAGroupIsNotWatchedWhileThePanelIsOff(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::PANEL_OFF_IN_THE_SMALL_HOURS);
+
+        $weather = self::freshnessOf($this->scenario->checkerFor('syncs-with-sleep.yaml')->checkEnabledSyncGroups(), 'weather');
+
+        self::assertTrue($weather->asleep);
+        self::assertFalse($weather->isWatched);
+        self::assertFalse($weather->isStale());
+    }
+
+    public function testAGroupIsNotStaleInTheMinutesFollowingTheWakeUp(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::LAST_PUSH_BEFORE_THE_NIGHT);
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify(SyncHealthScenario::FIVE_MINUTES_AFTER_THE_WAKE_UP);
+
+        $weather = self::freshnessOf($this->scenario->checkerFor('syncs-with-sleep.yaml')->checkEnabledSyncGroups(), 'weather');
+
+        self::assertFalse($weather->asleep);
+        self::assertTrue($weather->isWatched);
+        self::assertSame(300, $weather->secondsSinceWatchedAgain);
+        self::assertSame(26400, $weather->ageInSeconds);
+        self::assertFalse($weather->isStale());
+    }
+
+    public function testAGroupIsStaleAgainOnceItHasBeenAwakeLongerThanItsTolerance(): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::LAST_PUSH_BEFORE_THE_NIGHT);
+        $this->scenario->store->recordSuccess('weather');
+        $this->scenario->clock->modify('2026-08-05 09:00:00');
+
+        $weather = self::freshnessOf($this->scenario->checkerFor('syncs-with-sleep.yaml')->checkEnabledSyncGroups(), 'weather');
+
+        self::assertSame(7200, $weather->secondsSinceWatchedAgain);
+        self::assertTrue($weather->isStale());
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function filesWatchingTheGroupThroughTheNight(): iterable
+    {
+        yield 'no sleep section at all' => ['syncs-valid.yaml'];
+        yield 'a sleep section switched off' => ['syncs-sleep-disabled.yaml'];
+    }
+
+    #[DataProvider('filesWatchingTheGroupThroughTheNight')]
+    public function testAFileThatSuspendsNothingJudgesGroupsExactlyAsBefore(string $fixtureName): void
+    {
+        $this->scenario->useMarketClockAt(SyncHealthScenario::PANEL_OFF_IN_THE_SMALL_HOURS);
+
+        $weather = self::freshnessOf($this->scenario->checkerFor($fixtureName)->checkEnabledSyncGroups(), 'weather');
+
+        self::assertFalse($weather->asleep);
+        self::assertTrue($weather->isWatched);
+        self::assertTrue($weather->isStale());
     }
 
     /**

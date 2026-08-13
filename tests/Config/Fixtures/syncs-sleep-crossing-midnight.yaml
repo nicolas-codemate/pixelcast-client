@@ -11,6 +11,7 @@ syncs:
 
 sleep:
     enabled: true
+    timezone: Europe/Paris
     displayMode: clock
     days: [fri, sat]
     windows:

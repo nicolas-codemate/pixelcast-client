@@ -19,6 +19,9 @@ final class SyncHealthScenario
     public const string MARKET_TIMEZONE = 'Europe/Paris';
     public const string FRIDAY_CLOSING = '2026-08-07 17:45:00';
     public const string SATURDAY_NOON = '2026-08-08 12:00:00';
+    public const string LAST_PUSH_BEFORE_THE_NIGHT = '2026-08-04 23:45:00';
+    public const string PANEL_OFF_IN_THE_SMALL_HOURS = '2026-08-05 03:00:00';
+    public const string FIVE_MINUTES_AFTER_THE_WAKE_UP = '2026-08-05 07:05:00';
 
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
 

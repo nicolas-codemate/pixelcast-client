@@ -68,20 +68,24 @@ final class HealthCommand extends Command
 
     private static function describeFreshness(SyncGroupFreshness $freshness): string
     {
-        if (!$freshness->insideActiveWindow) {
+        if ($freshness->asleep) {
+            return 'asleep, not watched';
+        }
+
+        if (!$freshness->isWatched) {
             return 'outside its active window, not watched';
         }
 
         $ageInSeconds = $freshness->ageInSeconds;
-        $watchedSecondsSinceWindowOpening = $freshness->watchedSecondsSinceWindowOpening();
+        $judgedSecondsSinceWatchedAgain = $freshness->judgedSecondsSinceWatchedAgain();
 
         $clauses = [];
         $clauses[] = null === $ageInSeconds
             ? 'never pushed to the device'
             : \sprintf('last push %d min ago', self::inMinutes($ageInSeconds));
 
-        if (null !== $watchedSecondsSinceWindowOpening) {
-            $clauses[] = \sprintf('window reopened %d min ago', self::inMinutes($watchedSecondsSinceWindowOpening));
+        if (null !== $judgedSecondsSinceWatchedAgain) {
+            $clauses[] = \sprintf('watched again %d min ago', self::inMinutes($judgedSecondsSinceWatchedAgain));
         }
 
         if (null !== $ageInSeconds) {

@@ -79,6 +79,21 @@ final class DeviceSleepCommandTest extends TestCase
         self::assertStringContainsString('all day', $display);
     }
 
+    public function testTheReportSaysTheSyncGroupsFollowTheSameHours(): void
+    {
+        $client = new RecordingPixelcastClientStub();
+        $client->sleepStateToReturn = SleepState::fromResponseBody([
+            'sleeping' => true,
+            'reason' => 'schedule',
+            'config' => ['enabled' => true, 'display_mode' => 'black', 'schedule' => []],
+        ]);
+
+        $tester = self::createTester(self::FILE_WITH_A_SLEEP_SECTION, $client);
+
+        self::assertSame(Command::SUCCESS, $tester->execute([]));
+        self::assertStringContainsString('The sync groups follow the same hours', $tester->getDisplay());
+    }
+
     public function testADeviceRefusingToApplyTheScheduleNamesItsReasonWhileStillAwake(): void
     {
         $client = new RecordingPixelcastClientStub();

@@ -10,6 +10,7 @@ syncs:
 
 sleep:
     enabled: true
+    timezone: Europe/Paris
     windows:
         - from: '07:00'
           to: '07:00'

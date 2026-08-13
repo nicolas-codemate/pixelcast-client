@@ -26,4 +26,46 @@ final readonly class SyncGroupActivity
     {
         return new self(true, $secondsSinceBecameActive);
     }
+
+    /**
+     * The neutral element of combinedWith(): a constraint that is not declared at all never closes
+     * the group and never moves the instant it became active.
+     */
+    public static function alwaysActive(): self
+    {
+        return self::activeSince(null);
+    }
+
+    /**
+     * Two constraints in play at once: the group has something to push only while both hold, and it
+     * has had it only since the later of the two became true.
+     */
+    public function combinedWith(self $other): self
+    {
+        if (!$this->isActive || !$other->isActive) {
+            return self::inactive();
+        }
+
+        return self::activeSince(self::secondsSinceTheLaterBecoming(
+            $this->secondsSinceBecameActive,
+            $other->secondsSinceBecameActive,
+        ));
+    }
+
+    /**
+     * The later of the two beginnings is the smaller count of seconds. Null stands for a beginning
+     * infinitely far back, which any count is later than.
+     */
+    private static function secondsSinceTheLaterBecoming(?int $firstBecoming, ?int $secondBecoming): ?int
+    {
+        if (null === $firstBecoming) {
+            return $secondBecoming;
+        }
+
+        if (null === $secondBecoming) {
+            return $firstBecoming;
+        }
+
+        return min($firstBecoming, $secondBecoming);
+    }
 }

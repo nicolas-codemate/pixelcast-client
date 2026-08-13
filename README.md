@@ -116,7 +116,9 @@ window the count restarts at the reopening rather than at the last push, so a
 group that closed on Friday at 17:45 gets three full cycles from Monday 09:00
 before it reads as late — 45 minutes for a 15-minute one — instead of being
 declared stale on the sixty-three hours of the weekend. A market group therefore
-never turns the container `unhealthy` for a night or a weekend.
+never turns the container `unhealthy` for a night or a weekend. A group the
+`sleep:` section suspends is spared the same way, and counted from the moment
+the panel comes back on.
 
 | `docker compose ps` | Meaning |
 |---|---|
@@ -452,10 +454,45 @@ group `activeWindow`, which is refused at startup when it spans midnight. The
 two keys do not do the same thing, and the confusion is worth naming: an
 `activeWindow` stops a group from running outside its hours but turns nothing
 off, so the screen keeps showing the last image that was pushed to it, while
-`sleep` turns the panel off without changing the cycles at all, which keep
-fetching and pushing into the dark. Suspending the pushes during the sleep
-window is a separate question and is not done today: a night of blank panel
-spends the same provider quota as a night of lit one.
+`sleep` turns the panel off and stops the cycles with it, an hour with nothing
+to look at being an hour with nothing to fetch.
+
+An enabled window suspends every group while it covers the current instant: no
+group is scheduled, no provider is called, and a night of blank panel now costs
+the quota it looks like it costs. At the end of the window
+every enabled group pushes at once, within the minute, instead of waiting for
+its next tick — seven hours of silence outlive every reasonable `staleAfter`, so
+a panel that came back on its own schedule would light up on a wall of STALE
+badges rather than on fresh data. The grid of the regular cycles stays anchored
+on the start of the consumer rather than on the wake-up, so a group can push
+twice in the first minutes of the morning: one extra call per group per night,
+against a whole night of calls into the dark saved.
+
+The sleep window and a group `activeWindow` stack rather than replace one
+another: a group carrying both runs inside its own hours and outside the sleep
+window, and a wake-up falling before its opening pushes nothing — that group
+waits for its first run once its own hours are open. `app:sync <type>` ignores
+the sleep window exactly as it ignores an `activeWindow`, so a group is still
+pushed by hand at three in the morning to check it. `app:health` leaves a
+suspended group alone and prints `weather: asleep, not watched`, then counts
+from the wake-up
+rather than from the last push, so the group keeps its full tolerance for the
+first minutes of the morning and a night of sleep never turns the container
+`unhealthy`. A section carrying `enabled: false`, or no `sleep:` section at all,
+suspends nothing and leaves the cycles strictly as they were.
+
+`timezone` is required as soon as the section is enabled, and must name the
+timezone the device itself is set to. The container clock runs on UTC, so a
+Paris night written `00:00` to `07:00` and read as UTC would suspend the cycles
+from 02:00 to 09:00 local in summer: the panel dark and the cycles still running
+for two hours, then the panel lit and the cycles suspended for two more, which
+is the very wall of STALE badges the wake-up push exists to avoid, moved to the
+morning. The client does not guess it, so an existing `pixelcast.yaml` carrying
+an enabled `sleep:` section needs that one line added — without it the consumer
+stops at startup naming `sleep.timezone`. A section left on `enabled: false`
+suspends nothing and is asked for nothing, so it loads untouched. The file is what the client obeys: it suspends
+its cycles whether or not `app:device:sleep` has ever run, while the panel
+itself only goes off once that command has pushed the schedule to the device.
 
 The same three keys — `activeWindow`, `staleAfter` and `staleBehavior` — also
 exist on a tracker item, where each overrides the value of the group. A single
@@ -481,6 +518,8 @@ interval — the same rule as the healthcheck, so 45 minutes for a 15-minute cyc
 `claude` group, and `hide` or `none` on the weather and `github` groups, the two
 others being drawn by the tracker and gauge layouts alone; without the key the
 firmware default applies. `pixelcast.yaml.dist` carries the exact shape of the three keys.
+No `staleAfter` worth writing survives a sleep window, which is why the wake-up
+push described with the `sleep:` section is immediate.
 
 A group with `enabled: false`, or a group left out of the file, is never
 scheduled and cannot be dispatched by hand either. Editing the file on the host
@@ -530,7 +569,9 @@ or asleep and for what reason, whether the schedule is enabled and in which
 display mode, and one line per day carrying a window. A device that takes the
 push but cannot be read back leaves a warning and a successful run, since the
 schedule did leave. Against the simulator, `make inspect` shows the same
-schedule under `state.sleep`.
+schedule under `state.sleep`. The command decides the panel alone: the cycles
+follow the section from the file, so a screen that never received the schedule
+stays lit all night while the client has already stopped pushing to it.
 
 The all-time high a `bottomLine: ath` row shows is caught up by hand, outside
 the scheduler: Boursorama serves it as twenty years of daily bars, a few hundred

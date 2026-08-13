@@ -88,6 +88,20 @@ final class SyncOptionReader
     /**
      * @param array<string, mixed> $options
      */
+    public static function requireTimezone(array $options, string $key, string $parentPath): \DateTimeZone
+    {
+        $timezoneName = self::requireString($options, $key, $parentPath);
+
+        try {
+            return new \DateTimeZone($timezoneName);
+        } catch (\Exception $unknownTimezone) {
+            throw PixelCastConfigException::invalidValue(self::optionPath($parentPath, $key), \sprintf('expected a timezone identifier like "Europe/Paris", got "%s"', $timezoneName), $unknownTimezone);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
     public static function requireFloat(array $options, string $key, string $parentPath): float
     {
         $value = self::requireOption($options, $key, $parentPath);

@@ -1,4 +1,5 @@
-# Sample configuration used by SyncsConfigLoaderTest: a display mode the panel does not know.
+# Sample configuration used by SyncsConfigLoaderTest and ScheduleTest: a sleep section covering the
+# night but switched off, which must leave the cycles strictly unchanged and needs no timezone.
 syncs:
     weather:
         enabled: true
@@ -9,9 +10,7 @@ syncs:
         locale: fr
 
 sleep:
-    enabled: true
-    timezone: Europe/Paris
-    displayMode: dimmed
+    enabled: false
     windows:
         - from: '00:00'
           to: '07:00'

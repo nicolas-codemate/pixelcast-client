@@ -47,6 +47,19 @@ final class DeviceSleepConfigTest extends TestCase
         self::assertSame(self::DAY_WITHOUT_ANY_WINDOW, $payload->toArray()['schedule']['sunday']);
     }
 
+    public function testADisabledScheduleSuspendsNothing(): void
+    {
+        self::assertNull(self::sleepConfig(['enabled' => false])->sleepSchedule());
+    }
+
+    public function testAnEnabledScheduleCarriesItsDeclaredTimezone(): void
+    {
+        $sleepSchedule = self::sleepConfig(['timezone' => 'America/New_York'])->sleepSchedule();
+
+        self::assertNotNull($sleepSchedule);
+        self::assertSame('mon,tue,wed,thu,fri,sat,sun 00:00-07:00 America/New_York', (string) $sleepSchedule);
+    }
+
     /**
      * @param array<string, mixed> $sleepOptions
      */
@@ -54,7 +67,7 @@ final class DeviceSleepConfigTest extends TestCase
     {
         $sleepConfig = DeviceSleepConfig::optionalFromConfigTree([
             DeviceSleepConfig::OPTION_KEY => array_merge(
-                ['enabled' => true, 'windows' => [['from' => '00:00', 'to' => '07:00']]],
+                ['enabled' => true, 'timezone' => 'Europe/Paris', 'windows' => [['from' => '00:00', 'to' => '07:00']]],
                 $sleepOptions,
             ),
         ]);

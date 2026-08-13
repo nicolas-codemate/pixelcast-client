@@ -41,17 +41,36 @@
     },
     "definitions": {
         "deviceSleep": {
-            "description": "Hours during which the device turns its panel off. Pushed on demand by `bin/console app:device:sleep`, never by the scheduler, so the section has no effect until that command has run. Without it the device keeps whatever schedule it already holds.",
+            "description": "Hours during which the device turns its panel off. The panel is pushed on demand by `bin/console app:device:sleep`, never by the scheduler, so the screen keeps whatever schedule it already holds until that command has run. The client suspends its own cycles from this section alone: no sync group is scheduled while the panel is off, and every enabled one pushes again at the instant it comes back on.",
             "type": "object",
             "required": [
                 "enabled",
                 "windows"
+            ],
+            "anyOf": [
+                {
+                    "properties": {
+                        "enabled": {
+                            "const": false
+                        }
+                    }
+                },
+                {
+                    "required": [
+                        "timezone"
+                    ]
+                }
             ],
             "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "description": "Master toggle of the schedule on the device. A disabled schedule leaves the panel on.",
                     "type": "boolean"
+                },
+                "timezone": {
+                    "description": "Timezone the window bounds are read in, e.g. \"Europe/Paris\". Required as soon as the schedule is enabled, useless while it is off. Name the timezone the device itself is set to: it applies the schedule in its own local time, which the container clock does not share.",
+                    "type": "string",
+                    "minLength": 1
                 },
                 "displayMode": {
                     "description": "What the panel shows while asleep. \"black\" blanks it, \"clock\" leaves a dimmed clock. Without it the panel is blanked.",

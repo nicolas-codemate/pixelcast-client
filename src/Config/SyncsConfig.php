@@ -6,6 +6,7 @@ namespace App\Config;
 
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sleep\DeviceSleepConfig;
+use App\Config\Sleep\SleepSchedule;
 use App\Config\Sync\SyncGroupConfig;
 use App\Config\Sync\TrackerSyncConfig;
 
@@ -22,6 +23,11 @@ final readonly class SyncsConfig
         private array $syncGroups,
         public ?DeviceSleepConfig $deviceSleep = null,
     ) {
+    }
+
+    public function sleepSchedule(): ?SleepSchedule
+    {
+        return $this->deviceSleep?->sleepSchedule();
     }
 
     /**
