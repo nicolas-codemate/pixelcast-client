@@ -74,8 +74,11 @@ things you own:
 
 - `pixelcast.env`, from `deploy/pixelcast.env.dist` — the device base URL and the
   API keys of the data providers
-- `pixelcast.yaml`, from `pixelcast.yaml.dist` — the sync groups, their interval
-  and their options
+- `pixelcast-config/pixelcast.yaml`, from `pixelcast.yaml.dist` — the sync groups,
+  their interval and their options. The directory is one you create yourself, and
+  what the container mounts is that directory rather than the file: a single-file
+  mount does not follow the `rename()` an editor saves with, so the container would
+  go on reading the version from before an edit
 - `claude/`, an empty directory you create yourself — where the `claude` group
   keeps the credentials of its session, and the only mount the container writes
   into. Only that group needs it, and `mkdir claude` before the first
@@ -88,6 +91,23 @@ things you own:
 docker login ghcr.io
 docker compose pull && docker compose up -d
 ```
+
+A host already running keeps its `pixelcast.yaml` next to `compose.yaml`, where the
+single-file mount of the previous versions expected it. Copy the new
+`deploy/compose.yaml` over, add the `PIXELCAST_CONFIG_FILE` line of
+`deploy/pixelcast.env.dist` to `pixelcast.env`, then move the file and recreate the
+container:
+
+```
+mkdir pixelcast-config && mv pixelcast.yaml pixelcast-config/
+docker compose up -d
+```
+
+`PIXELCAST_CONFIG_FILE` names the file the client reads. Without it the file is
+`pixelcast.yaml` at the root of the checkout, which is what dev uses;
+`deploy/pixelcast.env.dist` sets it to the mounted path,
+`/app/pixelcast-config/pixelcast.yaml`, since the built-in default sits outside that
+mount.
 
 `pixelcast.yaml` is read at startup, validated against `pixelcast.schema.json`,
 and read again whenever its modification time changes, so an edit takes effect on

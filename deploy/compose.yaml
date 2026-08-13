@@ -11,7 +11,12 @@ services:
     env_file:
       - ./pixelcast.env
     volumes:
-      - ./pixelcast.yaml:/app/pixelcast.yaml:ro
+      # A directory, not the file itself. Editors save pixelcast.yaml by writing a
+      # temporary file and renaming it over the old one, which swaps the inode; a
+      # single-file bind mount stays pinned to the inode it was created with, so the
+      # container would go on reading the version from before the edit and the reload
+      # would find nothing to reload. Read-only: the container never writes it.
+      - ./pixelcast-config:/app/pixelcast-config:ro
       # A directory, and read-write, not the credentials file itself. That file is
       # replaced by rename(), which swaps the inode; a single-file bind mount stays
       # pinned to the inode it was created with, so the host would go on seeing the
