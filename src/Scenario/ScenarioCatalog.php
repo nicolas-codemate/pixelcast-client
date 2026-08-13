@@ -224,6 +224,23 @@ final class ScenarioCatalog
                 ],
             ),
             new ScenarioDefinition(
+                id: 'custom-app-multi-zone',
+                label: 'Custom App - four-zone dashboard',
+                description: 'quad grid, one icon and one reading per zone',
+                httpMethod: 'POST',
+                path: '/custom',
+                queryParams: ['name' => 'rooms'],
+                body: [
+                    'zones' => [
+                        ['text' => '22.5C', 'icon' => 'thermo', 'label' => 'Salon', 'color' => '#FF8800'],
+                        ['text' => '19.1C', 'icon' => 'thermo', 'label' => 'Chambre', 'color' => '#00D4FF'],
+                        ['text' => '58%', 'icon' => 'humidity', 'label' => 'Humidite', 'color' => '#00D4FF'],
+                        ['text' => '412ppm', 'icon' => 'co2', 'label' => 'CO2', 'color' => '#4CAF50'],
+                    ],
+                    'duration' => 10000,
+                ],
+            ),
+            new ScenarioDefinition(
                 id: 'indicator-slot-1',
                 label: 'Indicator - slot 1 (green)',
                 description: 'solid green on slot 1',

@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Scenario\Validation;
 
 use App\Client\Color;
+use App\Client\CustomApp\CustomAppPayload;
+use App\Client\CustomApp\Zone;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
 use App\Client\StaleBehavior;
+use App\Client\Text\PolymorphicTextField;
+use App\Client\Text\TextSegment;
 use App\Scenario\ScenarioCatalog;
 use App\Scenario\ScenarioDefinition;
 use App\Scenario\Validation\OutboundOpenApiValidatorFactory;
@@ -132,6 +136,28 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
         self::assertNull($result->errorMessage);
     }
 
+    public function testSingleZoneCustomAppScenarioPayloadValidatesAgainstSpec(): void
+    {
+        $singleZoneCustomApp = $this->catalog->findById('custom-app-demo', true);
+        self::assertNotNull($singleZoneCustomApp);
+
+        $result = $this->validator->validate($singleZoneCustomApp);
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
+    public function testMultiZoneCustomAppScenarioPayloadValidatesAgainstSpec(): void
+    {
+        $multiZoneCustomApp = $this->catalog->findById('custom-app-multi-zone', true);
+        self::assertNotNull($multiZoneCustomApp);
+
+        $result = $this->validator->validate($multiZoneCustomApp);
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
     public function testValidateRequestAcceptsAGaugePayload(): void
     {
         $payload = GaugePayload::create(
@@ -154,6 +180,55 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
         );
 
         $result = $this->validator->validateRequest('POST', '/gauge', ['name' => 'claude'], $payload->toArray());
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
+    public function testValidateRequestAcceptsASingleZoneCustomAppPayload(): void
+    {
+        $payload = CustomAppPayload::createSingleZone(
+            name: 'demo',
+            text: PolymorphicTextField::fromSegments(
+                TextSegment::create('22.5', Color::fromHexCode('#FF8800')),
+                TextSegment::create('C', Color::fromHexCode('#666666')),
+            ),
+            iconName: 'thermo',
+            label: 'Salon',
+            color: Color::fromHexCode('#FF8800'),
+            displayDurationMilliseconds: 10000,
+            staleAfterInSeconds: 3600,
+            staleBehavior: StaleBehavior::Hide,
+        );
+
+        $result = $this->validator->validateRequest('POST', '/custom', ['name' => 'demo'], $payload->toArray());
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
+    public function testValidateRequestAcceptsAMultiZoneCustomAppPayload(): void
+    {
+        $payload = CustomAppPayload::createMultiZone(
+            name: 'rooms',
+            zones: [
+                Zone::create(
+                    text: PolymorphicTextField::fromSegments(
+                        TextSegment::create('22.5', Color::fromHexCode('#FF8800')),
+                        TextSegment::create('C', Color::fromHexCode('#666666')),
+                    ),
+                    iconName: 'thermo',
+                    label: 'Salon',
+                    color: Color::fromHexCode('#FF8800'),
+                ),
+                Zone::create(text: '19.1C', iconName: 'thermo', label: 'Chambre', color: Color::fromHexCode('#00D4FF')),
+                Zone::create(text: '58%', iconName: 'humidity', label: 'Humidite', color: Color::fromHexCode('#00D4FF')),
+                Zone::create(text: '412ppm', iconName: 'co2', label: 'CO2', color: Color::fromHexCode('#4CAF50')),
+            ],
+            displayDurationMilliseconds: 10000,
+        );
+
+        $result = $this->validator->validateRequest('POST', '/custom', ['name' => 'rooms'], $payload->toArray());
 
         self::assertTrue($result->valid, $result->errorMessage ?? '');
         self::assertNull($result->errorMessage);

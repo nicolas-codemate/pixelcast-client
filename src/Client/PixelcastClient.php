@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Client;
 
+use App\Client\CustomApp\CustomAppPayload;
 use App\Client\Exception\DeviceBusyException;
 use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Exception\InvalidPayloadException;
@@ -24,6 +25,7 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     private const string WEATHER_SPEC_PATH = '/weather';
     private const string TRACKER_SPEC_PATH = '/tracker';
     private const string GAUGE_SPEC_PATH = '/gauge';
+    private const string CUSTOM_APP_SPEC_PATH = '/custom';
     private const string NOTIFICATION_SPEC_PATH = '/notify';
     private const string NOTIFICATION_DISMISS_SPEC_PATH = '/notify/dismiss';
     private const string SLEEP_SPEC_PATH = '/sleep';
@@ -53,6 +55,11 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     public function pushGauge(GaugePayload $gauge): void
     {
         $this->sendValidated('POST', self::GAUGE_SPEC_PATH, queryParameters: ['name' => $gauge->name], body: $gauge->toArray());
+    }
+
+    public function pushCustomApp(CustomAppPayload $customApp): void
+    {
+        $this->sendValidated('POST', self::CUSTOM_APP_SPEC_PATH, queryParameters: ['name' => $customApp->name], body: $customApp->toArray());
     }
 
     public function pushNotification(NotificationPayload $notification): void

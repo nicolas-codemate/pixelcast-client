@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Client;
 
 use App\Client\Color;
+use App\Client\CustomApp\CustomAppPayload;
 use App\Client\Exception\DeviceBusyException;
 use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Exception\InvalidPayloadException;
@@ -37,6 +38,7 @@ final class PixelcastClientTest extends TestCase
     private const string EXPECTED_WEATHER_URL = 'http://device.test/api/weather';
     private const string EXPECTED_TRACKER_URL = 'http://device.test/api/tracker?name=BTC';
     private const string EXPECTED_GAUGE_URL = 'http://device.test/api/gauge?name=claude';
+    private const string EXPECTED_CUSTOM_APP_URL = 'http://device.test/api/custom?name=demo';
     private const string EXPECTED_NOTIFY_URL = 'http://device.test/api/notify';
     private const string EXPECTED_DISMISS_URL = 'http://device.test/api/notify/dismiss';
     private const string EXPECTED_SLEEP_URL = 'http://device.test/api/sleep';
@@ -135,6 +137,21 @@ final class PixelcastClientTest extends TestCase
         $sentBody = self::decodedRequestBody($response);
 
         self::assertSame($gauge->toArray(), $sentBody);
+        self::assertArrayNotHasKey('name', $sentBody);
+    }
+
+    public function testPushCustomAppSendsTheNameAsQueryParameterAndTheRestAsBody(): void
+    {
+        $response = new MockResponse('{"success":true}');
+        $customApp = self::buildSingleZoneCustomAppPayload();
+
+        $this->buildClient($response)->pushCustomApp($customApp);
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_CUSTOM_APP_URL, $response->getRequestUrl());
+        $sentBody = self::decodedRequestBody($response);
+
+        self::assertSame($customApp->toArray(), $sentBody);
         self::assertArrayNotHasKey('name', $sentBody);
     }
 
@@ -325,6 +342,20 @@ final class PixelcastClientTest extends TestCase
             displayDurationMilliseconds: 10000,
             staleAfterInSeconds: 2700,
             staleBehavior: StaleBehavior::Dim,
+        );
+    }
+
+    private static function buildSingleZoneCustomAppPayload(): CustomAppPayload
+    {
+        return CustomAppPayload::createSingleZone(
+            name: 'demo',
+            text: 'Hello World',
+            iconName: 'smiley',
+            label: 'Demo',
+            color: Color::fromHexCode('#FF8800'),
+            displayDurationMilliseconds: 10000,
+            staleAfterInSeconds: 3600,
+            staleBehavior: StaleBehavior::Hide,
         );
     }
 

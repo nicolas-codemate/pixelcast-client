@@ -12,12 +12,6 @@ use App\Message\SyncWeatherMessage;
 
 final readonly class WeatherSyncConfig implements SyncGroupConfig
 {
-    /**
-     * `dim` and `badge` are drawn by the tracker and gauge layouts, never by the weather one, so
-     * the weather endpoint rejects them.
-     */
-    private const array ACCEPTED_STALE_BEHAVIORS = [StaleBehavior::Hide, StaleBehavior::None];
-
     public function __construct(
         public bool $enabled,
         public SyncInterval $interval,
@@ -44,7 +38,7 @@ final readonly class WeatherSyncConfig implements SyncGroupConfig
         return new self(
             enabled: SyncOptionReader::requireBool($options, 'enabled', $optionsPath),
             interval: $interval,
-            staleDeclaration: StaleDeclaration::fromOptions($options, $optionsPath, $interval, self::ACCEPTED_STALE_BEHAVIORS),
+            staleDeclaration: StaleDeclaration::fromOptions($options, $optionsPath, $interval, StaleBehavior::ACCEPTED_OUTSIDE_TRACKER_AND_GAUGE),
             activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath),
             latitude: SyncOptionReader::requireFloat($options, 'latitude', $optionsPath),
             longitude: SyncOptionReader::requireFloat($options, 'longitude', $optionsPath),
