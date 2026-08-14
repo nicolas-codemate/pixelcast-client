@@ -4,84 +4,56 @@ declare(strict_types=1);
 
 namespace App\Client\Stats;
 
+/**
+ * What GET /stats reports about the device: its firmware, its memory and its network link.
+ */
 final readonly class StatsSnapshot
 {
-    public function __construct(
-        public bool $reachable,
-        public ?string $errorMessage = null,
-        public ?int $uptimeSeconds = null,
-        public ?int $freeHeapBytes = null,
-        public ?string $firmwareVersion = null,
-        public ?string $ipAddress = null,
-        public ?int $brightness = null,
-        public ?bool $autoRotate = null,
-        public ?int $defaultDurationSeconds = null,
+    private function __construct(
+        public ?string $firmwareVersion,
+        public ?int $uptimeSeconds,
+        public ?int $freeHeapBytes,
+        public ?int $maxAllocatableHeapBytes,
+        public ?int $brightness,
+        public ?WifiStatus $wifi,
     ) {
     }
 
-    public static function unreachable(string $errorMessage): self
-    {
-        return new self(reachable: false, errorMessage: $errorMessage);
-    }
-
     /**
-     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $decodedBody
      */
-    public static function fromStatsPayload(array $payload): self
+    public static function fromResponseBody(array $decodedBody): self
     {
-        $wifi = self::nestedArray($payload, 'wifi');
-        $apps = self::nestedArray($payload, 'apps');
+        $firmwareVersion = $decodedBody['version'] ?? null;
+        $uptimeSeconds = $decodedBody['uptime'] ?? null;
+        $freeHeapBytes = $decodedBody['freeHeap'] ?? null;
+        $maxAllocatableHeapBytes = $decodedBody['maxAllocHeap'] ?? null;
+        $brightness = $decodedBody['brightness'] ?? null;
 
         return new self(
-            reachable: true,
-            uptimeSeconds: self::intOrNull($payload, 'uptime'),
-            freeHeapBytes: self::intOrNull($payload, 'freeHeap'),
-            firmwareVersion: self::stringOrNull($payload, 'version'),
-            ipAddress: self::stringOrNull($wifi, 'ip'),
-            brightness: self::intOrNull($payload, 'brightness'),
-            autoRotate: self::boolOrNull($apps, 'rotationEnabled'),
-            defaultDurationSeconds: self::intOrNull($payload, 'defaultDuration'),
+            firmwareVersion: \is_string($firmwareVersion) ? $firmwareVersion : null,
+            uptimeSeconds: \is_int($uptimeSeconds) ? $uptimeSeconds : null,
+            freeHeapBytes: \is_int($freeHeapBytes) ? $freeHeapBytes : null,
+            maxAllocatableHeapBytes: \is_int($maxAllocatableHeapBytes) ? $maxAllocatableHeapBytes : null,
+            brightness: \is_int($brightness) ? $brightness : null,
+            wifi: self::readWifiStatus($decodedBody['wifi'] ?? null),
         );
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     *
-     * @return array<string, mixed>
-     */
-    private static function nestedArray(array $payload, string $key): array
+    private static function readWifiStatus(mixed $wifi): ?WifiStatus
     {
-        if (!isset($payload[$key]) || !\is_array($payload[$key])) {
-            return [];
+        if (!\is_array($wifi)) {
+            return null;
         }
 
-        /** @var array<string, mixed> $nested */
-        $nested = $payload[$key];
+        $ssid = $wifi['ssid'] ?? null;
+        $signalStrengthDbm = $wifi['rssi'] ?? null;
+        $ipAddress = $wifi['ip'] ?? null;
 
-        return $nested;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private static function intOrNull(array $payload, string $key): ?int
-    {
-        return isset($payload[$key]) && \is_int($payload[$key]) ? $payload[$key] : null;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private static function stringOrNull(array $payload, string $key): ?string
-    {
-        return isset($payload[$key]) && \is_string($payload[$key]) ? $payload[$key] : null;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private static function boolOrNull(array $payload, string $key): ?bool
-    {
-        return isset($payload[$key]) && \is_bool($payload[$key]) ? $payload[$key] : null;
+        return new WifiStatus(
+            \is_string($ssid) ? $ssid : null,
+            \is_int($signalStrengthDbm) ? $signalStrengthDbm : null,
+            \is_string($ipAddress) ? $ipAddress : null,
+        );
     }
 }

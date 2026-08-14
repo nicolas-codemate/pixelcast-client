@@ -11,8 +11,12 @@ use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
+use App\Client\Settings\BrightnessLevel;
+use App\Client\Settings\SettingsPayload;
+use App\Client\Settings\SettingsSnapshot;
 use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepState;
+use App\Client\Stats\StatsSnapshot;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
 use App\Scenario\Validation\OutboundPayloadValidator;
@@ -29,6 +33,10 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     private const string NOTIFICATION_SPEC_PATH = '/notify';
     private const string NOTIFICATION_DISMISS_SPEC_PATH = '/notify/dismiss';
     private const string SLEEP_SPEC_PATH = '/sleep';
+    private const string SETTINGS_SPEC_PATH = '/settings';
+    private const string BRIGHTNESS_SPEC_PATH = '/brightness';
+    private const string STATS_SPEC_PATH = '/stats';
+    private const string REBOOT_SPEC_PATH = '/reboot';
 
     public function __construct(
         #[Target('device.client')]
@@ -84,15 +92,48 @@ final readonly class PixelcastClient implements PixelcastClientInterface
 
     public function fetchSleepState(): SleepState
     {
-        $responseBody = $this->requestValidated('GET', self::SLEEP_SPEC_PATH);
+        return SleepState::fromResponseBody($this->fetchDecodedBody(self::SLEEP_SPEC_PATH));
+    }
+
+    public function fetchSettings(): SettingsSnapshot
+    {
+        return SettingsSnapshot::fromResponseBody($this->fetchDecodedBody(self::SETTINGS_SPEC_PATH));
+    }
+
+    public function pushSettings(SettingsPayload $settings): void
+    {
+        $this->sendValidated('POST', self::SETTINGS_SPEC_PATH, body: $settings->toArray());
+    }
+
+    public function pushBrightness(BrightnessLevel $brightness): void
+    {
+        $this->sendValidated('POST', self::BRIGHTNESS_SPEC_PATH, body: ['brightness' => $brightness->level]);
+    }
+
+    public function fetchStats(): StatsSnapshot
+    {
+        return StatsSnapshot::fromResponseBody($this->fetchDecodedBody(self::STATS_SPEC_PATH));
+    }
+
+    public function reboot(): void
+    {
+        $this->sendValidated('POST', self::REBOOT_SPEC_PATH);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fetchDecodedBody(string $specPath): array
+    {
+        $responseBody = $this->requestValidated('GET', $specPath);
         $decodedBody = json_decode($responseBody, true);
 
         if (!\is_array($decodedBody)) {
-            throw InvalidPayloadException::fromUnreadableDeviceResponse(self::SLEEP_SPEC_PATH, $responseBody);
+            throw InvalidPayloadException::fromUnreadableDeviceResponse($specPath, $responseBody);
         }
 
         /** @var array<string, mixed> $decodedBody */
-        return SleepState::fromResponseBody($decodedBody);
+        return $decodedBody;
     }
 
     /**

@@ -8,8 +8,12 @@ use App\Client\CustomApp\CustomAppPayload;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClientInterface;
+use App\Client\Settings\BrightnessLevel;
+use App\Client\Settings\SettingsPayload;
+use App\Client\Settings\SettingsSnapshot;
 use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepState;
+use App\Client\Stats\StatsSnapshot;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
 
@@ -55,9 +59,25 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
      */
     public array $pushedSleepPayloads = [];
 
+    /**
+     * @var list<SettingsPayload>
+     */
+    public array $pushedSettingsPayloads = [];
+
+    /**
+     * @var list<BrightnessLevel>
+     */
+    public array $pushedBrightnessLevels = [];
+
     public ?SleepState $sleepStateToReturn = null;
 
+    public ?SettingsSnapshot $settingsSnapshotToReturn = null;
+
+    public ?StatsSnapshot $statsSnapshotToReturn = null;
+
     public int $dismissedNotificationCount = 0;
+
+    public int $rebootCount = 0;
 
     /**
      * @param array<string, \Throwable> $trackerFailures keyed by tracker name
@@ -145,6 +165,41 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         $this->failIfConfigured();
 
         return $this->sleepStateToReturn ?? SleepState::fromResponseBody(['sleeping' => false, 'config' => []]);
+    }
+
+    public function fetchSettings(): SettingsSnapshot
+    {
+        $this->failIfConfigured();
+
+        return $this->settingsSnapshotToReturn ?? SettingsSnapshot::fromResponseBody([]);
+    }
+
+    public function pushSettings(SettingsPayload $settings): void
+    {
+        $this->failIfConfigured();
+
+        $this->pushedSettingsPayloads[] = $settings;
+    }
+
+    public function pushBrightness(BrightnessLevel $brightness): void
+    {
+        $this->failIfConfigured();
+
+        $this->pushedBrightnessLevels[] = $brightness;
+    }
+
+    public function fetchStats(): StatsSnapshot
+    {
+        $this->failIfConfigured();
+
+        return $this->statsSnapshotToReturn ?? StatsSnapshot::fromResponseBody([]);
+    }
+
+    public function reboot(): void
+    {
+        $this->failIfConfigured();
+
+        ++$this->rebootCount;
     }
 
     private function failIfConfigured(): void

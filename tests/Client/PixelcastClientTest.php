@@ -15,6 +15,9 @@ use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClient;
+use App\Client\Settings\BrightnessLevel;
+use App\Client\Settings\NtpSettings;
+use App\Client\Settings\SettingsPayload;
 use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepSlot;
 use App\Client\StaleBehavior;
@@ -42,10 +45,18 @@ final class PixelcastClientTest extends TestCase
     private const string EXPECTED_NOTIFY_URL = 'http://device.test/api/notify';
     private const string EXPECTED_DISMISS_URL = 'http://device.test/api/notify/dismiss';
     private const string EXPECTED_SLEEP_URL = 'http://device.test/api/sleep';
+    private const string EXPECTED_SETTINGS_URL = 'http://device.test/api/settings';
+    private const string EXPECTED_BRIGHTNESS_URL = 'http://device.test/api/brightness';
+    private const string EXPECTED_STATS_URL = 'http://device.test/api/stats';
+    private const string EXPECTED_REBOOT_URL = 'http://device.test/api/reboot';
     private const array FIRMWARE_DAY_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
     // The "scheduleActive" example of sync/openapi.yaml.
     private const string SCHEDULE_ACTIVE_SLEEP_BODY = '{"sleeping":true,"reason":"schedule","config":{"enabled":true,"display_mode":"black","schedule":{"monday":{"all_day":false,"slots":[{"start":"20:00","end":"07:00"}]}},"sleep_until":0}}';
+
+    private const string SETTINGS_RESPONSE_BODY = '{"brightness":128,"autoRotate":true,"defaultDuration":10000,"weatherDuration":12000,"display":{"width":64,"height":8},"ntp":{"server":"pool.ntp.org","tz_posix":"CET-1CEST,M3.5.0,M10.5.0/3"},"mqtt":{"enabled":false,"prefix":"pixelcast"}}';
+
+    private const string STATS_RESPONSE_BODY = '{"version":"0.1.0-dev","uptime":4213,"freeHeap":142360,"maxAllocHeap":81920,"brightness":128,"wifi":{"ssid":"home","rssi":-45,"ip":"192.168.1.174"},"display":{"width":64,"height":8}}';
 
     // Parsing the vendored spec costs more than every test of this class combined.
     private static RequestValidator $requestValidator;
@@ -231,6 +242,103 @@ final class PixelcastClientTest extends TestCase
         $this->expectExceptionMessageMatches('/not a JSON object/');
 
         $client->fetchSleepState();
+    }
+
+    public function testPushSettingsSendsOnlyTheFieldThatWasSet(): void
+    {
+        $response = new MockResponse('{"success":true}');
+        $settings = SettingsPayload::create(defaultDurationMilliseconds: 5000);
+
+        $this->buildClient($response)->pushSettings($settings);
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_SETTINGS_URL, $response->getRequestUrl());
+        self::assertSame(['defaultDuration' => 5000], self::decodedRequestBody($response));
+    }
+
+    public function testPushSettingsSendsEveryFieldIncludingTheNtpNode(): void
+    {
+        $response = new MockResponse('{"success":true}');
+        $settings = SettingsPayload::create(
+            brightness: BrightnessLevel::create(64),
+            autoRotate: false,
+            defaultDurationMilliseconds: 8000,
+            weatherDurationMilliseconds: 12000,
+            ntp: NtpSettings::create(server: 'pool.ntp.org', timezonePosix: 'CET-1CEST,M3.5.0,M10.5.0/3'),
+        );
+
+        $this->buildClient($response)->pushSettings($settings);
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_SETTINGS_URL, $response->getRequestUrl());
+        self::assertSame($settings->toArray(), self::decodedRequestBody($response));
+    }
+
+    public function testPushBrightnessSendsTheLevelAlone(): void
+    {
+        $response = new MockResponse('{"success":true}');
+
+        $this->buildClient($response)->pushBrightness(BrightnessLevel::create(200));
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_BRIGHTNESS_URL, $response->getRequestUrl());
+        self::assertSame(['brightness' => 200], self::decodedRequestBody($response));
+    }
+
+    public function testRebootSendsABodylessPost(): void
+    {
+        $response = new MockResponse('{"success":true,"message":"Rebooting..."}');
+
+        $this->buildClient($response)->reboot();
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_REBOOT_URL, $response->getRequestUrl());
+        self::assertNull($response->getRequestOptions()['body'] ?? null);
+    }
+
+    public function testFetchSettingsReadsTheSettingsTheDeviceHolds(): void
+    {
+        $response = new MockResponse(self::SETTINGS_RESPONSE_BODY);
+
+        $settings = $this->buildClient($response)->fetchSettings();
+
+        self::assertSame('GET', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_SETTINGS_URL, $response->getRequestUrl());
+        self::assertSame(128, $settings->brightness);
+        self::assertTrue($settings->autoRotate);
+        self::assertSame(10000, $settings->defaultDurationMilliseconds);
+        self::assertSame(12000, $settings->weatherDurationMilliseconds);
+        self::assertSame('pool.ntp.org', $settings->ntpServer);
+        self::assertSame('CET-1CEST,M3.5.0,M10.5.0/3', $settings->ntpTimezonePosix);
+    }
+
+    public function testFetchStatsReadsTheFirmwareTheMemoryAndTheWifiLink(): void
+    {
+        $response = new MockResponse(self::STATS_RESPONSE_BODY);
+
+        $stats = $this->buildClient($response)->fetchStats();
+
+        self::assertSame('GET', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_STATS_URL, $response->getRequestUrl());
+        self::assertSame('0.1.0-dev', $stats->firmwareVersion);
+        self::assertSame(4213, $stats->uptimeSeconds);
+        self::assertSame(142360, $stats->freeHeapBytes);
+        self::assertSame(81920, $stats->maxAllocatableHeapBytes);
+        self::assertSame(128, $stats->brightness);
+        self::assertNotNull($stats->wifi);
+        self::assertSame('home', $stats->wifi->ssid);
+        self::assertSame(-45, $stats->wifi->signalStrengthDbm);
+        self::assertSame('192.168.1.174', $stats->wifi->ipAddress);
+    }
+
+    public function testFetchStatsRefusesABodyThatIsNotAJsonObject(): void
+    {
+        $client = $this->buildClient(new MockResponse('device is rebooting'));
+
+        $this->expectException(InvalidPayloadException::class);
+        $this->expectExceptionMessageMatches('/not a JSON object/');
+
+        $client->fetchStats();
     }
 
     public function testLocallyRejectedPayloadIsNotSentAtAll(): void
