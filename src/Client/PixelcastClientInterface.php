@@ -11,8 +11,12 @@ use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Notification\NotificationPayload;
+use App\Client\Settings\BrightnessLevel;
+use App\Client\Settings\SettingsPayload;
+use App\Client\Settings\SettingsSnapshot;
 use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepState;
+use App\Client\Stats\StatsSnapshot;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\WeatherPayload;
 
@@ -53,4 +57,17 @@ interface PixelcastClientInterface
     public function pushSleepConfiguration(SleepPayload $sleep): void;
 
     public function fetchSleepState(): SleepState;
+
+    public function fetchSettings(): SettingsSnapshot;
+
+    /**
+     * Only the fields the payload carries are changed, the others keep their current value.
+     */
+    public function pushSettings(SettingsPayload $settings): void;
+
+    public function pushBrightness(BrightnessLevel $brightness): void;
+
+    public function fetchStats(): StatsSnapshot;
+
+    public function reboot(): void;
 }

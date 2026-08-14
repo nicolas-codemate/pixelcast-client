@@ -9,6 +9,8 @@ use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
 use App\Client\Notification\NotificationPayload;
+use App\Client\Settings\BrightnessLevel;
+use App\Client\Settings\SettingsPayload;
 use App\Client\StaleBehavior;
 use App\Client\Tracker\TrackerPayload;
 use App\Client\Weather\CurrentWeather;
@@ -166,6 +168,43 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         $this->expectException(ResourceNotFoundException::class);
 
         $this->buildPixelcastClient()->deleteCustomApp('github');
+    }
+
+    public function testPartialSettingsUpdateLeavesTheOtherSettingsUntouched(): void
+    {
+        $client = $this->buildPixelcastClient();
+
+        $client->pushSettings(SettingsPayload::create(brightness: BrightnessLevel::create(42)));
+
+        $this->assertLoggedRequest($this->inspect(), 0, 1, 'POST', '/api/settings', ['brightness' => 42]);
+
+        $storedSettings = $client->fetchSettings();
+
+        self::assertSame(42, $storedSettings->brightness, $this->server->serverOutput());
+        self::assertTrue($storedSettings->autoRotate);
+        self::assertSame(10000, $storedSettings->defaultDurationMilliseconds);
+    }
+
+    public function testPushedBrightnessIsTheOneTheStatsReportBack(): void
+    {
+        $client = $this->buildPixelcastClient();
+
+        $client->pushBrightness(BrightnessLevel::create(17));
+
+        $stats = $client->fetchStats();
+
+        self::assertSame(17, $stats->brightness, $this->server->serverOutput());
+        self::assertSame(81920, $stats->maxAllocatableHeapBytes);
+        self::assertNotNull($stats->wifi);
+        self::assertSame('simulator', $stats->wifi->ssid);
+        self::assertSame(-45, $stats->wifi->signalStrengthDbm);
+    }
+
+    public function testRebootIsAcceptedByTheDevice(): void
+    {
+        $this->buildPixelcastClient()->reboot();
+
+        $this->assertLoggedRequest($this->inspect(), 0, 1, 'POST', '/api/reboot', null);
     }
 
     /**
