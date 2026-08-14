@@ -6,7 +6,7 @@ namespace App\Client\Settings;
 
 final readonly class NtpSettings
 {
-    private const int MAXIMUM_TIMEZONE_LENGTH = 63;
+    public const int MAXIMUM_TIMEZONE_LENGTH = 63;
 
     private function __construct(
         public ?string $server,

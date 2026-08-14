@@ -185,7 +185,7 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         self::assertSame(10000, $storedSettings->defaultDurationMilliseconds);
     }
 
-    public function testPushedBrightnessIsTheOneTheStatsReportBack(): void
+    public function testStatsReportThePushedBrightnessAndTheWifiLink(): void
     {
         $client = $this->buildPixelcastClient();
 

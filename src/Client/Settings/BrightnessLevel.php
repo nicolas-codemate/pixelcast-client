@@ -6,8 +6,8 @@ namespace App\Client\Settings;
 
 final readonly class BrightnessLevel
 {
-    private const int MINIMUM_LEVEL = 0;
-    private const int MAXIMUM_LEVEL = 255;
+    public const int MINIMUM_LEVEL = 0;
+    public const int MAXIMUM_LEVEL = 255;
 
     private function __construct(
         public int $level,

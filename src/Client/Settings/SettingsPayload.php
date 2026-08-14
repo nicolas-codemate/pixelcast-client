@@ -6,8 +6,8 @@ namespace App\Client\Settings;
 
 final readonly class SettingsPayload
 {
-    private const int MINIMUM_WEATHER_DURATION_MILLISECONDS = 3000;
-    private const int MAXIMUM_WEATHER_DURATION_MILLISECONDS = 60000;
+    public const int MINIMUM_WEATHER_DURATION_MILLISECONDS = 3000;
+    public const int MAXIMUM_WEATHER_DURATION_MILLISECONDS = 60000;
 
     private function __construct(
         public ?BrightnessLevel $brightness,

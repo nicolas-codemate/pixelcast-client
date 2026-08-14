@@ -92,28 +92,12 @@ final readonly class PixelcastClient implements PixelcastClientInterface
 
     public function fetchSleepState(): SleepState
     {
-        $responseBody = $this->requestValidated('GET', self::SLEEP_SPEC_PATH);
-        $decodedBody = json_decode($responseBody, true);
-
-        if (!\is_array($decodedBody)) {
-            throw InvalidPayloadException::fromUnreadableDeviceResponse(self::SLEEP_SPEC_PATH, $responseBody);
-        }
-
-        /** @var array<string, mixed> $decodedBody */
-        return SleepState::fromResponseBody($decodedBody);
+        return SleepState::fromResponseBody($this->fetchDecodedBody(self::SLEEP_SPEC_PATH));
     }
 
     public function fetchSettings(): SettingsSnapshot
     {
-        $responseBody = $this->requestValidated('GET', self::SETTINGS_SPEC_PATH);
-        $decodedBody = json_decode($responseBody, true);
-
-        if (!\is_array($decodedBody)) {
-            throw InvalidPayloadException::fromUnreadableDeviceResponse(self::SETTINGS_SPEC_PATH, $responseBody);
-        }
-
-        /** @var array<string, mixed> $decodedBody */
-        return SettingsSnapshot::fromResponseBody($decodedBody);
+        return SettingsSnapshot::fromResponseBody($this->fetchDecodedBody(self::SETTINGS_SPEC_PATH));
     }
 
     public function pushSettings(SettingsPayload $settings): void
@@ -128,20 +112,28 @@ final readonly class PixelcastClient implements PixelcastClientInterface
 
     public function fetchStats(): StatsSnapshot
     {
-        $responseBody = $this->requestValidated('GET', self::STATS_SPEC_PATH);
-        $decodedBody = json_decode($responseBody, true);
-
-        if (!\is_array($decodedBody)) {
-            throw InvalidPayloadException::fromUnreadableDeviceResponse(self::STATS_SPEC_PATH, $responseBody);
-        }
-
-        /** @var array<string, mixed> $decodedBody */
-        return StatsSnapshot::fromResponseBody($decodedBody);
+        return StatsSnapshot::fromResponseBody($this->fetchDecodedBody(self::STATS_SPEC_PATH));
     }
 
     public function reboot(): void
     {
         $this->sendValidated('POST', self::REBOOT_SPEC_PATH);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fetchDecodedBody(string $specPath): array
+    {
+        $responseBody = $this->requestValidated('GET', $specPath);
+        $decodedBody = json_decode($responseBody, true);
+
+        if (!\is_array($decodedBody)) {
+            throw InvalidPayloadException::fromUnreadableDeviceResponse($specPath, $responseBody);
+        }
+
+        /** @var array<string, mixed> $decodedBody */
+        return $decodedBody;
     }
 
     /**

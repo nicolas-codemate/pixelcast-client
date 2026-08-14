@@ -38,13 +38,7 @@ final class SettingsPayloadTest extends TestCase
     {
         $settings = SettingsPayload::create(defaultDurationMilliseconds: 5000);
 
-        $payload = $settings->toArray();
-
-        self::assertSame(['defaultDuration' => 5000], $payload);
-        self::assertArrayNotHasKey('brightness', $payload);
-        self::assertArrayNotHasKey('autoRotate', $payload);
-        self::assertArrayNotHasKey('weatherDuration', $payload);
-        self::assertArrayNotHasKey('ntp', $payload);
+        self::assertSame(['defaultDuration' => 5000], $settings->toArray());
     }
 
     public function testToArrayKeepsADisabledAutoRotate(): void
