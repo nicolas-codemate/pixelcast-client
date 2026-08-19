@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Provider\GitHub;
 
 use App\Client\CustomApp\CustomAppPayload;
+use App\Client\CustomApp\Zone;
+use App\Client\Text\PolymorphicTextField;
+use App\Client\Text\TextSegment;
 use App\Config\Sync\GitHubSyncConfig;
 use App\Config\SyncsConfigLoader;
 use Psr\Log\LoggerInterface;
@@ -14,7 +17,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Counts the pull requests matching the configured search query and draws that count as one
- * single-zone custom app.
+ * two-zone custom app: the count and its unit on the upper band, what to do with them on the
+ * lower one.
  *
  * Nothing here throws. A missing token, an unreachable endpoint and an answer carrying no count
  * all end as a logged warning and a display the handler reports as a skipped cycle.
@@ -27,6 +31,8 @@ final readonly class GitHubPullRequestProvider implements GitHubPullRequestProvi
     private const string ACCEPTED_MEDIA_TYPE = 'application/vnd.github+json';
     private const string API_VERSION = '2022-11-28';
     private const string TOKEN_ENVIRONMENT_VARIABLE = 'PIXELCAST_GITHUB_TOKEN';
+    private const string SINGLE_PULL_REQUEST_UNIT = ' PR';
+    private const string SEVERAL_PULL_REQUESTS_UNIT = ' PRs';
 
     public function __construct(
         #[Target('github.client')]
@@ -93,12 +99,22 @@ final readonly class GitHubPullRequestProvider implements GitHubPullRequestProvi
     private function buildDisplay(int $matchingPullRequestCount, GitHubSyncConfig $gitHubSyncGroup): PullRequestCountDisplay
     {
         try {
-            $customApp = CustomAppPayload::createSingleZone(
+            // Two zones rather than a text and its label: a label sits against the line above it,
+            // where a second band is drawn clear of the first.
+            $customApp = CustomAppPayload::createMultiZone(
                 name: self::CUSTOM_APP_NAME,
-                text: (string) $matchingPullRequestCount,
-                iconName: $gitHubSyncGroup->iconName,
-                label: $gitHubSyncGroup->label,
-                color: $gitHubSyncGroup->color,
+                zones: [
+                    Zone::create(
+                        text: PolymorphicTextField::fromSegments(
+                            TextSegment::create((string) $matchingPullRequestCount, PullRequestCountColors::countColorFor($matchingPullRequestCount)),
+                            TextSegment::create(self::pullRequestUnitFor($matchingPullRequestCount), $gitHubSyncGroup->labelColor),
+                        ),
+                        iconName: $gitHubSyncGroup->iconName,
+                    ),
+                    Zone::create(
+                        text: PolymorphicTextField::fromColoredText($gitHubSyncGroup->label, $gitHubSyncGroup->labelColor),
+                    ),
+                ],
                 staleAfterInSeconds: $gitHubSyncGroup->staleDeclaration->staleAfterInSeconds,
                 staleBehavior: $gitHubSyncGroup->staleDeclaration->staleBehavior,
             );
@@ -109,5 +125,10 @@ final readonly class GitHubPullRequestProvider implements GitHubPullRequestProvi
         }
 
         return PullRequestCountDisplay::showsCount($customApp);
+    }
+
+    private static function pullRequestUnitFor(int $matchingPullRequestCount): string
+    {
+        return 1 === $matchingPullRequestCount ? self::SINGLE_PULL_REQUEST_UNIT : self::SEVERAL_PULL_REQUESTS_UNIT;
     }
 }

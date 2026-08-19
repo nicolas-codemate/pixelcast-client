@@ -46,14 +46,14 @@ final class GitHubSyncConfigTest extends TestCase
         $gitHubSync = GitHubSyncConfig::fromOptions(self::validOptions());
 
         self::assertSame('github', $gitHubSync->iconName);
-        self::assertSame('#8957E5', $gitHubSync->color->hexCode);
+        self::assertSame('#7C9CB0', $gitHubSync->labelColor->hexCode);
     }
 
     public function testADeclaredColourIsNormalisedToItsUppercaseHexCode(): void
     {
         $gitHubSync = GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['color' => '#8957e5']));
 
-        self::assertSame('#8957E5', $gitHubSync->color->hexCode);
+        self::assertSame('#8957E5', $gitHubSync->labelColor->hexCode);
     }
 
     public function testAColourThatIsNotAHexCodeNamesItsFullPath(): void

@@ -19,7 +19,12 @@ use App\Message\SyncMessage;
 final readonly class GitHubSyncConfig implements SyncGroupConfig
 {
     private const string DEFAULT_ICON_NAME = 'github';
-    private const string DEFAULT_COLOR_HEX_CODE = '#8957E5';
+
+    /**
+     * A tint that stays out of the green, yellow and red the count itself is drawn in, so that the
+     * label under the number is never read as a level.
+     */
+    private const string DEFAULT_LABEL_COLOR_HEX_CODE = '#7C9CB0';
 
     public function __construct(
         public bool $enabled,
@@ -29,7 +34,7 @@ final readonly class GitHubSyncConfig implements SyncGroupConfig
         public string $query,
         public string $label,
         public string $iconName,
-        public Color $color,
+        public Color $labelColor,
     ) {
     }
 
@@ -53,7 +58,7 @@ final readonly class GitHubSyncConfig implements SyncGroupConfig
             query: SyncOptionReader::requireString($options, 'query', $optionsPath),
             label: SyncOptionReader::requireString($options, 'label', $optionsPath),
             iconName: SyncOptionReader::optionalString($options, 'icon', $optionsPath) ?? self::DEFAULT_ICON_NAME,
-            color: SyncOptionReader::optionalColor($options, 'color', $optionsPath) ?? Color::fromHexCode(self::DEFAULT_COLOR_HEX_CODE),
+            labelColor: SyncOptionReader::optionalColor($options, 'color', $optionsPath) ?? Color::fromHexCode(self::DEFAULT_LABEL_COLOR_HEX_CODE),
         );
     }
 

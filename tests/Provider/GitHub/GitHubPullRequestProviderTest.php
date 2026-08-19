@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Provider\GitHub;
 
+use App\Client\CustomApp\CustomAppPayload;
 use App\Provider\GitHub\GitHubPullRequestProvider;
 use App\Scenario\Validation\OutboundOpenApiValidatorFactory;
 use App\Scenario\Validation\OutboundPayloadValidator;
@@ -22,8 +23,10 @@ final class GitHubPullRequestProviderTest extends TestCase
     private const string CUSTOM_LOOK_CONFIG_FIXTURE = 'tests/Config/Fixtures/syncs-github-custom-look.yaml';
     private const string DEVICE_BASE_URL = 'http://simulator:8080/api';
     private const string TOKEN = 'ghp-test-token';
+    private const int COUNT_ZONE = 0;
+    private const int LABEL_ZONE = 1;
 
-    public function testANonZeroCountIsDrawnAsTheSingleZoneApp(): void
+    public function testANonZeroCountIsDrawnAsTheTwoZoneApp(): void
     {
         $display = $this->buildProvider(self::searchClient([self::jsonResponse(['total_count' => 3])]))->fetchPullRequestCountDisplay();
 
@@ -32,10 +35,15 @@ final class GitHubPullRequestProviderTest extends TestCase
         self::assertSame('github', $display->customAppToPush->name);
         self::assertSame(
             [
-                'text' => '3',
-                'icon' => 'github',
-                'label' => 'A relire',
-                'color' => '#8957E5',
+                'zones' => [
+                    [
+                        'text' => [['t' => '3', 'c' => '#FFC107'], ['t' => ' PRs', 'c' => '#7C9CB0']],
+                        'icon' => 'github',
+                    ],
+                    [
+                        'text' => [['t' => 'To Review', 'c' => '#7C9CB0']],
+                    ],
+                ],
                 'staleAfter' => 900,
                 'staleBehavior' => 'hide',
             ],
@@ -133,9 +141,53 @@ final class GitHubPullRequestProviderTest extends TestCase
         )->fetchPullRequestCountDisplay();
 
         self::assertNotNull($display->customAppToPush);
-        $customAppBody = $display->customAppToPush->toArray();
-        self::assertSame('bell', $customAppBody['icon'] ?? null);
-        self::assertSame('#00D4FF', $customAppBody['color'] ?? null);
+        self::assertSame('bell', self::zone($display->customAppToPush, self::COUNT_ZONE)['icon'] ?? null);
+        self::assertSame([['t' => 'To Review', 'c' => '#00D4FF']], self::zone($display->customAppToPush, self::LABEL_ZONE)['text'] ?? null);
+    }
+
+    /**
+     * @return iterable<string, array{int, string}>
+     */
+    public static function provideCountsAndTheTintTheyAreDrawnIn(): iterable
+    {
+        yield 'one review waiting is green' => [1, '#4CAF50'];
+        yield 'the last green count' => [2, '#4CAF50'];
+        yield 'the first yellow count' => [3, '#FFC107'];
+        yield 'the last yellow count' => [5, '#FFC107'];
+        yield 'the first red count' => [6, '#F44336'];
+    }
+
+    #[DataProvider('provideCountsAndTheTintTheyAreDrawnIn')]
+    public function testTheCountIsDrawnInTheTintOfHowManyReviewsWait(int $waitingReviewCount, string $expectedHexCode): void
+    {
+        $display = $this->buildProvider(self::searchClient([self::jsonResponse(['total_count' => $waitingReviewCount])]))->fetchPullRequestCountDisplay();
+
+        self::assertNotNull($display->customAppToPush);
+        self::assertSame(
+            ['t' => (string) $waitingReviewCount, 'c' => $expectedHexCode],
+            self::countZoneSegments($display->customAppToPush)[0] ?? null,
+        );
+    }
+
+    /**
+     * @return iterable<string, array{int, string}>
+     */
+    public static function provideCountsAndTheUnitTheyAreFollowedBy(): iterable
+    {
+        yield 'a lone pull request' => [1, ' PR'];
+        yield 'two pull requests' => [2, ' PRs'];
+    }
+
+    #[DataProvider('provideCountsAndTheUnitTheyAreFollowedBy')]
+    public function testTheCountIsFollowedByItsUnitInTheTintOfTheLabel(int $waitingReviewCount, string $expectedUnit): void
+    {
+        $display = $this->buildProvider(self::searchClient([self::jsonResponse(['total_count' => $waitingReviewCount])]))->fetchPullRequestCountDisplay();
+
+        self::assertNotNull($display->customAppToPush);
+        self::assertSame(
+            ['t' => $expectedUnit, 'c' => '#7C9CB0'],
+            self::countZoneSegments($display->customAppToPush)[1] ?? null,
+        );
     }
 
     public function testTheProducedPayloadIsAcceptedByTheDeviceSpecification(): void
@@ -151,6 +203,25 @@ final class GitHubPullRequestProviderTest extends TestCase
         $result = $validator->validateRequest('POST', '/custom', ['name' => $customApp->name], $customApp->toArray());
 
         self::assertTrue($result->valid, $result->errorMessage ?? '');
+    }
+
+    /**
+     * @return array{text?: string|list<array{t: string, c: string}>, icon?: string, label?: string|list<array{t: string, c: string}>, color?: string}
+     */
+    private static function zone(CustomAppPayload $customApp, int $zoneIndex): array
+    {
+        return $customApp->toArray()['zones'][$zoneIndex] ?? [];
+    }
+
+    /**
+     * @return list<array{t: string, c: string}>
+     */
+    private static function countZoneSegments(CustomAppPayload $customApp): array
+    {
+        $segments = self::zone($customApp, self::COUNT_ZONE)['text'] ?? [];
+        self::assertIsArray($segments);
+
+        return $segments;
     }
 
     private function buildProvider(
