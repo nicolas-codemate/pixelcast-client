@@ -303,7 +303,7 @@
             }
         },
         "githubSync": {
-            "description": "Pull requests waiting for a review, counted by one search query and pushed as one single-zone custom app. The token is read from PIXELCAST_GITHUB_TOKEN, never from this file.",
+            "description": "Pull requests waiting for a review, counted by one search query and pushed as one two-zone custom app. The token is read from PIXELCAST_GITHUB_TOKEN, never from this file.",
             "type": "object",
             "required": [
                 "enabled",
@@ -328,7 +328,7 @@
                     "minLength": 1
                 },
                 "label": {
-                    "description": "Text drawn under the count, 31 characters at most.",
+                    "description": "Text filling the lower band of the app, 31 characters at most. The band above already carries the count and its unit, \"3 PRs\" or \"1 PR\", so this one says what is to be done with them.",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 31
@@ -341,7 +341,7 @@
                     ]
                 },
                 "color": {
-                    "description": "Colour of the count, as a hex code. Without it the count is drawn in the GitHub purple #8957E5.",
+                    "description": "Colour of the label drawn under the count, as a hex code. Without it the label is drawn in the grey #7C9CB0. The count itself is not configurable: it is tinted by how many reviews wait, green up to 2, yellow up to 5, red beyond.",
                     "type": [
                         "string",
                         "null"

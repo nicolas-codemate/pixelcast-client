@@ -5,5 +5,5 @@ syncs:
         enabled: true
         interval: '5 minutes'
         query: 'is:open is:pr review-requested:@me'
-        label: 'A relire'
+        label: 'To Review'
         staleBehavior: hide

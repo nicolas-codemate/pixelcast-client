@@ -428,17 +428,44 @@ re-authorise with `app:claude:login`.
 #### The `github` group
 
 The `github` group counts the pull requests whose review is asked of one account
-and draws that count as a single-zone custom app named `github`: the number, a
-label under it, and nothing else. The count is the `total_count` of one search
+and draws that count as a two-zone custom app named `github`: the icon and the
+number on the upper band, what to do with them on the lower one. The count is the
+`total_count` of one search
 query, `query` in the file, sent to `GET /search/issues` as it stands — which is
 what makes it adjustable without a redeployment, and what makes a malformed
 query visible only when the group runs. Reviews asked of a team are not counted:
 `team-review-requested:` is a second query the group does not run. The app name
 is fixed, so a second GitHub group would overwrite the first.
 
-`label` is required and drawn under the count, 31 characters at most. `icon` and
-`color` are optional and default to the `github` icon and the GitHub purple
-`#8957E5`, both applied when the configuration loads rather than written in the file.
+The upper band reads `3 PRs`, or `1 PR` on the single one, the unit being written by
+the group rather than configured — a plural rule is not something a string in the
+file can hold. It is abbreviated because 64 pixels do not hold `3 Pull Requests`
+beside a 16-pixel icon, and a line the firmware has to scroll is harder to read at a
+glance than a short one. `label` is what fills the lower band, required, 31 characters
+at most, and says what is to be done with the count rather than counting it again.
+`icon` and `color` are optional and default to the `github` icon and the grey
+`#7C9CB0`, both applied when the configuration loads rather than written in the file.
+
+Two zones rather than one text and its label: the firmware draws a label against the
+line above it, and no key of the payload moves it away, where two bands are laid out
+clear of each other. That is the whole reason this group does not use the simpler
+single-zone layout the other custom apps use.
+
+Nothing shares one app colour: the count, its unit and the lower band carry a colour
+each, so that the number never reads as the same block of ink as the words around it.
+`color` tints the lower band and the unit; the count is tinted by how many reviews wait —
+green up to two, yellow up to five, red beyond — from the same three hex codes the
+Claude gauge draws its bar in, which keeps one meaning of green across the rotation.
+That ladder lives in `PullRequestCountColors` and is not configurable: a threshold
+moved per device would make the colour say nothing.
+
+The `github` icon has to exist on the device filesystem, which does not ship it. The
+16x16 PNG this repository carries in `assets/icons/github.png` is uploaded once with
+`POST /api/icons?name=github`, the device answering 404 on the icon name until then
+and drawing the count with no icon beside it. The mark is the octocat of the GitHub
+logo, the white shape the black disc is cut around, kept at 16x16 rather than the 8x8
+of the other icons: at eight pixels the ears and the tail are the first things to go
+and what is left reads as any small creature.
 
 Nothing left to review leaves no app on the screen at all, rather than an app
 showing a zero: a count of zero deletes the app through

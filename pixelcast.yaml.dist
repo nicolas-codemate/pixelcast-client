@@ -243,16 +243,19 @@ syncs:
         # Reviews asked of a team are not counted: they need a second query this group does not run.
         query: 'is:open is:pr review-requested:@me'
 
-        # Text drawn under the count, 31 characters at most.
-        label: 'A relire'
+        # Text filling the lower band of the app, 31 characters at most. The band above already
+        # carries the count and its unit, "3 PRs" or "1 PR", so this one says what is to be done
+        # with them.
+        label: 'To Review'
 
         # Icon drawn next to the count, by the name the device knows it under. Without this key the
         # app shows the github icon.
         # icon: github
 
-        # Colour of the count, as a hex code. Without this key the count is drawn in the GitHub
-        # purple #8957E5.
-        # color: '#8957E5'
+        # Colour of the label drawn under the count, as a hex code. Without this key the label is
+        # drawn in the grey #7C9CB0. The colour of the count is not configurable: it says how many
+        # reviews wait, green up to 2, yellow up to 5, red beyond.
+        # color: '#7C9CB0'
 
         # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
         # 604800 (7 days) at most. Without this key the value is three times the interval, the same
