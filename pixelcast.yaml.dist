@@ -114,6 +114,10 @@ syncs:
         # symbol: identifier of the asset for this provider, a coin id for CoinGecko.
         # currency: currency the asset price is quoted in.
         # icon: name of the icon shown next to the asset on the device, optional.
+        # lametricId: identifier of the icon in the LaMetric icon database, optional. `make
+        #   icons-seed` downloads that icon onto the device and stores it under the name `icon`
+        #   carries. Without it the icon has to be uploaded by hand with
+        #   `bin/console app:icons:upload <name> <path>`.
         # label: text shown on the top row instead of the text derived from symbol, optional.
         # labelColor: hex color of the label, optional. Without it the label follows the trend color.
         # bottomText: text shown under the price, optional. Here it replaces the 24 hour volume.
@@ -127,6 +131,7 @@ syncs:
             - symbol: bitcoin
               currency: eur
               icon: bitcoin
+              lametricId: 15392
 
     # Stocks, ETFs and indices read from Twelve Data in a single call. Its API key is
     # read from PIXELCAST_TWELVEDATA_API_KEY, never from this file, which rejects any
@@ -153,6 +158,10 @@ syncs:
         # currency: only a fallback here. Twelve Data quotes every asset in the currency of its
         #   exchange and converts nothing, so the currency it reports wins over this value.
         # icon: name of the icon shown next to the asset on the device, optional.
+        # lametricId: identifier of the icon in the LaMetric icon database, optional. `make
+        #   icons-seed` downloads that icon onto the device and stores it under the name `icon`
+        #   carries. Without it the icon has to be uploaded by hand with
+        #   `bin/console app:icons:upload <name> <path>`.
         # label: text shown on the top row instead of the text derived from symbol, optional.
         # labelColor: hex color of the label, optional. Without it the label follows the trend color.
         # bottomText: text shown under the price, optional.
@@ -213,6 +222,10 @@ syncs:
         #   https://www.boursorama.com/recherche/ajax?query=<ISIN>, once, by hand.
         # currency: authoritative here. The response carries no currency at all.
         # icon: name of the icon shown next to the asset on the device, optional.
+        # lametricId: identifier of the icon in the LaMetric icon database, optional. `make
+        #   icons-seed` downloads that icon onto the device and stores it under the name `icon`
+        #   carries. Without it the icon has to be uploaded by hand with
+        #   `bin/console app:icons:upload <name> <path>`.
         # label: text shown on the top row instead of the text derived from symbol, optional.
         # labelColor: hex color of the label, optional. Without it the label follows the trend color.
         # bottomText: text shown under the price, optional.

@@ -80,7 +80,8 @@ final class IconController extends AbstractSimulatorController
         $id = $body['id'] ?? null;
         \assert(\is_int($id));
 
-        $name = 'lametric_'.$id;
+        $requestedName = $body['name'] ?? null;
+        $name = \is_string($requestedName) && '' !== $requestedName ? $requestedName : 'lametric_'.$id;
         $icons->register($name);
 
         return new JsonResponse([

@@ -303,6 +303,21 @@ the next midnight, so it costs thirty calls a month per asset. An asset whose
 midnight price cannot be fetched is logged and skipped for that cycle, and the
 screen keeps what it already shows.
 
+`icon` names the file the device draws beside the price, and that file has to
+exist on the device filesystem: the firmware falls back to a visual nobody chose
+when it does not. `lametricId` maps that name to an identifier in the LaMetric
+icon database, and `make icons-seed` is what fills the filesystem from it. It
+reads every tracker group of `pixelcast.yaml`, enabled or not, lists what the
+device already carries and downloads only what is missing, so a second run has
+nothing left to do; `make icons-seed ARGS="--force"` downloads them again, which
+is how a mapping changed in the file reaches the screen. An item with no
+`lametricId` is reported as skipped rather than failing the run — the LaMetric
+database serves no equivalent for every asset — and its icon is uploaded from a
+local PNG or GIF instead with `bin/console app:icons:upload <name> <path>`, the
+command that also puts the `github` icon on the device. `lametricId` is added to
+`pixelcast.yaml` by hand, that file being the operator's own and git-ignored;
+`pixelcast.yaml.dist` carries the shape.
+
 #### The `claude` group
 
 The `claude` group pushes the four counters of a Claude Code subscription as a
@@ -462,11 +477,11 @@ moved per device would make the colour say nothing.
 
 The `github` icon has to exist on the device filesystem, which does not ship it. The
 16x16 PNG this repository carries in `assets/icons/github.png` is uploaded once with
-`POST /api/icons?name=github`, the device answering 404 on the icon name until then
-and drawing the count with no icon beside it. The mark is the octocat of the GitHub
-logo, the white shape the black disc is cut around, kept at 16x16 rather than the 8x8
-of the other icons: at eight pixels the ears and the tail are the first things to go
-and what is left reads as any small creature.
+`bin/console app:icons:upload github assets/icons/github.png`, the device answering
+404 on the icon name until then and drawing the count with no icon beside it. The
+mark is the octocat of the GitHub logo, the white shape the black disc is cut around,
+kept at 16x16 rather than the 8x8 of the other icons: at eight pixels the ears and the
+tail are the first things to go and what is left reads as any small creature.
 
 Nothing left to review leaves no app on the screen at all, rather than an app
 showing a zero: a count of zero deletes the app through
