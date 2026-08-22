@@ -1,0 +1,26 @@
+# Sample configuration used by IconsSeedCommandTest: icons with and without a LaMetric mapping, in an enabled and a disabled group.
+syncs:
+    coingecko:
+        enabled: true
+        interval: '5 minutes'
+        items:
+            - symbol: bitcoin
+              currency: eur
+              icon: bitcoin
+              lametricId: 15392
+            - symbol: ethereum
+              currency: eur
+              icon: ethereum
+              lametricId: 45056
+            - symbol: solana
+              currency: eur
+              icon: solana
+
+    twelvedata:
+        enabled: false
+        interval: '15 minutes'
+        items:
+            - symbol: AAPL
+              currency: usd
+              icon: stock
+              lametricId: 40160

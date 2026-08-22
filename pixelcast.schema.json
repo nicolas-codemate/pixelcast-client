@@ -538,6 +538,14 @@
                         "null"
                     ]
                 },
+                "lametricId": {
+                    "description": "Identifier of the icon in the LaMetric icon database, used by app:icons:seed to download it onto the device filesystem under the name \"icon\" carries. Without it the icon has to be uploaded by hand with app:icons:upload.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "minimum": 1
+                },
                 "label": {
                     "description": "Text shown on the top row instead of the symbol derived from the provider identifier.",
                     "type": [
