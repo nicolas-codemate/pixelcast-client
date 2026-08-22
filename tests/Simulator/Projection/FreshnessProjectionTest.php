@@ -17,7 +17,7 @@ final class FreshnessProjectionTest extends TestCase
         $pushedAt = new \DateTimeImmutable('2026-08-22T10:00:00+00:00');
         $now = $pushedAt->modify('+42 seconds');
 
-        $freshness = self::project([], $pushedAt, $now);
+        $freshness = self::project([], $now, $pushedAt);
 
         self::assertSame(42, $freshness['age']);
         self::assertFalse($freshness['stale']);
@@ -30,7 +30,7 @@ final class FreshnessProjectionTest extends TestCase
         $pushedAt = new \DateTimeImmutable('2026-08-22T10:00:00+00:00');
         $now = $pushedAt->modify('+1 hour +1 second');
 
-        $freshness = self::project([], $pushedAt, $now);
+        $freshness = self::project([], $now, $pushedAt);
 
         self::assertSame(3601, $freshness['age']);
         self::assertTrue($freshness['stale']);
@@ -41,7 +41,7 @@ final class FreshnessProjectionTest extends TestCase
         $pushedAt = new \DateTimeImmutable('2026-08-22T10:00:00+00:00');
         $now = $pushedAt->modify('+7 days');
 
-        $freshness = self::project(['staleAfter' => 0], $pushedAt, $now);
+        $freshness = self::project(['staleAfter' => 0], $now, $pushedAt);
 
         self::assertSame(0, $freshness['staleAfter']);
         self::assertFalse($freshness['stale']);
@@ -58,7 +58,7 @@ final class FreshnessProjectionTest extends TestCase
 
     public function testAPayloadWithNoRecordedInstantIsFreshAndAgeless(): void
     {
-        $freshness = self::project([], null, new \DateTimeImmutable('2026-08-22T10:00:00+00:00'));
+        $freshness = self::project([], new \DateTimeImmutable('2026-08-22T10:00:00+00:00'), null);
 
         self::assertSame(0, $freshness['age']);
         self::assertFalse($freshness['stale']);
@@ -69,12 +69,12 @@ final class FreshnessProjectionTest extends TestCase
      *
      * @return array{age: int, stale: bool, staleAfter: int, staleBehavior: string}
      */
-    private static function project(array $payload, ?\DateTimeImmutable $pushedAt, \DateTimeImmutable $now): array
+    private static function project(array $payload, \DateTimeImmutable $now, ?\DateTimeImmutable $pushedAt): array
     {
         return FreshnessProjection::of(
             $payload,
-            $pushedAt,
             $now,
+            $pushedAt,
             self::DEFAULT_STALE_AFTER_SECONDS,
             self::DEFAULT_STALE_BEHAVIOR,
         );

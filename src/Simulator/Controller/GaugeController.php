@@ -88,8 +88,8 @@ final class GaugeController extends AbstractSimulatorController
 
         return $summary + FreshnessProjection::of(
             $payload,
-            $pushedAt,
             $now,
+            $pushedAt,
             self::DEFAULT_STALE_AFTER_SECONDS,
             self::DEFAULT_STALE_BEHAVIOR,
         );
@@ -114,18 +114,6 @@ final class GaugeController extends AbstractSimulatorController
             return $coloredString;
         }
 
-        $segmentTexts = [];
-        foreach ($title as $segment) {
-            if (!\is_array($segment)) {
-                continue;
-            }
-
-            $segmentText = $segment['t'] ?? null;
-            if (\is_string($segmentText)) {
-                $segmentTexts[] = $segmentText;
-            }
-        }
-
-        return implode('', $segmentTexts);
+        return implode('', array_filter(array_column($title, 't'), \is_string(...)));
     }
 }

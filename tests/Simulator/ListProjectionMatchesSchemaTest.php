@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Simulator;
 
-use App\Simulator\Controller\CustomAppController;
-use App\Simulator\Controller\GaugeController;
-use App\Simulator\Controller\TrackerController;
 use App\Tests\Factory\SchemaPropertyReader;
-use Symfony\Component\HttpFoundation\Response;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * The OpenAPI validator checks the type of what a list endpoint projects, never whether a property
@@ -17,116 +16,222 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 {
-    /** AppResponse declares zones as "Present only when zoneCount >= 2", so a single-zone push cannot carry it. */
-    private const array PRESENT_ONLY_IN_A_MULTI_ZONE_APP = ['zones'];
+    private const string SPEC_FILE = 'sync/openapi.yaml';
+    private const string CONTRACT_REFERENCE_DIRECTORY = 'schemas/';
 
-    public function testTheTrackerListItemCarriesExactlyTheTrackerSummaryProperties(): void
+    /**
+     * Endpoints returning a list of objects whose items no projection test pins to the contract.
+     * Each one is recorded as a follow-up rather than fixed here.
+     */
+    private const array LISTS_NO_PROJECTION_TEST_COVERS = [
+        // Queue entries are listed raw: they carry an invented enqueuedAt and never displayed or current.
+        '/notify/list',
+        // GET /gauge echoes the rows it was pushed, so nothing holds them to the row schema.
+        '/gauge',
+        // GET /weather echoes the forecast days it was pushed, so nothing holds them to ForecastDay.
+        '/weather',
+    ];
+
+    /**
+     * @return iterable<string, array{string, string, string, string, \Closure(self): mixed, list<string>}>
+     */
+    public static function coveredListEndpointProvider(): iterable
     {
-        $this->postJson('/api/tracker?name=BTC', [
-            'symbol' => 'BTC',
-            'currency' => 'USD',
-            'value' => 98452.30,
-            'change' => 2.14,
-        ]);
+        yield '/trackers' => [
+            '/trackers',
+            'trackers',
+            'tracker.yaml',
+            'TrackerListResponse',
+            static fn (self $test) => $test->postJson('/api/tracker?name=BTC', self::trackerPushPayload()),
+            [],
+        ];
 
-        $declaredProperties = SchemaPropertyReader::deviceContractPropertiesOf('tracker.yaml', 'TrackerSummary');
+        yield '/gauges' => [
+            '/gauges',
+            'gauges',
+            'gauge.yaml',
+            'GaugeListResponse',
+            static fn (self $test) => $test->postJson('/api/gauge?name=disks', [
+                'title' => 'Disks',
+                'rows' => [['label' => 'root', 'percent' => 42]],
+            ]),
+            [],
+        ];
 
-        self::assertSame(
-            self::sortedKeysOf($declaredProperties),
-            self::sortedKeysOf($this->firstItemOfList('/api/trackers', 'trackers')),
-        );
+        yield '/apps' => [
+            '/apps',
+            'apps',
+            'custom-app.yaml',
+            'AppListResponse',
+            static fn (self $test) => $test->postJson('/api/custom?name=foo', [
+                ...self::customAppPushPayload(),
+                'label' => 'HELLO',
+                'lifetime' => 0,
+            ]),
+            // AppResponse declares zones as "Present only when zoneCount >= 2".
+            ['zones'],
+        ];
+
+        yield '/icons' => [
+            '/icons',
+            'icons',
+            'icon.yaml',
+            'IconListResponse',
+            static fn (self $test) => $test->uploadIcon('bitcoin'),
+            [],
+        ];
     }
 
-    public function testTheGaugeListItemCarriesExactlyThePropertiesGaugeListResponseDeclares(): void
-    {
-        $this->postJson('/api/gauge?name=disks', [
-            'title' => 'Disks',
-            'rows' => [['label' => 'root', 'percent' => 42]],
-        ]);
+    /**
+     * @param \Closure(self): mixed $seedTheList
+     * @param list<string> $propertiesASinglePushCannotCarry
+     */
+    #[DataProvider('coveredListEndpointProvider')]
+    public function testTheListItemCarriesExactlyThePropertiesTheContractDeclares(
+        string $specPath,
+        string $listKey,
+        string $contractFileName,
+        string $listResponseDefinition,
+        \Closure $seedTheList,
+        array $propertiesASinglePushCannotCarry,
+    ): void {
+        $seedTheList($this);
 
-        $gaugeListProperties = SchemaPropertyReader::deviceContractPropertiesOf('gauge.yaml', 'GaugeListResponse');
-        $declaredProperties = SchemaPropertyReader::arrayItemPropertiesOf($gaugeListProperties['gauges']);
-
-        self::assertSame(
-            self::sortedKeysOf($declaredProperties),
-            self::sortedKeysOf($this->firstItemOfList('/api/gauges', 'gauges')),
-        );
-    }
-
-    public function testTheAppListItemCarriesExactlyTheAppResponseProperties(): void
-    {
-        $this->postJson('/api/custom?name=foo', [
-            'text' => 'hello',
-            'icon' => 'smiley',
-            'label' => 'HELLO',
-            'color' => '#FF8800',
-            'duration' => 10_000,
-            'lifetime' => 0,
-        ]);
-
-        $declaredProperties = SchemaPropertyReader::deviceContractPropertiesOf('custom-app.yaml', 'AppResponse');
-        foreach (self::PRESENT_ONLY_IN_A_MULTI_ZONE_APP as $multiZoneOnlyProperty) {
-            unset($declaredProperties[$multiZoneOnlyProperty]);
+        $declaredProperties = self::declaredItemPropertiesOf($contractFileName, $listResponseDefinition, $listKey);
+        foreach ($propertiesASinglePushCannotCarry as $absentProperty) {
+            unset($declaredProperties[$absentProperty]);
         }
 
         self::assertSame(
             self::sortedKeysOf($declaredProperties),
-            self::sortedKeysOf($this->firstItemOfList('/api/apps', 'apps')),
+            self::sortedKeysOf($this->firstItemOfList('/api'.$specPath, $listKey)),
         );
     }
 
-    public function testTheProjectedFreshnessDefaultsAreTheOnesTheRequestSchemasDeclare(): void
+    public function testEveryListEndpointOfTheSpecIsCoveredOrNamedAsAKnownGap(): void
     {
-        $trackerRequestProperties = SchemaPropertyReader::deviceContractPropertiesOf('tracker.yaml', 'TrackerUpdateRequest');
-        self::assertSame(
-            TrackerController::DEFAULT_STALE_AFTER_SECONDS,
-            SchemaPropertyReader::declaredDefaultOf($trackerRequestProperties['staleAfter']),
-        );
-        self::assertSame(
-            TrackerController::DEFAULT_STALE_BEHAVIOR,
-            SchemaPropertyReader::declaredDefaultOf($trackerRequestProperties['staleBehavior']),
-        );
+        $coveredPaths = [];
+        foreach (self::coveredListEndpointProvider() as [$specPath]) {
+            $coveredPaths[] = $specPath;
+        }
 
-        $gaugeRequestProperties = SchemaPropertyReader::deviceContractPropertiesOf('gauge.yaml', 'GaugeUpdateRequest');
-        self::assertSame(
-            GaugeController::DEFAULT_STALE_AFTER_SECONDS,
-            SchemaPropertyReader::declaredDefaultOf($gaugeRequestProperties['staleAfter']),
-        );
-        self::assertSame(
-            GaugeController::DEFAULT_STALE_BEHAVIOR,
-            SchemaPropertyReader::declaredDefaultOf($gaugeRequestProperties['staleBehavior']),
-        );
+        $knownPaths = [...$coveredPaths, ...self::LISTS_NO_PROJECTION_TEST_COVERS];
+        sort($knownPaths);
 
-        $customAppRequestProperties = SchemaPropertyReader::deviceContractPropertiesOf('custom-app.yaml', 'CustomAppRequest');
-        self::assertSame(
-            CustomAppController::DEFAULT_STALE_AFTER_SECONDS,
-            SchemaPropertyReader::declaredDefaultOf($customAppRequestProperties['staleAfter']),
-        );
-        self::assertSame(
-            CustomAppController::DEFAULT_STALE_BEHAVIOR,
-            SchemaPropertyReader::declaredDefaultOf($customAppRequestProperties['staleBehavior']),
+        $listReturningPaths = self::listReturningPathsOfTheSpec();
+        sort($listReturningPaths);
+
+        self::assertSame($knownPaths, $listReturningPaths);
+    }
+
+    /**
+     * Every GET whose 200 response declares a property holding an array of objects: that item
+     * shape is what a projection can silently fall behind.
+     *
+     * @return list<string>
+     */
+    private static function listReturningPathsOfTheSpec(): array
+    {
+        $spec = Yaml::parseFile(SyncsConfigLoaderFactory::projectFilePath(self::SPEC_FILE));
+        self::assertIsArray($spec);
+        self::assertIsArray($spec['paths']);
+
+        $listReturningPaths = [];
+        foreach ($spec['paths'] as $specPath => $operations) {
+            $responseReference = self::nestedValue($operations, ['get', 'responses', 200, 'content', 'application/json', 'schema', '$ref']);
+            if (!\is_string($responseReference)) {
+                continue;
+            }
+
+            [$contractFileName, $definitionName] = self::splitContractReference($responseReference);
+            foreach (SchemaPropertyReader::deviceContractPropertiesOf($contractFileName, $definitionName) as $property) {
+                if (null !== self::itemDefinitionOf($contractFileName, $property)) {
+                    $listReturningPaths[] = (string) $specPath;
+                    break;
+                }
+            }
+        }
+
+        return $listReturningPaths;
+    }
+
+    /**
+     * @return array<string, array<mixed>>
+     */
+    private static function declaredItemPropertiesOf(string $contractFileName, string $listResponseDefinition, string $listKey): array
+    {
+        $listProperties = SchemaPropertyReader::deviceContractPropertiesOf($contractFileName, $listResponseDefinition);
+        self::assertArrayHasKey($listKey, $listProperties);
+
+        $itemProperties = self::itemDefinitionOf($contractFileName, $listProperties[$listKey]);
+        self::assertIsArray($itemProperties);
+
+        return $itemProperties;
+    }
+
+    /**
+     * A list item is either spelled out under the array field or pointed at by a same-file
+     * reference; anything else is not an array of objects.
+     *
+     * @param array<mixed> $fieldSchema
+     *
+     * @return array<string, array<mixed>>|null
+     */
+    private static function itemDefinitionOf(string $contractFileName, array $fieldSchema): ?array
+    {
+        if ('array' !== ($fieldSchema['type'] ?? null) || !\is_array($fieldSchema['items'] ?? null)) {
+            return null;
+        }
+
+        $itemSchema = $fieldSchema['items'];
+
+        if (\is_array($itemSchema['properties'] ?? null)) {
+            return SchemaPropertyReader::arrayItemPropertiesOf($fieldSchema);
+        }
+
+        $itemReference = $itemSchema['$ref'] ?? null;
+        if (!\is_string($itemReference)) {
+            return null;
+        }
+
+        [$referencedFileName, $definitionName] = self::splitContractReference($itemReference);
+
+        return SchemaPropertyReader::deviceContractPropertiesOf(
+            '' === $referencedFileName ? $contractFileName : $referencedFileName,
+            $definitionName,
         );
     }
 
     /**
-     * @return array<mixed>
+     * @param list<string|int> $keys
      */
-    private function firstItemOfList(string $path, string $listKey): array
+    private static function nestedValue(mixed $value, array $keys): mixed
     {
-        $this->client->request('GET', $path);
-        self::assertSame(
-            Response::HTTP_OK,
-            $this->client->getResponse()->getStatusCode(),
-            (string) $this->client->getResponse()->getContent(),
-        );
+        foreach ($keys as $key) {
+            if (!\is_array($value) || !\array_key_exists($key, $value)) {
+                return null;
+            }
 
-        $listedItems = $this->jsonResponse()[$listKey] ?? null;
-        self::assertIsArray($listedItems);
+            $value = $value[$key];
+        }
 
-        $firstItem = $listedItems[0] ?? null;
-        self::assertIsArray($firstItem);
+        return $value;
+    }
 
-        return $firstItem;
+    /**
+     * @return array{string, string}
+     */
+    private static function splitContractReference(string $reference): array
+    {
+        $separatorPosition = strpos($reference, '#/');
+        self::assertIsInt($separatorPosition);
+
+        $fileName = substr($reference, 0, $separatorPosition);
+
+        return [
+            str_starts_with($fileName, self::CONTRACT_REFERENCE_DIRECTORY) ? substr($fileName, \strlen(self::CONTRACT_REFERENCE_DIRECTORY)) : $fileName,
+            substr($reference, $separatorPosition + 2),
+        ];
     }
 
     /**
@@ -136,10 +241,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
      */
     private static function sortedKeysOf(array $values): array
     {
-        $keys = [];
-        foreach (array_keys($values) as $key) {
-            $keys[] = (string) $key;
-        }
+        $keys = array_map(strval(...), array_keys($values));
         sort($keys);
 
         return $keys;

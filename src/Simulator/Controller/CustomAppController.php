@@ -94,14 +94,17 @@ final class CustomAppController extends AbstractSimulatorController
 
         $freshness = FreshnessProjection::of(
             $payload,
-            $pushedAt,
             $now,
+            $pushedAt,
             self::DEFAULT_STALE_AFTER_SECONDS,
             self::DEFAULT_STALE_BEHAVIOR,
         );
-        // AppResponse says whether the app is stale, never how old it is.
-        unset($freshness['age']);
 
-        return $projection + $freshness;
+        // AppResponse says whether the app is stale, never how old it is.
+        return $projection + [
+            'stale' => $freshness['stale'],
+            'staleAfter' => $freshness['staleAfter'],
+            'staleBehavior' => $freshness['staleBehavior'],
+        ];
     }
 }

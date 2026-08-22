@@ -59,8 +59,6 @@ services:
 
     League\OpenAPIValidation\PSR7\ResponseValidator:
         factory: ['@App\Simulator\Validation\OpenApiValidatorFactory', 'createResponseValidator']
-        arguments:
-            $requestValidator: '@League\OpenAPIValidation\PSR7\ServerRequestValidator'
 
     App\Scenario\Validation\OutboundOpenApiValidatorFactory: ~
 

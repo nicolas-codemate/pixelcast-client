@@ -15,10 +15,12 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
+use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 #[AsEventListener(event: KernelEvents::CONTROLLER, method: 'validateRequest')]
+#[AsEventListener(event: KernelEvents::EXCEPTION, method: 'forgetMatchedOperation')]
 #[AsEventListener(event: KernelEvents::RESPONSE, method: 'validateResponse')]
 final class ValidateAgainstSpecListener
 {
@@ -70,13 +72,20 @@ final class ValidateAgainstSpecListener
             $errorMessage = $validationResult->errorMessage ?? 'unknown error';
             $event->setController(static fn (): JsonResponse => new JsonResponse(
                 ['error' => $errorMessage],
-                400,
+                Response::HTTP_BAD_REQUEST,
             ));
 
             return;
         }
 
         $request->attributes->set(self::MATCHED_OPERATION_ATTRIBUTE, $outcome->matchedOperation);
+    }
+
+    public function forgetMatchedOperation(ExceptionEvent $event): void
+    {
+        // The error response still travels through the response pass, and the spec declares no
+        // error operation, so validating it would replace the thrown error with a schema complaint.
+        $event->getRequest()->attributes->remove(self::MATCHED_OPERATION_ATTRIBUTE);
     }
 
     public function validateResponse(ResponseEvent $event): void

@@ -72,7 +72,7 @@ final class TrackerState implements ResettableState
         return [
             'trackers' => $this->trackers,
             'count' => \count($this->trackers),
-            'trackersPushedAt' => $this->pushedAtAsAtomStrings(),
+            'trackersPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
         ];
     }
 
@@ -83,7 +83,7 @@ final class TrackerState implements ResettableState
     {
         return [
             'trackers' => $this->trackers,
-            'trackersPushedAt' => $this->pushedAtAsAtomStrings(),
+            'trackersPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
         ];
     }
 
@@ -99,16 +99,5 @@ final class TrackerState implements ResettableState
     public function domainKey(): string
     {
         return 'trackers';
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function pushedAtAsAtomStrings(): array
-    {
-        return array_map(
-            static fn (\DateTimeImmutable $pushedAt): string => $pushedAt->format(\DateTimeInterface::ATOM),
-            $this->pushedAtByName,
-        );
     }
 }

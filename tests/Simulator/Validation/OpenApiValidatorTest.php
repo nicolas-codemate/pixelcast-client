@@ -6,6 +6,7 @@ namespace App\Tests\Simulator\Validation;
 
 use App\Simulator\Validation\OpenApiValidator;
 use App\Simulator\Validation\OpenApiValidatorFactory;
+use App\Tests\Factory\SyncsConfigLoaderFactory;
 use League\OpenAPIValidation\PSR7\OperationAddress;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
@@ -13,11 +14,15 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 final class OpenApiValidatorTest extends TestCase
 {
-    private const string SPEC_PATH = __DIR__.'/../../../sync/openapi.yaml';
+    private const string SPEC_FILE = 'sync/openapi.yaml';
+
+    // Parsing the spec and the schema files it references costs about 140 ms, so it is done
+    // once for the whole class rather than once per test method.
+    private static ?OpenApiValidator $validator = null;
 
     public function testTrackerListMatchingItsSchemaIsAccepted(): void
     {
-        $validationResult = self::createValidator()->validateResponse(
+        $validationResult = self::validator()->validateResponse(
             new OperationAddress('/trackers', 'get'),
             new JsonResponse(['trackers' => [self::trackerSummary()], 'count' => 1]),
         );
@@ -27,7 +32,7 @@ final class OpenApiValidatorTest extends TestCase
 
     public function testTrackerCountSentAsAStringIsRejected(): void
     {
-        $validationResult = self::createValidator()->validateResponse(
+        $validationResult = self::validator()->validateResponse(
             new OperationAddress('/trackers', 'get'),
             new JsonResponse(['trackers' => [self::trackerSummary()], 'count' => '1']),
         );
@@ -54,12 +59,16 @@ final class OpenApiValidatorTest extends TestCase
         ];
     }
 
-    private static function createValidator(): OpenApiValidator
+    private static function validator(): OpenApiValidator
     {
-        $factory = new OpenApiValidatorFactory();
-        $requestValidator = $factory->create(self::SPEC_PATH);
+        if (null !== self::$validator) {
+            return self::$validator;
+        }
 
-        return new OpenApiValidator(
+        $factory = new OpenApiValidatorFactory();
+        $requestValidator = $factory->create(SyncsConfigLoaderFactory::projectFilePath(self::SPEC_FILE));
+
+        return self::$validator = new OpenApiValidator(
             $requestValidator,
             $factory->createResponseValidator($requestValidator),
             new PsrHttpFactory(),

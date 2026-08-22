@@ -31,17 +31,9 @@ final class GaugeControllerTest extends SimulatorWebTestCase
             (string) $this->client->getResponse()->getContent(),
         );
 
-        $this->client->request('GET', '/api/gauges');
-        self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
+        $first = $this->firstItemOfList('/api/gauges', 'gauges');
 
-        $payload = $this->jsonResponse();
-        self::assertSame(1, $payload['count'] ?? null);
-
-        $gauges = $payload['gauges'] ?? null;
-        self::assertIsArray($gauges);
-
-        $first = $gauges[0] ?? null;
-        self::assertIsArray($first);
+        self::assertSame(1, $this->jsonResponse()['count'] ?? null);
         self::assertSame('disks', $first['name'] ?? null);
         self::assertSame('Disks', $first['title'] ?? null);
         self::assertSame(2, $first['rowCount'] ?? null);
@@ -58,17 +50,7 @@ final class GaugeControllerTest extends SimulatorWebTestCase
             'rows' => [['label' => '5h', 'percent' => 41]],
         ]);
 
-        $this->client->request('GET', '/api/gauges');
-        self::assertSame(
-            Response::HTTP_OK,
-            $this->client->getResponse()->getStatusCode(),
-            (string) $this->client->getResponse()->getContent(),
-        );
-
-        $gauges = $this->jsonResponse()['gauges'] ?? null;
-        self::assertIsArray($gauges);
-        self::assertIsArray($gauges[0] ?? null);
-        self::assertSame('Claude Max', $gauges[0]['title'] ?? null);
+        self::assertSame('Claude Max', $this->firstItemOfList('/api/gauges', 'gauges')['title'] ?? null);
 
         $this->client->request('GET', '/api/gauge?name=claude');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());

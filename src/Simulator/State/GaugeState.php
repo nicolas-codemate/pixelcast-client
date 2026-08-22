@@ -72,7 +72,7 @@ final class GaugeState implements ResettableState
         return [
             'gauges' => $this->gauges,
             'count' => \count($this->gauges),
-            'gaugesPushedAt' => $this->pushedAtAsAtomStrings(),
+            'gaugesPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
         ];
     }
 
@@ -83,7 +83,7 @@ final class GaugeState implements ResettableState
     {
         return [
             'gauges' => $this->gauges,
-            'gaugesPushedAt' => $this->pushedAtAsAtomStrings(),
+            'gaugesPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
         ];
     }
 
@@ -99,16 +99,5 @@ final class GaugeState implements ResettableState
     public function domainKey(): string
     {
         return 'gauges';
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function pushedAtAsAtomStrings(): array
-    {
-        return array_map(
-            static fn (\DateTimeImmutable $pushedAt): string => $pushedAt->format(\DateTimeInterface::ATOM),
-            $this->pushedAtByName,
-        );
     }
 }

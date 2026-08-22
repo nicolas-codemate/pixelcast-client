@@ -72,7 +72,7 @@ final class CustomAppState implements ResettableState
         return [
             'apps' => $this->apps,
             'count' => \count($this->apps),
-            'appsPushedAt' => $this->pushedAtAsAtomStrings(),
+            'appsPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
         ];
     }
 
@@ -83,7 +83,7 @@ final class CustomAppState implements ResettableState
     {
         return [
             'apps' => $this->apps,
-            'appsPushedAt' => $this->pushedAtAsAtomStrings(),
+            'appsPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
         ];
     }
 
@@ -99,16 +99,5 @@ final class CustomAppState implements ResettableState
     public function domainKey(): string
     {
         return 'customApps';
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function pushedAtAsAtomStrings(): array
-    {
-        return array_map(
-            static fn (\DateTimeImmutable $pushedAt): string => $pushedAt->format(\DateTimeInterface::ATOM),
-            $this->pushedAtByName,
-        );
     }
 }

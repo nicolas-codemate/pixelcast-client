@@ -88,8 +88,8 @@ final class TrackerController extends AbstractSimulatorController
 
         return $summary + FreshnessProjection::of(
             $payload,
-            $pushedAt,
             $now,
+            $pushedAt,
             self::DEFAULT_STALE_AFTER_SECONDS,
             self::DEFAULT_STALE_BEHAVIOR,
         );

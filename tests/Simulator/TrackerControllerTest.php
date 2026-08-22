@@ -8,22 +8,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class TrackerControllerTest extends SimulatorWebTestCase
 {
-    /**
-     * @return array<string, mixed>
-     */
-    private static function validTrackerPayload(): array
-    {
-        return [
-            'symbol' => 'BTC',
-            'currency' => 'USD',
-            'value' => 98452.30,
-            'change' => 2.14,
-        ];
-    }
-
     public function testPostThenListIncludesTracker(): void
     {
-        $this->postJson('/api/tracker?name=BTC', self::validTrackerPayload());
+        $this->postJson('/api/tracker?name=BTC', self::trackerPushPayload());
         self::assertSame(
             Response::HTTP_OK,
             $this->client->getResponse()->getStatusCode(),
@@ -63,7 +50,7 @@ final class TrackerControllerTest extends SimulatorWebTestCase
 
     public function testGetExistingReturnsPayload(): void
     {
-        $this->postJson('/api/tracker?name=BTC', self::validTrackerPayload());
+        $this->postJson('/api/tracker?name=BTC', self::trackerPushPayload());
 
         $this->client->request('GET', '/api/tracker?name=BTC');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());

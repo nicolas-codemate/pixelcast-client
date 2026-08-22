@@ -13,8 +13,8 @@ final class FreshnessProjection
      */
     public static function of(
         array $payload,
-        ?\DateTimeImmutable $pushedAt,
         \DateTimeImmutable $now,
+        ?\DateTimeImmutable $pushedAt,
         int $defaultStaleAfterSeconds,
         string $defaultStaleBehavior,
     ): array {
