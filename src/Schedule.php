@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Config\Device\BrightnessSchedule;
 use App\Config\Sleep\SleepSchedule;
 use App\Config\Sync\SyncGroupConfig;
 use App\Config\SyncsConfigLoader;
+use App\Message\ApplyBrightnessMessage;
 use App\Message\SyncMessage;
 use App\Scheduler\ActiveWindowTrigger;
 use App\Scheduler\SleepScheduleTrigger;
@@ -47,7 +49,30 @@ final readonly class Schedule implements ScheduleProviderInterface, SyncMessageR
             $schedule->add(self::recurringMessageOf($syncGroup, $sleepSchedule));
         }
 
+        if (null !== $config->device?->brightnessSchedule) {
+            $schedule->add(self::brightnessRecurringMessage($sleepSchedule));
+        }
+
         return $schedule;
+    }
+
+    /**
+     * The brightness tick belongs to no sync group, so it carries no active window: only the sleep
+     * schedule holds it back, which keeps it silent while the panel is off.
+     */
+    private static function brightnessRecurringMessage(?SleepSchedule $sleepSchedule): RecurringMessage
+    {
+        $applyBrightnessMessage = new ApplyBrightnessMessage();
+        $recurringMessage = RecurringMessage::every(BrightnessSchedule::TICK_INTERVAL, $applyBrightnessMessage);
+
+        if (null === $sleepSchedule) {
+            return $recurringMessage;
+        }
+
+        return RecurringMessage::trigger(
+            new SleepScheduleTrigger($recurringMessage->getTrigger(), $sleepSchedule),
+            $applyBrightnessMessage,
+        );
     }
 
     private static function recurringMessageOf(SyncGroupConfig $syncGroup, ?SleepSchedule $sleepSchedule): RecurringMessage
