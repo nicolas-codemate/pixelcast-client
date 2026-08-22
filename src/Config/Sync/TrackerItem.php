@@ -29,7 +29,6 @@ final readonly class TrackerItem
      * @param string $itemPath the path of the item including its index, e.g. syncs.coingecko.items[0]
      * @param StaleDeclaration $groupStaleDeclaration the declaration of the group, which the item follows unless it declares its own
      * @param list<BottomLine> $acceptedBottomLines the bottom lines the group of this item can fill
-     * @param \DateTimeZone|null $deviceTimezone the timezone of the device, which an active window falls back on
      */
     public static function fromOptions(array $options, string $itemPath, StaleDeclaration $groupStaleDeclaration, array $acceptedBottomLines, ?\DateTimeZone $deviceTimezone = null): self
     {

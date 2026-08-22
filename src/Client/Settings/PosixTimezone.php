@@ -10,9 +10,8 @@ namespace App\Client\Settings;
  *
  * Two things do not read the way one would expect. A POSIX offset carries the sign opposite
  * to the UTC offset, so UTC+1 is written "-1" and UTC-3 is written "3". And a zone switching
- * more than twice a year, Africa/Casablanca being the only one, does not fit the two rules
- * POSIX allows: only its first two switches of the year are kept, so its string approximates
- * the real zone.
+ * more than twice a year, as Africa/Casablanca does, does not fit the two rules POSIX allows:
+ * only its first two switches of the year are kept, so its string approximates the real zone.
  *
  * @phpstan-type TimezonePeriod array{ts: int, time: string, offset: int, isdst: bool, abbr: string}
  */
@@ -28,10 +27,14 @@ final class PosixTimezone
     public static function of(\DateTimeZone $timezone, \DateTimeImmutable $referenceInstant): string
     {
         $periods = self::periodsOfTheYearOf($timezone, $referenceInstant);
-        $standardPeriod = self::firstPeriodOfKind($periods, isDaylightSaving: false) ?? $periods[0];
+        $standardPeriod = self::firstPeriodOfKind($periods, isDaylightSaving: false);
         $daylightPeriod = self::firstPeriodOfKind($periods, isDaylightSaving: true);
         $ruleOfTheSwitchToDaylight = self::firstSwitchRuleOfTheYear($periods, isDaylightSaving: true);
         $ruleOfTheSwitchToStandard = self::firstSwitchRuleOfTheYear($periods, isDaylightSaving: false);
+
+        if (null === $standardPeriod) {
+            throw new \InvalidArgumentException(\sprintf('The timezone "%s" stays on daylight saving time all year, which POSIX cannot describe.', $timezone->getName()));
+        }
 
         $posixTimezone = self::abbreviation($standardPeriod['abbr']).self::offset($standardPeriod['offset']);
 
@@ -43,10 +46,6 @@ final class PosixTimezone
             }
 
             $posixTimezone .= ','.$ruleOfTheSwitchToDaylight.','.$ruleOfTheSwitchToStandard;
-        }
-
-        if (mb_strlen($posixTimezone) > NtpSettings::MAXIMUM_TIMEZONE_LENGTH) {
-            throw new \InvalidArgumentException(\sprintf('The POSIX timezone of "%s" holds %d characters, more than the %d the device accepts.', $timezone->getName(), mb_strlen($posixTimezone), NtpSettings::MAXIMUM_TIMEZONE_LENGTH));
         }
 
         return $posixTimezone;

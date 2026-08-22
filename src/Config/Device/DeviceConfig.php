@@ -33,7 +33,7 @@ final readonly class DeviceConfig
      * An app the rotation never moves away from would freeze the panel, so the shortest duration
      * the file accepts is one millisecond. The device sets no upper bound on it.
      */
-    private const int MINIMUM_DEFAULT_DURATION_MILLISECONDS = 1;
+    public const int MINIMUM_DEFAULT_DURATION_MILLISECONDS = 1;
 
     private function __construct(
         public ?\DateTimeZone $timezone,

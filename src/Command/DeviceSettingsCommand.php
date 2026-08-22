@@ -56,8 +56,6 @@ final class DeviceSettingsCommand extends Command
         }
 
         try {
-            // The daylight saving rules of the timezone are read at the current instant, which is
-            // what turns "Europe/Paris" into the POSIX string the device runs on.
             $settingsPayload = $deviceConfig->toSettingsPayload($this->clock->now());
         } catch (PixelCastConfigException $unusableSection) {
             $io->error($unusableSection->getMessage());

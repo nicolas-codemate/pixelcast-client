@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Config\Sync;
 
 use App\Client\Color;
+use App\Config\Device\DeviceConfig;
 use App\Config\Exception\PixelCastConfigException;
 
 final class SyncOptionReader
@@ -88,7 +89,7 @@ final class SyncOptionReader
     /**
      * @param array<string, mixed> $options
      */
-    public static function requireTimezone(array $options, string $key, string $parentPath): \DateTimeZone
+    private static function requireTimezone(array $options, string $key, string $parentPath): \DateTimeZone
     {
         $timezoneName = self::requireString($options, $key, $parentPath);
 
@@ -109,6 +110,20 @@ final class SyncOptionReader
         }
 
         return self::requireTimezone($options, $key, $parentPath);
+    }
+
+    /**
+     * The timezone declared next to what it applies to, otherwise the one declared once for the
+     * whole device, otherwise an error naming both places.
+     *
+     * @param array<string, mixed> $options
+     * @param string $reason why this key cannot be left out, named in the error
+     */
+    public static function requireTimezoneOrDeviceDefault(array $options, string $key, string $parentPath, ?\DateTimeZone $deviceTimezone, string $reason): \DateTimeZone
+    {
+        return self::optionalTimezone($options, $key, $parentPath)
+            ?? $deviceTimezone
+            ?? throw PixelCastConfigException::missingKeyOrDeviceDefault(self::optionPath($parentPath, $key), DeviceConfig::TIMEZONE_PATH, $reason);
     }
 
     /**

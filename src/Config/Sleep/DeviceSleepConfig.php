@@ -6,8 +6,6 @@ namespace App\Config\Sleep;
 
 use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepSlot;
-use App\Config\Device\DeviceConfig;
-use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sync\ActiveWindowDay;
 use App\Config\Sync\SyncOptionReader;
 
@@ -50,7 +48,6 @@ final readonly class DeviceSleepConfig
 
     /**
      * @param array<string, mixed> $configTree the whole configuration file, not a sync group
-     * @param \DateTimeZone|null $deviceTimezone the timezone of the device, which the schedule reads its hours in unless it declares its own
      */
     public static function optionalFromConfigTree(array $configTree, ?\DateTimeZone $deviceTimezone = null): ?self
     {
@@ -67,7 +64,7 @@ final readonly class DeviceSleepConfig
             SyncOptionReader::optionalEnum($options, self::DISPLAY_MODE_OPTION_KEY, self::OPTION_KEY, SleepDisplayMode::cases()) ?? SleepDisplayMode::Black,
             [] === $declaredDays ? ActiveWindowDay::cases() : $declaredDays,
             self::readWindows($options),
-            $enabled ? self::readTimezone($options, $deviceTimezone) : null,
+            $enabled ? SyncOptionReader::requireTimezoneOrDeviceDefault($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY, $deviceTimezone, 'the schedule is applied by the device in its own local time, which the container clock does not share.') : null,
         );
     }
 
@@ -115,16 +112,6 @@ final readonly class DeviceSleepConfig
         }
 
         return $windowsByFirmwareDayName;
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    private static function readTimezone(array $options, ?\DateTimeZone $deviceTimezone): \DateTimeZone
-    {
-        return SyncOptionReader::optionalTimezone($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY)
-            ?? $deviceTimezone
-            ?? throw PixelCastConfigException::missingKeyOrDeviceDefault(self::OPTION_KEY.'.'.self::TIMEZONE_OPTION_KEY, DeviceConfig::TIMEZONE_PATH, 'the schedule is applied by the device in its own local time, which the container clock does not share.');
     }
 
     /**

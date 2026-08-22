@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Config\Sync;
 
-use App\Config\Device\DeviceConfig;
 use App\Config\Exception\PixelCastConfigException;
 
 /**
@@ -58,7 +57,7 @@ final readonly class ActiveWindow implements \Stringable
             self::readDays($windowOptions, $windowPath),
             $fromMinuteOfDay,
             $toMinuteOfDay,
-            self::readTimezone($windowOptions, $windowPath, $deviceTimezone),
+            SyncOptionReader::requireTimezoneOrDeviceDefault($windowOptions, self::TIMEZONE_OPTION_KEY, $windowPath, $deviceTimezone, 'a window opens at a local hour, not at the hour of the container clock.'),
         );
     }
 
@@ -116,16 +115,6 @@ final readonly class ActiveWindow implements \Stringable
             $this->timeOfDay($this->toMinuteOfDay),
             $this->timezone->getName(),
         );
-    }
-
-    /**
-     * @param array<string, mixed> $windowOptions
-     */
-    private static function readTimezone(array $windowOptions, string $windowPath, ?\DateTimeZone $deviceTimezone): \DateTimeZone
-    {
-        return SyncOptionReader::optionalTimezone($windowOptions, self::TIMEZONE_OPTION_KEY, $windowPath)
-            ?? $deviceTimezone
-            ?? throw PixelCastConfigException::missingKeyOrDeviceDefault($windowPath.'.'.self::TIMEZONE_OPTION_KEY, DeviceConfig::TIMEZONE_PATH, 'a window opens at a local hour, not at the hour of the container clock.');
     }
 
     /**

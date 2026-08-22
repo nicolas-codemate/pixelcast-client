@@ -6,6 +6,7 @@ namespace App\Tests\Config\Device;
 
 use App\Client\Settings\BrightnessLevel;
 use App\Client\Settings\SettingsPayload;
+use App\Config\Device\DeviceConfig;
 use App\Tests\Factory\SchemaPropertyReader;
 use PHPUnit\Framework\TestCase;
 
@@ -42,7 +43,7 @@ final class DeviceSchemaBoundsMatchClientConstantsTest extends TestCase
     {
         $defaultDurationSchema = self::devicePropertiesDeclaredBySchema()['defaultDuration'];
 
-        self::assertSame(1, $defaultDurationSchema['minimum']);
+        self::assertSame(DeviceConfig::MINIMUM_DEFAULT_DURATION_MILLISECONDS, $defaultDurationSchema['minimum']);
         self::assertArrayNotHasKey('maximum', $defaultDurationSchema);
     }
 
