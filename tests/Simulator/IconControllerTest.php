@@ -24,7 +24,7 @@ final class IconControllerTest extends SimulatorWebTestCase
 
     public function testAddAndList(): void
     {
-        $this->registerSmileyIcon();
+        $this->uploadIcon('smiley');
         self::assertSame(
             Response::HTTP_OK,
             $this->client->getResponse()->getStatusCode(),
@@ -38,7 +38,7 @@ final class IconControllerTest extends SimulatorWebTestCase
 
     public function testGetIconReturnsPng(): void
     {
-        $this->registerSmileyIcon();
+        $this->uploadIcon('smiley');
         self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
 
         $this->client->request('GET', '/api/icons/smiley');
@@ -47,32 +47,6 @@ final class IconControllerTest extends SimulatorWebTestCase
 
         $contentType = (string) $response->headers->get('Content-Type');
         self::assertStringContainsString('image/png', $contentType);
-    }
-
-    /**
-     * POST /icons is declared in the OpenAPI spec as multipart/form-data, so
-     * the validator requires the request to carry a real multipart body with
-     * the matching Content-Type header. KernelBrowser does not synthesise
-     * the multipart envelope automatically, so we craft the body by hand and
-     * inject the Content-Type with the boundary. The controller stores names
-     * only and ignores the binary content.
-     */
-    private function registerSmileyIcon(): void
-    {
-        $boundary = '----SimulatorBoundary'.bin2hex(random_bytes(8));
-        $body = "--{$boundary}\r\n"
-            ."Content-Disposition: form-data; name=\"file\"; filename=\"smiley.png\"\r\n"
-            ."Content-Type: image/png\r\n"
-            ."\r\n"
-            ."fake-png-bytes\r\n"
-            ."--{$boundary}--\r\n";
-
-        $this->client->request(
-            method: 'POST',
-            uri: '/api/icons?name=smiley',
-            server: ['CONTENT_TYPE' => 'multipart/form-data; boundary='.$boundary],
-            content: $body,
-        );
     }
 
     public function testGetUnknownIconReturns404(): void

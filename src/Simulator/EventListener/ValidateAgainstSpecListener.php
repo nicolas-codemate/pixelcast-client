@@ -10,21 +10,31 @@ use App\Simulator\Controller\ResetController;
 use App\Simulator\Logging\RequestLog;
 use App\Simulator\Logging\RequestLogEntry;
 use App\Simulator\Validation\OpenApiValidator;
+use League\OpenAPIValidation\PSR7\OperationAddress;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
+use Symfony\Component\HttpKernel\Event\ExceptionEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
-#[AsEventListener(event: KernelEvents::CONTROLLER)]
+#[AsEventListener(event: KernelEvents::CONTROLLER, method: 'validateRequest')]
+#[AsEventListener(event: KernelEvents::EXCEPTION, method: 'forgetMatchedOperation')]
+#[AsEventListener(event: KernelEvents::RESPONSE, method: 'validateResponse')]
 final class ValidateAgainstSpecListener
 {
+    // The listener is a shared service, so the matched operation travels on the request
+    // instead of on a property: two requests handled by the same instance would share it.
+    private const string MATCHED_OPERATION_ATTRIBUTE = '_simulator_operation';
+
     public function __construct(
         private readonly OpenApiValidator $openApiValidator,
         private readonly RequestLog $requestLog,
     ) {
     }
 
-    public function __invoke(ControllerEvent $event): void
+    public function validateRequest(ControllerEvent $event): void
     {
         if (!$event->isMainRequest()) {
             return;
@@ -47,7 +57,8 @@ final class ValidateAgainstSpecListener
         }
 
         $request = $event->getRequest();
-        $validationResult = $this->openApiValidator->validate($request);
+        $outcome = $this->openApiValidator->validate($request);
+        $validationResult = $outcome->result;
 
         $this->requestLog->record(new RequestLogEntry(
             method: $request->getMethod(),
@@ -61,7 +72,40 @@ final class ValidateAgainstSpecListener
             $errorMessage = $validationResult->errorMessage ?? 'unknown error';
             $event->setController(static fn (): JsonResponse => new JsonResponse(
                 ['error' => $errorMessage],
-                400,
+                Response::HTTP_BAD_REQUEST,
+            ));
+
+            return;
+        }
+
+        $request->attributes->set(self::MATCHED_OPERATION_ATTRIBUTE, $outcome->matchedOperation);
+    }
+
+    public function forgetMatchedOperation(ExceptionEvent $event): void
+    {
+        // The error response still travels through the response pass, and the spec declares no
+        // error operation, so validating it would replace the thrown error with a schema complaint.
+        $event->getRequest()->attributes->remove(self::MATCHED_OPERATION_ATTRIBUTE);
+    }
+
+    public function validateResponse(ResponseEvent $event): void
+    {
+        $request = $event->getRequest();
+        $matchedOperation = $request->attributes->get(self::MATCHED_OPERATION_ATTRIBUTE);
+
+        if (!$matchedOperation instanceof OperationAddress) {
+            return;
+        }
+
+        // Removed before validating so the 500 below does not go through this pass again.
+        $request->attributes->remove(self::MATCHED_OPERATION_ATTRIBUTE);
+
+        $validationResult = $this->openApiValidator->validateResponse($matchedOperation, $event->getResponse());
+
+        if (!$validationResult->valid) {
+            $event->setResponse(new JsonResponse(
+                ['error' => $validationResult->errorMessage ?? 'unknown error'],
+                Response::HTTP_INTERNAL_SERVER_ERROR,
             ));
         }
     }

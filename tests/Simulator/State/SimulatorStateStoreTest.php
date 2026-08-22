@@ -8,6 +8,7 @@ use App\Simulator\Logging\RequestLog;
 use App\Simulator\Logging\RequestLogEntry;
 use App\Simulator\State\BrightnessState;
 use App\Simulator\State\CustomAppState;
+use App\Simulator\State\GaugeState;
 use App\Simulator\State\IconState;
 use App\Simulator\State\IndicatorState;
 use App\Simulator\State\NotificationState;
@@ -118,6 +119,40 @@ final class SimulatorStateStoreTest extends TestCase
         self::assertSame(180, $restoredBrightness->current());
         self::assertSame($savedNotifications->list(), $restoredNotifications->list());
         self::assertSame(['name' => 'clock', 'text' => 'tic'], $restoredCustomApps->get('clock'));
+    }
+
+    public function testPushInstantsAreRestoredForTrackersGaugesAndApps(): void
+    {
+        $savedTrackers = new TrackerState();
+        $savedTrackers->upsert('btc', ['value' => '42']);
+
+        $savedGauges = new GaugeState();
+        $savedGauges->upsert('claude', ['title' => 'Claude']);
+
+        $savedCustomApps = new CustomAppState();
+        $savedCustomApps->upsert('clock', ['text' => 'tic']);
+
+        $this->createStore([$savedTrackers, $savedGauges, $savedCustomApps], new RequestLog())->save();
+
+        $restoredTrackers = new TrackerState();
+        $restoredGauges = new GaugeState();
+        $restoredCustomApps = new CustomAppState();
+
+        $this->createStore([$restoredTrackers, $restoredGauges, $restoredCustomApps], new RequestLog())->load();
+
+        self::assertSame(
+            $savedTrackers->pushedAt('btc')?->format(\DateTimeInterface::ATOM),
+            $restoredTrackers->pushedAt('btc')?->format(\DateTimeInterface::ATOM),
+        );
+        self::assertSame(
+            $savedGauges->pushedAt('claude')?->format(\DateTimeInterface::ATOM),
+            $restoredGauges->pushedAt('claude')?->format(\DateTimeInterface::ATOM),
+        );
+        self::assertSame(
+            $savedCustomApps->pushedAt('clock')?->format(\DateTimeInterface::ATOM),
+            $restoredCustomApps->pushedAt('clock')?->format(\DateTimeInterface::ATOM),
+        );
+        self::assertNotNull($restoredTrackers->pushedAt('btc'));
     }
 
     public function testIconsAreRestoredAsANameKeyedMap(): void

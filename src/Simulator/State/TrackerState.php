@@ -9,12 +9,16 @@ final class TrackerState implements ResettableState
     /** @var array<string, array<string, mixed>> */
     private array $trackers = [];
 
+    /** @var array<string, \DateTimeImmutable> */
+    private array $pushedAtByName = [];
+
     /**
      * @param array<string, mixed> $payload
      */
     public function upsert(string $name, array $payload): void
     {
         $this->trackers[$name] = $payload;
+        $this->pushedAtByName[$name] = new \DateTimeImmutable();
     }
 
     public function delete(string $name): bool
@@ -23,7 +27,7 @@ final class TrackerState implements ResettableState
             return false;
         }
 
-        unset($this->trackers[$name]);
+        unset($this->trackers[$name], $this->pushedAtByName[$name]);
 
         return true;
     }
@@ -36,12 +40,17 @@ final class TrackerState implements ResettableState
         return $this->trackers[$name] ?? null;
     }
 
+    public function pushedAt(string $name): ?\DateTimeImmutable
+    {
+        return $this->pushedAtByName[$name] ?? null;
+    }
+
     /**
-     * @return list<array<string, mixed>>
+     * @return array<string, array<string, mixed>>
      */
     public function list(): array
     {
-        return array_values($this->trackers);
+        return $this->trackers;
     }
 
     public function has(string $name): bool
@@ -52,6 +61,7 @@ final class TrackerState implements ResettableState
     public function reset(): void
     {
         $this->trackers = [];
+        $this->pushedAtByName = [];
     }
 
     /**
@@ -62,6 +72,7 @@ final class TrackerState implements ResettableState
         return [
             'trackers' => $this->trackers,
             'count' => \count($this->trackers),
+            'trackersPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
         ];
     }
 
@@ -70,7 +81,10 @@ final class TrackerState implements ResettableState
      */
     public function exportForPersistence(): array
     {
-        return ['trackers' => $this->trackers];
+        return [
+            'trackers' => $this->trackers,
+            'trackersPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
+        ];
     }
 
     /**
@@ -79,6 +93,7 @@ final class TrackerState implements ResettableState
     public function restoreFromPersistence(array $persistedState): void
     {
         $this->trackers = PersistedStateReader::payloadMap($persistedState['trackers'] ?? null);
+        $this->pushedAtByName = PersistedStateReader::atomDateMap($persistedState['trackersPushedAt'] ?? null);
     }
 
     public function domainKey(): string

@@ -57,6 +57,9 @@ services:
         arguments:
             $specPath: '%kernel.project_dir%/sync/openapi.yaml'
 
+    League\OpenAPIValidation\PSR7\ResponseValidator:
+        factory: ['@App\Simulator\Validation\OpenApiValidatorFactory', 'createResponseValidator']
+
     App\Scenario\Validation\OutboundOpenApiValidatorFactory: ~
 
     league_openapi_psr7_validator.outbound_request_validator:

@@ -35,6 +35,39 @@ final class PersistedStateReader
     }
 
     /**
+     * @return array<string, \DateTimeImmutable>
+     */
+    public static function atomDateMap(mixed $value): array
+    {
+        if (!\is_array($value)) {
+            return [];
+        }
+
+        $datesByName = [];
+        foreach ($value as $name => $item) {
+            $date = self::atomDate($item);
+            if (null !== $date) {
+                $datesByName[(string) $name] = $date;
+            }
+        }
+
+        return $datesByName;
+    }
+
+    /**
+     * @param array<string, \DateTimeImmutable> $datesByName
+     *
+     * @return array<string, string>
+     */
+    public static function atomStringMap(array $datesByName): array
+    {
+        return array_map(
+            static fn (\DateTimeImmutable $date): string => $date->format(\DateTimeInterface::ATOM),
+            $datesByName,
+        );
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public static function payloadList(mixed $value): array

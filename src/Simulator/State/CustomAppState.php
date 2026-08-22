@@ -9,12 +9,16 @@ final class CustomAppState implements ResettableState
     /** @var array<string, array<string, mixed>> */
     private array $apps = [];
 
+    /** @var array<string, \DateTimeImmutable> */
+    private array $pushedAtByName = [];
+
     /**
      * @param array<string, mixed> $payload
      */
     public function upsert(string $name, array $payload): void
     {
         $this->apps[$name] = $payload;
+        $this->pushedAtByName[$name] = new \DateTimeImmutable();
     }
 
     public function delete(string $name): bool
@@ -23,7 +27,7 @@ final class CustomAppState implements ResettableState
             return false;
         }
 
-        unset($this->apps[$name]);
+        unset($this->apps[$name], $this->pushedAtByName[$name]);
 
         return true;
     }
@@ -36,12 +40,17 @@ final class CustomAppState implements ResettableState
         return $this->apps[$name] ?? null;
     }
 
+    public function pushedAt(string $name): ?\DateTimeImmutable
+    {
+        return $this->pushedAtByName[$name] ?? null;
+    }
+
     /**
-     * @return list<array<string, mixed>>
+     * @return array<string, array<string, mixed>>
      */
     public function list(): array
     {
-        return array_values($this->apps);
+        return $this->apps;
     }
 
     public function has(string $name): bool
@@ -52,6 +61,7 @@ final class CustomAppState implements ResettableState
     public function reset(): void
     {
         $this->apps = [];
+        $this->pushedAtByName = [];
     }
 
     /**
@@ -62,6 +72,7 @@ final class CustomAppState implements ResettableState
         return [
             'apps' => $this->apps,
             'count' => \count($this->apps),
+            'appsPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
         ];
     }
 
@@ -70,7 +81,10 @@ final class CustomAppState implements ResettableState
      */
     public function exportForPersistence(): array
     {
-        return ['apps' => $this->apps];
+        return [
+            'apps' => $this->apps,
+            'appsPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
+        ];
     }
 
     /**
@@ -79,6 +93,7 @@ final class CustomAppState implements ResettableState
     public function restoreFromPersistence(array $persistedState): void
     {
         $this->apps = PersistedStateReader::payloadMap($persistedState['apps'] ?? null);
+        $this->pushedAtByName = PersistedStateReader::atomDateMap($persistedState['appsPushedAt'] ?? null);
     }
 
     public function domainKey(): string

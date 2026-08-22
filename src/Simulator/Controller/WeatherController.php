@@ -20,14 +20,19 @@ final class WeatherController extends AbstractSimulatorController
         $lastUpdatedAt = $weather->lastUpdatedAt();
         $age = null !== $lastUpdatedAt ? time() - $lastUpdatedAt->getTimestamp() : null;
 
-        return new JsonResponse([
-            'valid' => null !== $current,
-            'age' => $age,
-            'stale' => null !== $age && $age > self::STALE_THRESHOLD_SECONDS,
-            'current' => $current,
-            'forecast' => $weather->forecast(),
-            'today' => $weather->today(),
-        ]);
+        // WeatherResponse declares no nullable property, so an empty state omits the keys
+        // it has no value for rather than sending null.
+        return new JsonResponse(array_filter(
+            [
+                'valid' => null !== $current,
+                'age' => $age,
+                'stale' => null !== $age && $age > self::STALE_THRESHOLD_SECONDS,
+                'current' => $current,
+                'forecast' => $weather->forecast(),
+                'today' => $weather->today(),
+            ],
+            static fn (mixed $value): bool => null !== $value,
+        ));
     }
 
     #[Route('/weather', methods: ['POST'])]
