@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Config;
 
+use App\Config\Device\DeviceConfig;
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sleep\DeviceSleepConfig;
 use App\Config\Sync\SyncGroupRegistry;
@@ -94,12 +95,15 @@ final class SyncsConfigLoader
 
         $configTree = $this->associativeTree($parsedTree);
 
+        $deviceConfig = DeviceConfig::optionalFromConfigTree($configTree);
+        $deviceTimezone = $deviceConfig?->timezone;
+
         $syncGroups = [];
         foreach (self::syncGroupOptions($configTree) as $syncType => $options) {
-            $syncGroups[$syncType] = SyncGroupRegistry::syncGroupClassFor($syncType)::fromOptions($options);
+            $syncGroups[$syncType] = SyncGroupRegistry::syncGroupClassFor($syncType)::fromOptions($options, $deviceTimezone);
         }
 
-        return new SyncsConfig($syncGroups, DeviceSleepConfig::optionalFromConfigTree($configTree));
+        return new SyncsConfig($syncGroups, DeviceSleepConfig::optionalFromConfigTree($configTree, $deviceTimezone), $deviceConfig);
     }
 
     private function validateAgainstSchema(mixed $parsedTree): void

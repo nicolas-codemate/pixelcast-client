@@ -128,6 +128,79 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertSame('Europe/Paris', $config->deviceSleep->timezone->getName());
     }
 
+    public function testAFileWithoutADeviceSectionCarriesNoDeviceConfig(): void
+    {
+        $config = self::loaderFor('syncs-valid.yaml')->load();
+
+        self::assertNull($config->device);
+    }
+
+    public function testTheDeviceTimezoneIsTheDefaultOfTheSleepScheduleAndOfEveryActiveWindow(): void
+    {
+        $config = self::loaderFor('syncs-device-timezone.yaml')->load();
+
+        self::assertNotNull($config->deviceSleep);
+        self::assertNotNull($config->deviceSleep->timezone);
+        self::assertSame('Europe/Paris', $config->deviceSleep->timezone->getName());
+        self::assertStringEndsWith('Europe/Paris', (string) $config->sleepSchedule());
+        self::assertStringEndsWith('Europe/Paris', (string) $config->syncGroupOfType(BoursoramaSyncConfig::class)->activeWindow);
+
+        $trackedItem = $config->syncGroupOfType(BoursoramaSyncConfig::class)->items[0];
+        self::assertNotNull($trackedItem->activeWindow);
+        self::assertStringEndsWith('Europe/Paris', (string) $trackedItem->activeWindow);
+    }
+
+    public function testALocalTimezoneWinsOverTheDeviceOne(): void
+    {
+        $config = self::loaderFor('syncs-device-timezone-overridden.yaml')->load();
+
+        self::assertStringEndsWith('America/New_York', (string) $config->sleepSchedule());
+        self::assertStringEndsWith('America/New_York', (string) $config->syncGroupOfType(BoursoramaSyncConfig::class)->activeWindow);
+    }
+
+    public function testAFileDeclaringDeviceSettingsKeepsThemAllOnTheDeviceSection(): void
+    {
+        $config = self::loaderFor('syncs-device-settings.yaml')->load();
+
+        self::assertNotNull($config->device);
+        self::assertNotNull($config->device->timezone);
+        self::assertSame('Europe/Paris', $config->device->timezone->getName());
+        self::assertNotNull($config->device->brightness);
+        self::assertSame(120, $config->device->brightness->level);
+        self::assertTrue($config->device->autoRotate);
+        self::assertSame(8000, $config->device->defaultDurationMilliseconds);
+        self::assertSame(12000, $config->device->weatherDurationMilliseconds);
+        self::assertSame('pool.ntp.org', $config->device->ntpServer);
+    }
+
+    public function testAnEnabledSleepWithoutAnyTimezoneNamesBothKeys(): void
+    {
+        try {
+            self::loaderFor('syncs-sleep-missing-timezone.yaml')->load();
+        } catch (PixelCastConfigException $rejection) {
+            self::assertStringContainsString('sleep.timezone', $rejection->getMessage());
+            self::assertStringContainsString('device.timezone', $rejection->getMessage());
+
+            return;
+        }
+
+        self::fail('An enabled sleep section without any timezone at all was accepted.');
+    }
+
+    public function testAnActiveWindowWithoutAnyTimezoneNamesBothKeys(): void
+    {
+        try {
+            self::loaderFor('syncs-window-missing-timezone.yaml')->load();
+        } catch (PixelCastConfigException $rejection) {
+            self::assertStringContainsString('syncs.boursorama.activeWindow.timezone', $rejection->getMessage());
+            self::assertStringContainsString('device.timezone', $rejection->getMessage());
+
+            return;
+        }
+
+        self::fail('An active window without any timezone at all was accepted.');
+    }
+
     public function testAFileWithoutASleepSectionCarriesNoSchedule(): void
     {
         $config = self::loaderFor('syncs-valid.yaml')->load();
@@ -324,7 +397,10 @@ final class SyncsConfigLoaderTest extends TestCase
         yield 'bottom line on the group that serves none' => ['syncs-twelvedata-bottom-line.yaml', 'syncs.twelvedata.items[0].bottomLine'];
         yield 'sleep window with equal bounds' => ['syncs-sleep-equal-bounds.yaml', 'sleep.windows[0].to'];
         yield 'sleep display mode the schema does not declare' => ['syncs-sleep-unknown-display-mode.yaml', 'sleep.displayMode'];
-        yield 'enabled sleep section without a timezone' => ['syncs-sleep-missing-timezone.yaml', 'sleep.timezone: The property timezone is required'];
+        yield 'enabled sleep section without a timezone' => ['syncs-sleep-missing-timezone.yaml', 'Missing required PixelCast config key "sleep.timezone"'];
+        yield 'window without any timezone' => ['syncs-window-missing-timezone.yaml', 'Missing required PixelCast config key "syncs.boursorama.activeWindow.timezone"'];
+        yield 'brightness above what the panel accepts' => ['syncs-device-brightness-out-of-bounds.yaml', 'device.brightness'];
+        yield 'weather duration below what the weather app needs' => ['syncs-device-weather-duration-out-of-bounds.yaml', 'device.weatherDuration'];
     }
 
     #[DataProvider('provideRejectedFileCases')]

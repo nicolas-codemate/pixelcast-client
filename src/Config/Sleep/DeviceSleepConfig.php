@@ -49,7 +49,7 @@ final readonly class DeviceSleepConfig
     /**
      * @param array<string, mixed> $configTree the whole configuration file, not a sync group
      */
-    public static function optionalFromConfigTree(array $configTree): ?self
+    public static function optionalFromConfigTree(array $configTree, ?\DateTimeZone $deviceTimezone = null): ?self
     {
         if (!SyncOptionReader::isDeclared($configTree, self::OPTION_KEY)) {
             return null;
@@ -64,7 +64,7 @@ final readonly class DeviceSleepConfig
             SyncOptionReader::optionalEnum($options, self::DISPLAY_MODE_OPTION_KEY, self::OPTION_KEY, SleepDisplayMode::cases()) ?? SleepDisplayMode::Black,
             [] === $declaredDays ? ActiveWindowDay::cases() : $declaredDays,
             self::readWindows($options),
-            $enabled ? SyncOptionReader::requireTimezone($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY) : null,
+            $enabled ? SyncOptionReader::requireTimezoneOrDeviceDefault($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY, $deviceTimezone, 'the schedule is applied by the device in its own local time, which the container clock does not share.') : null,
         );
     }
 

@@ -86,6 +86,7 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         private readonly ?\Throwable $failure = null,
         private readonly array $trackerFailures = [],
         private readonly ?\Throwable $sleepStateFailure = null,
+        private readonly ?\Throwable $settingsSnapshotFailure = null,
     ) {
     }
 
@@ -169,6 +170,10 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
 
     public function fetchSettings(): SettingsSnapshot
     {
+        if (null !== $this->settingsSnapshotFailure) {
+            throw $this->settingsSnapshotFailure;
+        }
+
         $this->failIfConfigured();
 
         return $this->settingsSnapshotToReturn ?? SettingsSnapshot::fromResponseBody([]);

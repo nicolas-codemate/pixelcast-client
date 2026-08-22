@@ -9,6 +9,9 @@
     ],
     "additionalProperties": false,
     "properties": {
+        "device": {
+            "$ref": "#/definitions/device"
+        },
         "syncs": {
             "description": "Sync groups, keyed by sync type. Omitting a group is the same as disabling it.",
             "type": "object",
@@ -40,26 +43,61 @@
         }
     },
     "definitions": {
+        "device": {
+            "description": "The device itself rather than what is shown on it. Every key of this section is optional, and a file without the section behaves exactly as before. The panel settings below are stored by the device and pushed only by `bin/console app:device:settings`, never by the scheduler, so editing them here changes nothing on the screen until that command has run.",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+                "timezone": {
+                    "description": "Timezone the device is set to, e.g. \"Europe/Paris\". It is what sleep.timezone and every activeWindow.timezone fall back on, so the timezone is written once here instead of being copied into each section. It is also what the POSIX timezone pushed in ntp is derived from, which is why that one is never written by hand.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "brightness": {
+                    "description": "How bright the panel is, 0 the dimmest and 255 the brightest. Without this key the device keeps the level it already holds.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                },
+                "autoRotate": {
+                    "description": "Whether the device moves from one app to the next on its own. Without this key the device keeps what it already holds.",
+                    "type": "boolean"
+                },
+                "defaultDuration": {
+                    "description": "How long an app stays on the screen before the rotation moves on, in milliseconds. Without this key the device keeps what it already holds.",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "weatherDuration": {
+                    "description": "How long the weather app stays on the screen, in milliseconds. It splits this duration between its own pages, so it needs more room than a plain app: 3000 at least, 60000 at most.",
+                    "type": "integer",
+                    "minimum": 3000,
+                    "maximum": 60000
+                },
+                "ntp": {
+                    "description": "Where the device reads the time it applies the sleep schedule in. The POSIX timezone that goes with it is derived from device.timezone and never declared here.",
+                    "type": "object",
+                    "required": [
+                        "server"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "server": {
+                            "description": "Host name of the NTP server the device asks the time of, e.g. \"pool.ntp.org\".",
+                            "type": "string",
+                            "minLength": 1
+                        }
+                    }
+                }
+            }
+        },
         "deviceSleep": {
             "description": "Hours during which the device turns its panel off. The panel is pushed on demand by `bin/console app:device:sleep`, never by the scheduler, so the screen keeps whatever schedule it already holds until that command has run. The client suspends its own cycles from this section alone: no sync group is scheduled while the panel is off, and every enabled one pushes again at the instant it comes back on.",
             "type": "object",
             "required": [
                 "enabled",
                 "windows"
-            ],
-            "anyOf": [
-                {
-                    "properties": {
-                        "enabled": {
-                            "const": false
-                        }
-                    }
-                },
-                {
-                    "required": [
-                        "timezone"
-                    ]
-                }
             ],
             "additionalProperties": false,
             "properties": {
@@ -68,7 +106,7 @@
                     "type": "boolean"
                 },
                 "timezone": {
-                    "description": "Timezone the window bounds are read in, e.g. \"Europe/Paris\". Required as soon as the schedule is enabled, useless while it is off. Name the timezone the device itself is set to: it applies the schedule in its own local time, which the container clock does not share.",
+                    "description": "Timezone the window bounds are read in, e.g. \"Europe/Paris\". Without it device.timezone applies, and one of the two is required as soon as the schedule is enabled. Name the timezone the device itself is set to: it applies the schedule in its own local time, which the container clock does not share.",
                     "type": "string",
                     "minLength": 1
                 },
@@ -382,8 +420,7 @@
             "type": "object",
             "required": [
                 "from",
-                "to",
-                "timezone"
+                "to"
             ],
             "additionalProperties": false,
             "properties": {
@@ -416,7 +453,7 @@
                     "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
                 },
                 "timezone": {
-                    "description": "Timezone the two times are read in, e.g. \"Europe/Paris\". A market opens at a local hour, not at the hour of the container clock.",
+                    "description": "Timezone the two times are read in, e.g. \"Europe/Paris\". Without it device.timezone applies, and one of the two is required. A market opens at a local hour, not at the hour of the container clock.",
                     "type": "string",
                     "minLength": 1
                 }

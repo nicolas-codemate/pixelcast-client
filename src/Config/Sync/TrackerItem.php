@@ -30,7 +30,7 @@ final readonly class TrackerItem
      * @param StaleDeclaration $groupStaleDeclaration the declaration of the group, which the item follows unless it declares its own
      * @param list<BottomLine> $acceptedBottomLines the bottom lines the group of this item can fill
      */
-    public static function fromOptions(array $options, string $itemPath, StaleDeclaration $groupStaleDeclaration, array $acceptedBottomLines): self
+    public static function fromOptions(array $options, string $itemPath, StaleDeclaration $groupStaleDeclaration, array $acceptedBottomLines, ?\DateTimeZone $deviceTimezone = null): self
     {
         return new self(
             symbol: SyncOptionReader::requireString($options, 'symbol', $itemPath),
@@ -40,7 +40,7 @@ final readonly class TrackerItem
             label: SyncOptionReader::optionalString($options, 'label', $itemPath),
             labelColor: SyncOptionReader::optionalColor($options, 'labelColor', $itemPath),
             bottomText: SyncOptionReader::optionalString($options, 'bottomText', $itemPath),
-            activeWindow: ActiveWindow::optionalFromOptions($options, $itemPath),
+            activeWindow: ActiveWindow::optionalFromOptions($options, $itemPath, $deviceTimezone),
             bottomLine: self::readBottomLine($options, $itemPath, $acceptedBottomLines),
             volumeBars: SyncOptionReader::optionalBool($options, 'volumeBars', $itemPath) ?? true,
         );

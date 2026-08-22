@@ -31,6 +31,34 @@ final class ActiveWindowTest extends TestCase
         self::assertSame('Europe/Paris', $activeWindow->timezone->getName());
     }
 
+    public function testAWindowWithoutATimezoneFallsBackOnTheDeviceOne(): void
+    {
+        $activeWindow = self::windowOf(['from' => '09:00', 'to' => '17:45'], new \DateTimeZone('Europe/Paris'));
+
+        self::assertSame('Europe/Paris', $activeWindow->timezone->getName());
+    }
+
+    public function testADeclaredTimezoneWinsOverTheDeviceOne(): void
+    {
+        $activeWindow = self::windowOf(['from' => '09:00', 'to' => '17:45', 'timezone' => 'America/New_York'], new \DateTimeZone('Europe/Paris'));
+
+        self::assertSame('America/New_York', $activeWindow->timezone->getName());
+    }
+
+    public function testAWindowWithoutAnyTimezoneAtAllIsRefusedAndNamesBothKeys(): void
+    {
+        try {
+            self::windowOf(['from' => '09:00', 'to' => '17:45']);
+        } catch (PixelCastConfigException $rejection) {
+            self::assertStringContainsString('syncs.boursorama.activeWindow.timezone', $rejection->getMessage());
+            self::assertStringContainsString('device.timezone', $rejection->getMessage());
+
+            return;
+        }
+
+        self::fail('A window without any timezone at all was accepted.');
+    }
+
     /**
      * @return iterable<string, array{string, bool}>
      */
@@ -144,9 +172,9 @@ final class ActiveWindowTest extends TestCase
     /**
      * @param array<string, mixed> $windowOptions
      */
-    private static function windowOf(array $windowOptions): ActiveWindow
+    private static function windowOf(array $windowOptions, ?\DateTimeZone $deviceTimezone = null): ActiveWindow
     {
-        $activeWindow = ActiveWindow::optionalFromOptions(['activeWindow' => $windowOptions], self::PARENT_PATH);
+        $activeWindow = ActiveWindow::optionalFromOptions(['activeWindow' => $windowOptions], self::PARENT_PATH, $deviceTimezone);
         self::assertNotNull($activeWindow);
 
         return $activeWindow;

@@ -15,6 +15,24 @@ final class SchemaPropertyReader extends Assert
 {
     private const string DEVICE_CONTRACT_DIRECTORY = 'sync/schemas';
     private const string SHARED_DEFINITIONS_FILE = 'common.yaml';
+    private const string CLIENT_SCHEMA_FILE = 'pixelcast.schema.json';
+
+    /**
+     * @return array<string, array<mixed>>
+     */
+    public static function clientSchemaPropertiesOf(string $definitionName): array
+    {
+        $rawSchema = file_get_contents(SyncsConfigLoaderFactory::projectFilePath(self::CLIENT_SCHEMA_FILE));
+        self::assertIsString($rawSchema);
+
+        $clientSchema = json_decode($rawSchema, true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($clientSchema);
+        self::assertIsArray($clientSchema['definitions']);
+        self::assertIsArray($clientSchema['definitions'][$definitionName]);
+        self::assertIsArray($clientSchema['definitions'][$definitionName]['properties']);
+
+        return self::asPropertyMap($clientSchema['definitions'][$definitionName]['properties']);
+    }
 
     /**
      * @return array<string, array<mixed>>
