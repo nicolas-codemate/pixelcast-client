@@ -1,4 +1,5 @@
 # Sample configuration used by IconsSeedCommandTest: icons with and without a LaMetric mapping, in an enabled and a disabled group.
+# The two twelvedata items share the icon "stock" and only the second one maps it.
 syncs:
     coingecko:
         enabled: true
@@ -20,6 +21,9 @@ syncs:
         enabled: false
         interval: '15 minutes'
         items:
+            - symbol: MSFT
+              currency: usd
+              icon: stock
             - symbol: AAPL
               currency: usd
               icon: stock

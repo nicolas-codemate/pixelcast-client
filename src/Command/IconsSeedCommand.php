@@ -55,30 +55,30 @@ final class IconsSeedCommand extends Command
             return Command::SUCCESS;
         }
 
-        try {
-            $iconsOnTheDevice = $this->pixelcastClient->listIcons();
-        } catch (PixelcastClientException $listingFailure) {
-            $io->error(\sprintf('The icons already on the device could not be listed: %s', $listingFailure->getMessage()));
-
-            return Command::FAILURE;
-        }
-
         /** @var bool $downloadEvenWhenPresent */
         $downloadEvenWhenPresent = $input->getOption('force');
 
-        /** @var list<string> $downloadedIconNames */
-        $downloadedIconNames = [];
-        /** @var list<string> $skippedIconNames */
-        $skippedIconNames = [];
-        /** @var list<string> $iconNamesWithoutMapping */
+        $iconsOnTheDevice = null;
+
+        if (!$downloadEvenWhenPresent) {
+            try {
+                $iconsOnTheDevice = $this->pixelcastClient->listIcons();
+            } catch (PixelcastClientException $listingFailure) {
+                $io->error(\sprintf('The icons already on the device could not be listed: %s', $listingFailure->getMessage()));
+
+                return Command::FAILURE;
+            }
+        }
+
+        $downloadedIconCount = 0;
+        $skippedIconCount = 0;
         $iconNamesWithoutMapping = [];
-        /** @var list<string> $failedIconNames */
         $failedIconNames = [];
 
         foreach ($expectedIcons as $iconName => $trackedAsset) {
-            if (!$downloadEvenWhenPresent && $iconsOnTheDevice->hasIcon($iconName)) {
+            if (null !== $iconsOnTheDevice && $iconsOnTheDevice->hasIcon($iconName)) {
                 $io->writeln(\sprintf('  %s: already on the device, skipped', $iconName));
-                $skippedIconNames[] = $iconName;
+                ++$skippedIconCount;
 
                 continue;
             }
@@ -102,7 +102,7 @@ final class IconsSeedCommand extends Command
             }
 
             $io->writeln(\sprintf('  %s: downloaded from LaMetric icon %d, named by %s', $iconName, $laMetricIconId, $trackedAsset->label));
-            $downloadedIconNames[] = $iconName;
+            ++$downloadedIconCount;
         }
 
         if ([] !== $failedIconNames) {
@@ -118,7 +118,7 @@ final class IconsSeedCommand extends Command
             ]);
         }
 
-        $io->success(\sprintf('%d icon(s) downloaded, %d already on the device.', \count($downloadedIconNames), \count($skippedIconNames)));
+        $io->success(\sprintf('%d icon(s) downloaded, %d already on the device.', $downloadedIconCount, $skippedIconCount));
 
         return Command::SUCCESS;
     }
@@ -132,14 +132,13 @@ final class IconsSeedCommand extends Command
 
         foreach ($syncsConfig->trackerSyncGroups() as $syncType => $trackerSyncGroup) {
             foreach ($trackerSyncGroup->items as $item) {
-                if (null === $item->icon || '' === $item->icon) {
+                if (null === $item->icon) {
                     continue;
                 }
 
                 $alreadyExpected = $expectedIcons[$item->icon] ?? null;
 
-                // Two items can share one icon name while only one of them carries the mapping, so the
-                // item that knows the LaMetric id wins over the one that named the icon first.
+                // Two items can share one icon name while only one of them carries the mapping.
                 if (null === $alreadyExpected || (null === $alreadyExpected->item->lametricId && null !== $item->lametricId)) {
                     $expectedIcons[$item->icon] = new TrackedAsset($syncType, $item);
                 }

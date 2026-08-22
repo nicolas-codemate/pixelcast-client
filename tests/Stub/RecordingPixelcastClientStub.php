@@ -79,6 +79,8 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
 
     public ?IconsSnapshot $iconsSnapshotToReturn = null;
 
+    public int $listIconsCallCount = 0;
+
     /**
      * @var list<IconUpload>
      */
@@ -223,6 +225,8 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
 
     public function listIcons(): IconsSnapshot
     {
+        ++$this->listIconsCallCount;
+
         $this->failIfConfigured();
 
         return $this->iconsSnapshotToReturn ?? IconsSnapshot::fromResponseBody([]);

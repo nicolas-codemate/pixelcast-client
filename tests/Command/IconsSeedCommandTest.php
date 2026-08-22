@@ -74,7 +74,23 @@ final class IconsSeedCommandTest extends TestCase
         $display = $tester->getDisplay();
         self::assertStringContainsString('solana: no lametricId configured', $display);
         self::assertStringContainsString('app:icons:upload solana', $display);
-        self::assertSame([], self::downloadsNamed($client, 'solana'));
+        self::assertNotContains('solana', array_column($client->downloadedLaMetricIcons, 'name'));
+    }
+
+    public function testAnIconTwoItemsShareIsDownloadedOnceFromTheItemCarryingTheMapping(): void
+    {
+        $client = new RecordingPixelcastClientStub();
+        $client->iconsSnapshotToReturn = self::snapshotCarrying('bitcoin', 'ethereum');
+
+        $tester = self::createTester(self::FILE_WITH_ICONS, $client);
+
+        $exitCode = $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertSame(
+            [['id' => self::STOCK_LAMETRIC_ID, 'name' => 'stock']],
+            $client->downloadedLaMetricIcons,
+        );
     }
 
     public function testForceDownloadsTheIconsTheDeviceAlreadyCarries(): void
@@ -89,6 +105,7 @@ final class IconsSeedCommandTest extends TestCase
         self::assertSame(Command::SUCCESS, $exitCode);
         self::assertSame(['id' => self::BITCOIN_LAMETRIC_ID, 'name' => 'bitcoin'], $client->downloadedLaMetricIcons[0] ?? null);
         self::assertStringNotContainsString('already on the device, skipped', $tester->getDisplay());
+        self::assertSame(0, $client->listIconsCallCount);
     }
 
     public function testALaMetricIconTheDeviceRefusesFailsTheCommand(): void
@@ -106,7 +123,10 @@ final class IconsSeedCommandTest extends TestCase
         $display = $tester->getDisplay();
         self::assertStringContainsString('could not be downloaded', $display);
         self::assertStringContainsString('ethereum', $display);
-        self::assertCount(1, self::downloadsNamed($client, 'stock'));
+        self::assertSame([
+            ['id' => self::BITCOIN_LAMETRIC_ID, 'name' => 'bitcoin'],
+            ['id' => self::STOCK_LAMETRIC_ID, 'name' => 'stock'],
+        ], $client->downloadedLaMetricIcons);
     }
 
     public function testADeviceThatCannotBeListedFailsTheCommandBeforeAnyDownload(): void
@@ -118,7 +138,7 @@ final class IconsSeedCommandTest extends TestCase
         $exitCode = $tester->execute([]);
 
         self::assertSame(Command::FAILURE, $exitCode);
-        self::assertStringContainsString('no route to host', $this->singleLineDisplay($tester));
+        self::assertStringContainsString('no route to host', self::singleLineDisplay($tester));
         self::assertSame([], $client->downloadedLaMetricIcons);
     }
 
@@ -131,7 +151,7 @@ final class IconsSeedCommandTest extends TestCase
         $exitCode = $tester->execute([]);
 
         self::assertSame(Command::SUCCESS, $exitCode);
-        self::assertStringContainsString('nothing to seed', $this->singleLineDisplay($tester));
+        self::assertStringContainsString('nothing to seed', self::singleLineDisplay($tester));
         self::assertSame([], $client->downloadedLaMetricIcons);
     }
 
@@ -147,7 +167,7 @@ final class IconsSeedCommandTest extends TestCase
         self::assertSame([], $client->downloadedLaMetricIcons);
     }
 
-    private function singleLineDisplay(CommandTester $tester): string
+    private static function singleLineDisplay(CommandTester $tester): string
     {
         return (string) preg_replace('/\s+/', ' ', $tester->getDisplay());
     }
@@ -169,16 +189,5 @@ final class IconsSeedCommandTest extends TestCase
             ),
             'count' => \count($iconNames),
         ]);
-    }
-
-    /**
-     * @return list<array{id: int, name: string|null}>
-     */
-    private static function downloadsNamed(RecordingPixelcastClientStub $client, string $iconName): array
-    {
-        return array_values(array_filter(
-            $client->downloadedLaMetricIcons,
-            static fn (array $download): bool => $download['name'] === $iconName,
-        ));
     }
 }
