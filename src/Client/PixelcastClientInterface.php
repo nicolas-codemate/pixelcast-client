@@ -12,6 +12,7 @@ use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Icon\IconsSnapshot;
 use App\Client\Icon\IconUpload;
+use App\Client\Indicator\IndicatorPayload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\Settings\BrightnessLevel;
 use App\Client\Settings\SettingsPayload;
@@ -88,6 +89,16 @@ interface PixelcastClientInterface
      * @param string|null $iconName local name to store the icon under, the identifier when omitted
      */
     public function downloadLaMetricIcon(int $laMetricIconId, ?string $iconName = null): void;
+
+    /**
+     * @param int $slot corner indicator to light, between 1 and 3
+     */
+    public function setIndicator(int $slot, IndicatorPayload $indicator): void;
+
+    /**
+     * @param int $slot corner indicator to turn off, between 1 and 3
+     */
+    public function clearIndicator(int $slot): void;
 
     public function reboot(): void;
 }

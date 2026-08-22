@@ -13,6 +13,7 @@ use App\Client\Gauge\GaugePayload;
 use App\Client\Http\MultipartFormDataBody;
 use App\Client\Icon\IconsSnapshot;
 use App\Client\Icon\IconUpload;
+use App\Client\Indicator\IndicatorPayload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\Settings\BrightnessLevel;
 use App\Client\Settings\SettingsPayload;
@@ -42,6 +43,9 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     private const string ICONS_SPEC_PATH = '/icons';
     private const string LAMETRIC_ICON_SPEC_PATH = '/icons/lametric';
     private const string UPLOADED_ICON_FIELD_NAME = 'file';
+    private const string INDICATOR_SPEC_PATH_PREFIX = '/indicator';
+    private const int MINIMUM_INDICATOR_SLOT = 1;
+    private const int MAXIMUM_INDICATOR_SLOT = 3;
     private const string REBOOT_SPEC_PATH = '/reboot';
 
     public function __construct(
@@ -159,9 +163,28 @@ final readonly class PixelcastClient implements PixelcastClientInterface
         $this->sendValidated('POST', self::LAMETRIC_ICON_SPEC_PATH, body: $body);
     }
 
+    public function setIndicator(int $slot, IndicatorPayload $indicator): void
+    {
+        $this->sendValidated('POST', self::indicatorSpecPath($slot), body: $indicator->toArray());
+    }
+
+    public function clearIndicator(int $slot): void
+    {
+        $this->sendValidated('DELETE', self::indicatorSpecPath($slot));
+    }
+
     public function reboot(): void
     {
         $this->sendValidated('POST', self::REBOOT_SPEC_PATH);
+    }
+
+    private static function indicatorSpecPath(int $slot): string
+    {
+        if ($slot < self::MINIMUM_INDICATOR_SLOT || $slot > self::MAXIMUM_INDICATOR_SLOT) {
+            throw new \InvalidArgumentException(\sprintf('An indicator slot must be between %d and %d, got %d.', self::MINIMUM_INDICATOR_SLOT, self::MAXIMUM_INDICATOR_SLOT, $slot));
+        }
+
+        return self::INDICATOR_SPEC_PATH_PREFIX.$slot;
     }
 
     /**
