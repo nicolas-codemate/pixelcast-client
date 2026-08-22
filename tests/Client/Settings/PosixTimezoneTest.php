@@ -27,7 +27,6 @@ final class PosixTimezoneTest extends TestCase
         yield 'Ho Chi Minh, numeric abbreviation' => ['Asia/Ho_Chi_Minh', '<+07>-7'];
         yield 'Sao Paulo, numeric abbreviation west of UTC' => ['America/Sao_Paulo', '<-03>3'];
         yield 'Lord Howe, half an hour of daylight saving' => ['Australia/Lord_Howe', '<+1030>-10:30<+11>-11,M10.1.0,M4.1.0'];
-        yield 'Dublin, winter marked as the daylight period' => ['Europe/Dublin', 'IST-1GMT0,M10.5.0,M3.5.0/1'];
     }
 
     #[DataProvider('provideTimezoneCases')]
@@ -45,6 +44,19 @@ final class PosixTimezoneTest extends TestCase
 
             self::assertLessThanOrEqual(NtpSettings::MAXIMUM_TIMEZONE_LENGTH, mb_strlen($posixTimezone), $timezoneName);
         }
+    }
+
+    /**
+     * Dublin runs on Irish Standard Time in summer and steps back to GMT in winter, which some
+     * tz database releases describe as a negative daylight saving period and others as a plain
+     * standard period. Both readings name the same hours, and each yields its own POSIX string,
+     * so the derivation is pinned to the pair rather than to one release of the database.
+     */
+    public function testAZoneSteppingBackInWinterIsDerivedAsOneOfTheTwoFormsTheDatabaseDescribesIt(): void
+    {
+        $posixTimezone = PosixTimezone::of(new \DateTimeZone('Europe/Dublin'), self::referenceInstantOfTheYear(2026));
+
+        self::assertContains($posixTimezone, ['IST-1GMT0,M10.5.0,M3.5.0/1', 'GMT0IST,M3.5.0/1,M10.5.0']);
     }
 
     public function testTheRuleOfAZoneDoesNotDependOnTheYearItIsDerivedIn(): void

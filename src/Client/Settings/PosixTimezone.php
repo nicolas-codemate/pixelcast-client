@@ -13,6 +13,10 @@ namespace App\Client\Settings;
  * more than twice a year, as Africa/Casablanca does, does not fit the two rules POSIX allows:
  * only its first two switches of the year are kept, so its string approximates the real zone.
  *
+ * The string of a zone comes out of the tz database the host carries, so a zone the database
+ * describes differently from one release to the next, as it does for Europe/Dublin, comes out
+ * differently too. Every form names the same hours.
+ *
  * @phpstan-type TimezonePeriod array{ts: int, time: string, offset: int, isdst: bool, abbr: string}
  */
 final class PosixTimezone
