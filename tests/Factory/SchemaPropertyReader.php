@@ -126,6 +126,20 @@ final class SchemaPropertyReader extends Assert
     /**
      * @param array<mixed> $fieldSchema
      *
+     * @return array<string, array<mixed>>
+     */
+    public static function arrayItemPropertiesOf(array $fieldSchema): array
+    {
+        $itemSchema = $fieldSchema['items'] ?? null;
+        self::assertIsArray($itemSchema);
+        self::assertIsArray($itemSchema['properties']);
+
+        return self::asPropertyMap($itemSchema['properties']);
+    }
+
+    /**
+     * @param array<mixed> $fieldSchema
+     *
      * @return array{int, int}
      */
     public static function itemCountBoundsOf(array $fieldSchema): array

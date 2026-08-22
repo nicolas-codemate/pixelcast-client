@@ -9,12 +9,16 @@ final class GaugeState implements ResettableState
     /** @var array<string, array<string, mixed>> */
     private array $gauges = [];
 
+    /** @var array<string, \DateTimeImmutable> */
+    private array $pushedAtByName = [];
+
     /**
      * @param array<string, mixed> $payload
      */
     public function upsert(string $name, array $payload): void
     {
         $this->gauges[$name] = $payload;
+        $this->pushedAtByName[$name] = new \DateTimeImmutable();
     }
 
     public function delete(string $name): bool
@@ -23,7 +27,7 @@ final class GaugeState implements ResettableState
             return false;
         }
 
-        unset($this->gauges[$name]);
+        unset($this->gauges[$name], $this->pushedAtByName[$name]);
 
         return true;
     }
@@ -34,6 +38,11 @@ final class GaugeState implements ResettableState
     public function get(string $name): ?array
     {
         return $this->gauges[$name] ?? null;
+    }
+
+    public function pushedAt(string $name): ?\DateTimeImmutable
+    {
+        return $this->pushedAtByName[$name] ?? null;
     }
 
     /**
@@ -52,6 +61,7 @@ final class GaugeState implements ResettableState
     public function reset(): void
     {
         $this->gauges = [];
+        $this->pushedAtByName = [];
     }
 
     /**
@@ -62,6 +72,7 @@ final class GaugeState implements ResettableState
         return [
             'gauges' => $this->gauges,
             'count' => \count($this->gauges),
+            'gaugesPushedAt' => $this->pushedAtAsAtomStrings(),
         ];
     }
 
@@ -70,7 +81,10 @@ final class GaugeState implements ResettableState
      */
     public function exportForPersistence(): array
     {
-        return ['gauges' => $this->gauges];
+        return [
+            'gauges' => $this->gauges,
+            'gaugesPushedAt' => $this->pushedAtAsAtomStrings(),
+        ];
     }
 
     /**
@@ -79,10 +93,22 @@ final class GaugeState implements ResettableState
     public function restoreFromPersistence(array $persistedState): void
     {
         $this->gauges = PersistedStateReader::payloadMap($persistedState['gauges'] ?? null);
+        $this->pushedAtByName = PersistedStateReader::atomDateMap($persistedState['gaugesPushedAt'] ?? null);
     }
 
     public function domainKey(): string
     {
         return 'gauges';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function pushedAtAsAtomStrings(): array
+    {
+        return array_map(
+            static fn (\DateTimeImmutable $pushedAt): string => $pushedAt->format(\DateTimeInterface::ATOM),
+            $this->pushedAtByName,
+        );
     }
 }

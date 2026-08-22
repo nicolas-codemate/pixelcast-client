@@ -40,6 +40,7 @@ final class TrackerControllerTest extends SimulatorWebTestCase
 
         $first = $trackers[0] ?? null;
         self::assertIsArray($first);
+        self::assertSame('BTC', $first['name'] ?? null);
         self::assertSame('BTC', $first['symbol'] ?? null);
     }
 

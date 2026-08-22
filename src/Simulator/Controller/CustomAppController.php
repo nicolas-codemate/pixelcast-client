@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Simulator\Controller;
 
+use App\Simulator\Projection\FreshnessProjection;
 use App\Simulator\State\CustomAppState;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -11,21 +12,26 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class CustomAppController extends AbstractSimulatorController
 {
-    private const array PROJECTED_FIELDS = ['text', 'icon', 'label', 'color', 'duration', 'lifetime', 'priority'];
+    public const int DEFAULT_STALE_AFTER_SECONDS = 0;
+    public const string DEFAULT_STALE_BEHAVIOR = 'hide';
+
+    private const array PROJECTED_FIELDS = ['text', 'icon', 'label', 'color', 'duration'];
 
     #[Route('/apps', methods: ['GET'])]
     public function listApps(CustomAppState $apps): JsonResponse
     {
-        $entries = $apps->list();
-        $projected = array_map(
-            static fn (array $payload): array => self::projectAppResponse($payload),
-            $entries,
-        );
+        $storedApps = $apps->list();
+        $now = new \DateTimeImmutable();
+
+        $projected = [];
+        foreach ($storedApps as $name => $payload) {
+            $projected[] = self::projectAppResponse($name, $payload, $now, $apps->pushedAt($name));
+        }
 
         return new JsonResponse([
             'apps' => $projected,
-            'count' => \count($entries),
-            'currentIndex' => [] === $entries ? -1 : 0,
+            'count' => \count($storedApps),
+            'currentIndex' => [] === $storedApps ? -1 : 0,
             'rotationEnabled' => true,
         ]);
     }
@@ -61,7 +67,7 @@ final class CustomAppController extends AbstractSimulatorController
      *
      * @return array<string, mixed>
      */
-    private static function projectAppResponse(array $payload): array
+    private static function projectAppResponse(string $name, array $payload, \DateTimeImmutable $now, ?\DateTimeImmutable $pushedAt): array
     {
         $zonesRaw = $payload['zones'] ?? null;
         $zones = \is_array($zonesRaw) ? array_values(array_filter(
@@ -69,11 +75,8 @@ final class CustomAppController extends AbstractSimulatorController
             static fn (mixed $entry): bool => \is_array($entry),
         )) : [];
 
-        $name = $payload['name'] ?? null;
-        $id = \is_string($name) ? $name : '';
-
         $projection = [
-            'id' => $id,
+            'id' => $name,
             'isSystem' => false,
             'isCurrent' => false,
             'zoneCount' => \count($zones),
@@ -89,6 +92,16 @@ final class CustomAppController extends AbstractSimulatorController
             $projection['zones'] = $zones;
         }
 
-        return $projection;
+        $freshness = FreshnessProjection::of(
+            $payload,
+            $pushedAt,
+            $now,
+            self::DEFAULT_STALE_AFTER_SECONDS,
+            self::DEFAULT_STALE_BEHAVIOR,
+        );
+        // AppResponse says whether the app is stale, never how old it is.
+        unset($freshness['age']);
+
+        return $projection + $freshness;
     }
 }

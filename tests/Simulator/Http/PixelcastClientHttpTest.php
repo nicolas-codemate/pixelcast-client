@@ -129,10 +129,19 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         self::assertSame(Response::HTTP_OK, $listResponse->statusCode, $this->explain($listResponse));
         $decodedList = $listResponse->decodedBody();
         self::assertSame(1, $decodedList['count'] ?? null);
-        self::assertSame(
-            [['name' => 'claude', 'title' => 'Claude', 'rowCount' => 1]],
-            $decodedList['gauges'] ?? null,
-        );
+
+        $listedGauges = $decodedList['gauges'] ?? null;
+        self::assertIsArray($listedGauges);
+        $firstGauge = $listedGauges[0] ?? null;
+        self::assertIsArray($firstGauge);
+
+        self::assertSame('claude', $firstGauge['name'] ?? null);
+        self::assertSame('Claude', $firstGauge['title'] ?? null);
+        self::assertSame(1, $firstGauge['rowCount'] ?? null);
+        self::assertSame(2700, $firstGauge['staleAfter'] ?? null);
+        self::assertSame('dim', $firstGauge['staleBehavior'] ?? null);
+        self::assertFalse($firstGauge['stale'] ?? null);
+        self::assertIsInt($firstGauge['age'] ?? null);
     }
 
     public function testPushedNotificationIsQueuedThenDismissed(): void

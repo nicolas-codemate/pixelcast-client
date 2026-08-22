@@ -47,6 +47,47 @@ final class GaugeStateTest extends TestCase
         self::assertCount(1, $gauges->list());
     }
 
+    public function testUpsertRecordsWhenTheGaugeWasPushed(): void
+    {
+        $gauges = new GaugeState();
+        $beforeThePush = new \DateTimeImmutable();
+
+        $gauges->upsert('claude', self::CLAUDE_PAYLOAD);
+
+        $pushedAt = $gauges->pushedAt('claude');
+        self::assertNotNull($pushedAt);
+        self::assertGreaterThanOrEqual($beforeThePush, $pushedAt);
+    }
+
+    public function testUpsertingAgainMovesThePushInstantForward(): void
+    {
+        $gauges = new GaugeState();
+        $gauges->upsert('claude', self::CLAUDE_PAYLOAD);
+        $firstPushedAt = $gauges->pushedAt('claude');
+
+        // The instant is taken with microsecond precision, so two immediate pushes could share it.
+        usleep(1000);
+        $gauges->upsert('claude', self::CLAUDE_PAYLOAD);
+
+        self::assertNotNull($firstPushedAt);
+        self::assertGreaterThan($firstPushedAt, $gauges->pushedAt('claude'));
+    }
+
+    public function testAnUnknownGaugeHasNoPushInstant(): void
+    {
+        self::assertNull(new GaugeState()->pushedAt('claude'));
+    }
+
+    public function testDeleteForgetsThePushInstant(): void
+    {
+        $gauges = new GaugeState();
+        $gauges->upsert('claude', self::CLAUDE_PAYLOAD);
+
+        $gauges->delete('claude');
+
+        self::assertNull($gauges->pushedAt('claude'));
+    }
+
     public function testDeleteReportsWhetherTheGaugeWasThere(): void
     {
         $gauges = new GaugeState();
@@ -66,6 +107,10 @@ final class GaugeStateTest extends TestCase
         self::assertSame([
             'gauges' => ['claude' => self::CLAUDE_PAYLOAD, 'disks' => ['title' => 'Disques']],
             'count' => 2,
+            'gaugesPushedAt' => [
+                'claude' => $gauges->pushedAt('claude')?->format(\DateTimeInterface::ATOM),
+                'disks' => $gauges->pushedAt('disks')?->format(\DateTimeInterface::ATOM),
+            ],
         ], $gauges->snapshot());
     }
 
@@ -77,7 +122,8 @@ final class GaugeStateTest extends TestCase
         $gauges->reset();
 
         self::assertSame([], $gauges->list());
-        self::assertSame(['gauges' => [], 'count' => 0], $gauges->snapshot());
+        self::assertNull($gauges->pushedAt('claude'));
+        self::assertSame(['gauges' => [], 'count' => 0, 'gaugesPushedAt' => []], $gauges->snapshot());
     }
 
     public function testExportedStateIsRestoredIntoAFreshInstance(): void

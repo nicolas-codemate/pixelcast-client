@@ -11,7 +11,6 @@ final class CustomAppControllerTest extends SimulatorWebTestCase
     public function testPostThenListIncludesApp(): void
     {
         $this->postJson('/api/custom?name=foo', [
-            'name' => 'foo',
             'text' => 'hello',
             'icon' => 'smiley',
             'color' => '#FF8800',
