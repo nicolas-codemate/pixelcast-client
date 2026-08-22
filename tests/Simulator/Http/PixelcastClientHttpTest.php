@@ -8,6 +8,7 @@ use App\Client\Color;
 use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
+use App\Client\Icon\IconUpload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\Settings\BrightnessLevel;
 use App\Client\Settings\SettingsPayload;
@@ -22,6 +23,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class PixelcastClientHttpTest extends SimulatorHttpTestCase
 {
+    private const string PNG_CONTENTS = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDRpixels";
+
     public function testPushedWeatherPayloadIsTheOneReceivedBySimulator(): void
     {
         $payload = new WeatherPayload(
@@ -198,6 +201,41 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         self::assertNotNull($stats->wifi);
         self::assertSame('simulator', $stats->wifi->ssid);
         self::assertSame(-45, $stats->wifi->signalStrengthDbm);
+    }
+
+    public function testUploadedIconIsListedThenDeleted(): void
+    {
+        $client = $this->buildPixelcastClient();
+
+        $client->uploadIcon(IconUpload::fromContents('bitcoin', self::PNG_CONTENTS));
+
+        $iconsAfterUpload = $client->listIcons();
+        self::assertSame(['bitcoin'], $iconsAfterUpload->iconNames(), $this->server->serverOutput());
+        self::assertSame(1, $iconsAfterUpload->count);
+        self::assertNotNull($iconsAfterUpload->storage);
+        self::assertGreaterThan(0, $iconsAfterUpload->storage->totalBytes);
+
+        $client->deleteIcon('bitcoin');
+
+        self::assertSame([], $client->listIcons()->iconNames(), $this->server->serverOutput());
+    }
+
+    public function testDeletingAnIconTheDeviceDoesNotCarryThrowsResourceNotFoundException(): void
+    {
+        $client = $this->buildPixelcastClient();
+
+        $this->expectException(ResourceNotFoundException::class);
+
+        $client->deleteIcon('bitcoin');
+    }
+
+    public function testLaMetricIconIsDownloadedByTheDeviceAndAppearsInTheListing(): void
+    {
+        $client = $this->buildPixelcastClient();
+
+        $client->downloadLaMetricIcon(2867);
+
+        self::assertSame(['lametric_2867'], $client->listIcons()->iconNames(), $this->server->serverOutput());
     }
 
     public function testRebootIsAcceptedByTheDevice(): void

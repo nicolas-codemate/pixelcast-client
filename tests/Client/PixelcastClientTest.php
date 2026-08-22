@@ -13,6 +13,7 @@ use App\Client\Exception\PixelcastClientException;
 use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
+use App\Client\Icon\IconUpload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClient;
 use App\Client\Settings\BrightnessLevel;
@@ -49,12 +50,20 @@ final class PixelcastClientTest extends TestCase
     private const string EXPECTED_BRIGHTNESS_URL = 'http://device.test/api/brightness';
     private const string EXPECTED_STATS_URL = 'http://device.test/api/stats';
     private const string EXPECTED_REBOOT_URL = 'http://device.test/api/reboot';
+    private const string EXPECTED_ICONS_URL = 'http://device.test/api/icons';
+    private const string EXPECTED_ICON_UPLOAD_URL = 'http://device.test/api/icons?name=bitcoin';
+    private const string EXPECTED_ICON_DELETE_URL = 'http://device.test/api/icons?name=bitcoin';
+    private const string EXPECTED_LAMETRIC_ICON_URL = 'http://device.test/api/icons/lametric';
     private const array FIRMWARE_DAY_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
     // The "scheduleActive" example of sync/openapi.yaml.
     private const string SCHEDULE_ACTIVE_SLEEP_BODY = '{"sleeping":true,"reason":"schedule","config":{"enabled":true,"display_mode":"black","schedule":{"monday":{"all_day":false,"slots":[{"start":"20:00","end":"07:00"}]}},"sleep_until":0}}';
 
     private const string SETTINGS_RESPONSE_BODY = '{"brightness":128,"autoRotate":true,"defaultDuration":10000,"weatherDuration":12000,"display":{"width":64,"height":8},"ntp":{"server":"pool.ntp.org","tz_posix":"CET-1CEST,M3.5.0,M10.5.0/3"},"mqtt":{"enabled":false,"prefix":"pixelcast"}}';
+
+    private const string ICONS_RESPONSE_BODY = '{"icons":[{"name":"bitcoin","filename":"bitcoin.png","size":171},{"name":"claude","filename":"claude.png","size":107}],"count":2,"storage":{"used":81920,"total":196608}}';
+
+    private const string PNG_CONTENTS = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDRpixels";
 
     private const string STATS_RESPONSE_BODY = '{"version":"0.1.0-dev","uptime":4213,"freeHeap":142360,"maxAllocHeap":81920,"brightness":128,"wifi":{"ssid":"home","rssi":-45,"ip":"192.168.1.174"},"display":{"width":64,"height":8}}';
 
@@ -331,6 +340,84 @@ final class PixelcastClientTest extends TestCase
         self::assertSame('192.168.1.174', $stats->wifi->ipAddress);
     }
 
+    public function testListIconsReadsTheIconsAndTheFilesystemOccupancy(): void
+    {
+        $response = new MockResponse(self::ICONS_RESPONSE_BODY);
+
+        $icons = $this->buildClient($response)->listIcons();
+
+        self::assertSame('GET', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_ICONS_URL, $response->getRequestUrl());
+        self::assertSame(['bitcoin', 'claude'], $icons->iconNames());
+        self::assertNotNull($icons->storage);
+        self::assertSame(114_688, $icons->storage->availableBytes());
+    }
+
+    public function testUploadIconPostsTheFileAsMultipartWithTheNameAsQueryParameter(): void
+    {
+        $response = new MockResponse('{"success":true}');
+
+        $this->buildClient($response)->uploadIcon(IconUpload::fromContents('bitcoin', self::PNG_CONTENTS));
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_ICON_UPLOAD_URL, $response->getRequestUrl());
+
+        $sentBody = $response->getRequestOptions()['body'] ?? null;
+        self::assertIsString($sentBody);
+        self::assertStringContainsString('Content-Disposition: form-data; name="file"; filename="bitcoin.png"', $sentBody);
+        self::assertStringContainsString('Content-Type: image/png', $sentBody);
+        self::assertStringContainsString(self::PNG_CONTENTS, $sentBody);
+        self::assertNotEmpty(self::multipartContentTypeHeaders($response));
+    }
+
+    public function testUploadIconRejectsAFormatTheDeviceDoesNotAcceptBeforeSendingAnything(): void
+    {
+        $this->expectException(InvalidPayloadException::class);
+        $this->expectExceptionMessageMatches('/neither a PNG nor a GIF/');
+
+        IconUpload::fromContents('bitcoin', "\xff\xd8\xffJFIF");
+    }
+
+    public function testDeleteIconSendsTheNameAsQueryParameter(): void
+    {
+        $response = new MockResponse('{"success":true}');
+
+        $this->buildClient($response)->deleteIcon('bitcoin');
+
+        self::assertSame('DELETE', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_ICON_DELETE_URL, $response->getRequestUrl());
+    }
+
+    public function testDeletingAnUnknownIconThrowsResourceNotFoundException(): void
+    {
+        $client = $this->buildClient(new MockResponse('{"error":"Icon not found"}', ['http_code' => 404]));
+
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessageMatches('#/icons#');
+
+        $client->deleteIcon('bitcoin');
+    }
+
+    public function testDownloadLaMetricIconSendsTheIdentifierAndTheChosenLocalName(): void
+    {
+        $response = new MockResponse('{"success":true}');
+
+        $this->buildClient($response)->downloadLaMetricIcon(2867, 'bitcoin');
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_LAMETRIC_ICON_URL, $response->getRequestUrl());
+        self::assertSame(['id' => 2867, 'name' => 'bitcoin'], self::decodedRequestBody($response));
+    }
+
+    public function testDownloadLaMetricIconOmitsTheNameSoTheDeviceFallsBackOnTheIdentifier(): void
+    {
+        $response = new MockResponse('{"success":true}');
+
+        $this->buildClient($response)->downloadLaMetricIcon(2867);
+
+        self::assertSame(['id' => 2867], self::decodedRequestBody($response));
+    }
+
     public function testFetchStatsRefusesABodyThatIsNotAJsonObject(): void
     {
         $client = $this->buildClient(new MockResponse('device is rebooting'));
@@ -496,6 +583,23 @@ final class PixelcastClientTest extends TestCase
             displayMode: 'black',
             sleepSlotsByDayName: array_fill_keys(self::FIRMWARE_DAY_NAMES, [new SleepSlot('00:00', '07:00')]),
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function multipartContentTypeHeaders(MockResponse $response): array
+    {
+        $sentHeaders = $response->getRequestOptions()['headers'] ?? null;
+
+        if (!\is_array($sentHeaders)) {
+            self::fail('The mock HTTP client received no request header.');
+        }
+
+        return array_values(array_filter(
+            $sentHeaders,
+            static fn (mixed $header): bool => \is_string($header) && str_contains($header, 'multipart/form-data; boundary='),
+        ));
     }
 
     private static function decodedRequestBody(MockResponse $response): mixed
