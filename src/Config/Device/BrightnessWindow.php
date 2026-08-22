@@ -45,8 +45,7 @@ final readonly class BrightnessWindow implements \Stringable
             throw PixelCastConfigException::invalidValue($parentPath.'.'.self::TO_OPTION_KEY, \sprintf('expected a time other than "%s": a window opening and closing at the same minute covers nothing', $fromTimeOfDay));
         }
 
-        $declaredLevel = SyncOptionReader::optionalInt($options, self::LEVEL_OPTION_KEY, $parentPath, BrightnessLevel::MINIMUM_LEVEL, BrightnessLevel::MAXIMUM_LEVEL)
-            ?? throw PixelCastConfigException::missingKey($parentPath.'.'.self::LEVEL_OPTION_KEY);
+        $declaredLevel = SyncOptionReader::requireInt($options, self::LEVEL_OPTION_KEY, $parentPath, BrightnessLevel::MINIMUM_LEVEL, BrightnessLevel::MAXIMUM_LEVEL);
         $declaredDays = SyncOptionReader::optionalEnumList($options, self::DAYS_OPTION_KEY, $parentPath, ActiveWindowDay::class);
 
         return new self(
@@ -72,7 +71,7 @@ final readonly class BrightnessWindow implements \Stringable
             $end = $end->modify('+1 day');
         }
 
-        return BrightnessStretch::of($start, $end, $this->level);
+        return BrightnessStretch::of($start, $end);
     }
 
     public function coversTheDayOf(\DateTimeImmutable $localDay): bool

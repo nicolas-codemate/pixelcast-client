@@ -15,9 +15,6 @@ use App\Config\Sync\SyncOptionReader;
  * The device itself rather than what is shown on it. Its timezone is what the sleep schedule and
  * every active window fall back on, so the file names it once instead of repeating it in each
  * section, and the panel settings that go with it are pushed on demand by app:device:settings.
- *
- * The brightness windows are the one exception: the device holds no schedule of levels, so the
- * client walks them itself and pushes the level of the current window while it runs.
  */
 final readonly class DeviceConfig
 {

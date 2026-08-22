@@ -8,8 +8,7 @@ use App\Client\Settings\BrightnessLevel;
 
 /**
  * The brightness windows read as a planning the client can reason about: which level the panel is
- * meant to hold at a given instant. The device knows no brightness schedule of its own, so the
- * client is the one that walks these hours, in the timezone the device is set to.
+ * meant to hold at a given instant, in the timezone the device is set to.
  */
 final readonly class BrightnessSchedule implements \Stringable
 {
@@ -48,10 +47,8 @@ final readonly class BrightnessSchedule implements \Stringable
         $selectedLevel = $this->defaultLevel;
 
         foreach ($this->windows as $window) {
-            $coveringStretch = self::stretchOfTheWindowCovering($window, $localInstant);
-
-            if (null !== $coveringStretch) {
-                $selectedLevel = $coveringStretch->level;
+            if (self::windowCovers($window, $localInstant)) {
+                $selectedLevel = $window->level;
             }
         }
 
@@ -73,7 +70,7 @@ final readonly class BrightnessSchedule implements \Stringable
      * small hours of a day was opened the day before: the scan always reaches one day further back
      * than the answer needs.
      */
-    private static function stretchOfTheWindowCovering(BrightnessWindow $window, \DateTimeImmutable $localInstant): ?BrightnessStretch
+    private static function windowCovers(BrightnessWindow $window, \DateTimeImmutable $localInstant): bool
     {
         for ($dayOffset = self::DAYS_BEFORE_A_COVERING_STRETCH; $dayOffset >= 0; --$dayOffset) {
             $anchorDay = $localInstant->modify(\sprintf('-%d days', $dayOffset));
@@ -82,13 +79,11 @@ final readonly class BrightnessSchedule implements \Stringable
                 continue;
             }
 
-            $stretch = $window->stretchStartingOn($anchorDay);
-
-            if ($stretch->covers($localInstant)) {
-                return $stretch;
+            if ($window->stretchStartingOn($anchorDay)->covers($localInstant)) {
+                return true;
             }
         }
 
-        return null;
+        return false;
     }
 }

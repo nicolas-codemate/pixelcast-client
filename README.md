@@ -112,13 +112,14 @@ mount.
 `pixelcast.yaml` is read at startup, validated against `pixelcast.schema.json`,
 and read again whenever its modification time changes, so an edit takes effect on
 the next sync cycle without restarting the container. What is picked up straight
-away are the options of a group — colours, tracker items, thresholds. The
-interval of a group, its `enabled` flag and the sleep window are held by the
-scheduler for the life of the consumer, so those wait for its hourly recycle. The
-`yaml-language-server` directive on the first line points at the schema published
-on `main` and only serves editor completion; the one that decides is the copy
-embedded in the image. API keys never belong in this file: it rejects any key it
-does not declare, naming it.
+away are the options of a group — colours, tracker items, thresholds — and the
+bounds and levels of brightness windows already declared. The interval of a
+group, its `enabled` flag, the sleep window and whether `brightnessWindows`
+exists at all are held by the scheduler for the life of the consumer, so those
+wait for its hourly recycle. The `yaml-language-server` directive on the first
+line points at the schema published on `main` and only serves editor completion;
+the one that decides is the copy embedded in the image. API keys never belong in
+this file: it rejects any key it does not declare, naming it.
 
 An invalid configuration stops the consumer before it starts, with a message
 naming the faulty key, such as `syncs.weather.interval`. Since `compose.yaml`

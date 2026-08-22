@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Client\PixelcastClientInterface;
-use App\Client\Settings\BrightnessLevel;
 use App\Config\SyncsConfigLoader;
 use App\Message\ApplyBrightnessMessage;
 use Psr\Clock\ClockInterface;
@@ -19,7 +18,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final class ApplyBrightnessHandler
 {
-    private ?BrightnessLevel $lastPushedLevel = null;
+    private ?int $lastPushedLevel = null;
 
     public function __construct(
         private readonly SyncsConfigLoader $configLoader,
@@ -32,9 +31,10 @@ final class ApplyBrightnessHandler
     public function __invoke(ApplyBrightnessMessage $message): void
     {
         try {
-            // Read on every tick rather than carried by the message: a window edited by hand then
-            // takes effect on the next minute, without restarting the consumer.
-            $brightnessSchedule = $this->configLoader->load()->device?->brightnessSchedule;
+            // Read on every tick rather than carried by the message: editing a declared window
+            // takes effect on the next minute. A file gaining its first window waits for the
+            // consumer to be recycled, since the scheduler registers the tick only at startup.
+            $brightnessSchedule = $this->configLoader->load()->brightnessSchedule();
 
             if (null === $brightnessSchedule) {
                 return;
@@ -42,12 +42,12 @@ final class ApplyBrightnessHandler
 
             $levelOfTheCurrentWindow = $brightnessSchedule->levelAt($this->clock->now());
 
-            if ($levelOfTheCurrentWindow->level === $this->lastPushedLevel?->level) {
+            if ($levelOfTheCurrentWindow->level === $this->lastPushedLevel) {
                 return;
             }
 
             $this->pixelcastClient->pushBrightness($levelOfTheCurrentWindow);
-            $this->lastPushedLevel = $levelOfTheCurrentWindow;
+            $this->lastPushedLevel = $levelOfTheCurrentWindow->level;
 
             $this->logger->info('Brightness applied to the device', ['level' => $levelOfTheCurrentWindow->level]);
         } catch (\Throwable $brightnessFailure) {
