@@ -73,6 +73,88 @@ final class DeviceConfigTest extends TestCase
         self::deviceConfigOf(['weatherDuration' => 1000]);
     }
 
+    public function testDeclaredBrightnessWindowsBecomeAScheduleKeepingTheSectionLevelAsItsDefault(): void
+    {
+        $deviceConfig = self::deviceConfigOf([
+            'timezone' => 'Europe/Paris',
+            'brightness' => 200,
+            'brightnessWindows' => [
+                ['from' => '22:00', 'to' => '07:00', 'level' => 20],
+                ['from' => '12:00', 'to' => '14:00', 'level' => 255, 'days' => ['sat', 'sun']],
+            ],
+        ]);
+
+        self::assertNotNull($deviceConfig);
+        self::assertNotNull($deviceConfig->brightnessSchedule);
+        self::assertSame('default 200 22:00-07:00@20+12:00-14:00@255 Europe/Paris', (string) $deviceConfig->brightnessSchedule);
+    }
+
+    public function testASectionWithoutBrightnessWindowsCarriesNoSchedule(): void
+    {
+        $deviceConfig = self::deviceConfigOf(['timezone' => 'Europe/Paris', 'brightness' => 200]);
+
+        self::assertNotNull($deviceConfig);
+        self::assertNull($deviceConfig->brightnessSchedule);
+    }
+
+    public function testBrightnessWindowsWithoutALevelToFallBackOnAreRefused(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('declare "device.brightness"');
+
+        self::deviceConfigOf([
+            'timezone' => 'Europe/Paris',
+            'brightnessWindows' => [['from' => '22:00', 'to' => '07:00', 'level' => 20]],
+        ]);
+    }
+
+    public function testBrightnessWindowsWithoutATimezoneToReadTheirHoursInAreRefused(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('declare "device.timezone"');
+
+        self::deviceConfigOf([
+            'brightness' => 200,
+            'brightnessWindows' => [['from' => '22:00', 'to' => '07:00', 'level' => 20]],
+        ]);
+    }
+
+    public function testAWindowLevelAboveTheLevelsTheDeviceAcceptsIsRefused(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('device.brightnessWindows[0].level');
+
+        self::deviceConfigOf([
+            'timezone' => 'Europe/Paris',
+            'brightness' => 200,
+            'brightnessWindows' => [['from' => '22:00', 'to' => '07:00', 'level' => 300]],
+        ]);
+    }
+
+    public function testAWindowWithoutALevelIsRefused(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('device.brightnessWindows[0].level');
+
+        self::deviceConfigOf([
+            'timezone' => 'Europe/Paris',
+            'brightness' => 200,
+            'brightnessWindows' => [['from' => '22:00', 'to' => '07:00']],
+        ]);
+    }
+
+    public function testAWindowOpeningAndClosingAtTheSameMinuteIsRefused(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('device.brightnessWindows[0].to');
+
+        self::deviceConfigOf([
+            'timezone' => 'Europe/Paris',
+            'brightness' => 200,
+            'brightnessWindows' => [['from' => '22:00', 'to' => '22:00', 'level' => 20]],
+        ]);
+    }
+
     public function testAnEmptyNtpServerIsRefused(): void
     {
         $this->expectException(PixelCastConfigException::class);

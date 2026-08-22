@@ -8,7 +8,9 @@
 # The device itself rather than what is shown on it. The whole section is optional: without it
 # every section that needs a timezone names its own, exactly as before. The panel settings below
 # are stored by the device and pushed only by `bin/console app:device:settings`, never by the
-# scheduler, so editing them here changes nothing on the screen until that command has run.
+# scheduler, so editing them here changes nothing on the screen until that command has run. The
+# one exception is brightnessWindows: the device holds no schedule of levels, so the scheduler
+# walks the windows itself and pushes the brightness of the current one.
 device:
     # Timezone the device is set to. The sleep schedule and every group activeWindow read their
     # hours in it unless they name a timezone of their own, so it is written once here rather than
@@ -17,8 +19,27 @@ device:
     timezone: Europe/Paris
 
     # How bright the panel is, 0 the dimmest and 255 the brightest. Without this key the device
-    # keeps the level it already holds.
+    # keeps the level it already holds. With the windows below it becomes the level held outside
+    # them, and is then required.
     # brightness: 120
+
+    # Stretches of the day the panel is held at a level of its own, the brightness above applying
+    # outside them. Both bounds are HH:MM, read in the timezone above, from included and to
+    # excluded, so two windows written back to back never dispute a minute. A "to" earlier than
+    # "from" runs past midnight into the next day, exactly as in a sleep window, so from '22:00'
+    # to '07:00' is a single night. days is optional, the seven of the week otherwise. Two windows
+    # covering the same minute are not an error: the last one declared here wins, which is what
+    # lets a broad window be written first and trimmed underneath. Unlike the sleep schedule,
+    # which the device applies on its own once pushed, these windows are applied by the client
+    # while it runs: a stopped consumer leaves the panel on the last level it pushed.
+    # brightnessWindows:
+    #     - from: '07:00'
+    #       to: '22:00'
+    #       level: 120
+    #     - from: '22:00'
+    #       to: '07:00'
+    #       level: 20
+    #       days: [mon, tue, wed, thu, fri]
 
     # Whether the device moves from one app to the next on its own. Without this key the device
     # keeps what it already holds.

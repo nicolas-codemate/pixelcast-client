@@ -44,7 +44,7 @@
     },
     "definitions": {
         "device": {
-            "description": "The device itself rather than what is shown on it. Every key of this section is optional, and a file without the section behaves exactly as before. The panel settings below are stored by the device and pushed only by `bin/console app:device:settings`, never by the scheduler, so editing them here changes nothing on the screen until that command has run.",
+            "description": "The device itself rather than what is shown on it. Every key of this section is optional, and a file without the section behaves exactly as before. The panel settings below are stored by the device and pushed only by `bin/console app:device:settings`, never by the scheduler, so editing them here changes nothing on the screen until that command has run. The one exception is brightnessWindows: the device holds no schedule of levels, so the scheduler walks the windows itself and pushes brightness while the client runs.",
             "type": "object",
             "minProperties": 1,
             "additionalProperties": false,
@@ -55,10 +55,18 @@
                     "minLength": 1
                 },
                 "brightness": {
-                    "description": "How bright the panel is, 0 the dimmest and 255 the brightest. Without this key the device keeps the level it already holds.",
+                    "description": "How bright the panel is, 0 the dimmest and 255 the brightest. Without this key the device keeps the level it already holds. With brightnessWindows below it becomes the level held outside every window, and is then required.",
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 255
+                },
+                "brightnessWindows": {
+                    "description": "Stretches of the day the panel is held at a level of its own, brightness applying outside them. They require brightness and timezone above. The device knows no schedule of levels, so the client is the one that applies them: a stopped client leaves the panel on the last level pushed.",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/brightnessWindow"
+                    }
                 },
                 "autoRotate": {
                     "description": "Whether the device moves from one app to the next on its own. Without this key the device keeps what it already holds.",
@@ -164,6 +172,52 @@
                     "description": "Time the panel comes back on, as HH:MM. A \"to\" earlier than \"from\" runs past midnight into the next day, the opposite of activeWindow.to, which refuses it.",
                     "type": "string",
                     "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                }
+            }
+        },
+        "brightnessWindow": {
+            "description": "One stretch of the day the panel is held at a level of its own. Two windows covering the same minute are not an error: the last one declared in the file wins.",
+            "type": "object",
+            "required": [
+                "from",
+                "to",
+                "level"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "from": {
+                    "description": "Time the level starts applying, as HH:MM, included.",
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "to": {
+                    "description": "Time the level stops applying, as HH:MM, excluded, so two windows written back to back never dispute a minute. A \"to\" earlier than \"from\" runs past midnight into the next day, as in sleepWindow.to.",
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "level": {
+                    "description": "How bright the panel is during the window, 0 the dimmest and 255 the brightest.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                },
+                "days": {
+                    "description": "Days the window applies on. Without it every day is covered. A window running past midnight is anchored on the day it starts.",
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri",
+                            "sat",
+                            "sun"
+                        ]
+                    }
                 }
             }
         },

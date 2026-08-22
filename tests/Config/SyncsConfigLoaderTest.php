@@ -173,6 +173,23 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertSame('pool.ntp.org', $config->device->ntpServer);
     }
 
+    public function testAFileDeclaringBrightnessWindowsReadsThemAsASchedule(): void
+    {
+        $config = self::loaderFor('syncs-device-brightness-windows.yaml')->load();
+
+        self::assertNotNull($config->device);
+        self::assertNotNull($config->device->brightnessSchedule);
+        self::assertSame('default 200 07:00-22:00@120+22:00-07:00@20 Europe/Paris', (string) $config->device->brightnessSchedule);
+    }
+
+    public function testAFileWithoutBrightnessWindowsCarriesNoBrightnessSchedule(): void
+    {
+        $config = self::loaderFor('syncs-device-settings.yaml')->load();
+
+        self::assertNotNull($config->device);
+        self::assertNull($config->device->brightnessSchedule);
+    }
+
     public function testAnEnabledSleepWithoutAnyTimezoneNamesBothKeys(): void
     {
         try {
@@ -401,6 +418,7 @@ final class SyncsConfigLoaderTest extends TestCase
         yield 'window without any timezone' => ['syncs-window-missing-timezone.yaml', 'Missing required PixelCast config key "syncs.boursorama.activeWindow.timezone"'];
         yield 'brightness above what the panel accepts' => ['syncs-device-brightness-out-of-bounds.yaml', 'device.brightness'];
         yield 'weather duration below what the weather app needs' => ['syncs-device-weather-duration-out-of-bounds.yaml', 'device.weatherDuration'];
+        yield 'brightness windows without a level to fall back on' => ['syncs-device-brightness-windows-without-default.yaml', 'declare "device.brightness"'];
     }
 
     #[DataProvider('provideRejectedFileCases')]

@@ -1,0 +1,22 @@
+# Sample configuration used by SyncsConfigLoaderTest: brightness windows under the device section,
+# one of them running past midnight and restricted to the working week.
+device:
+    timezone: Europe/Paris
+    brightness: 200
+    brightnessWindows:
+        - from: '07:00'
+          to: '22:00'
+          level: 120
+        - from: '22:00'
+          to: '07:00'
+          level: 20
+          days: [mon, tue, wed, thu, fri]
+
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr

@@ -510,12 +510,36 @@ as before, each section naming its own timezone.
 
 The same section carries the settings of the panel itself: `brightness` from 0
 to 255, `autoRotate`, `defaultDuration` and `weatherDuration` in milliseconds,
-and `ntp.server`. They are pushed by `bin/console app:device:settings` alone,
-never by the scheduler, and every one of them is optional — a key left out is a
+and `ntp.server`. They are pushed by `bin/console app:device:settings` alone —
+the one exception being `brightnessWindows` below, which the scheduler applies
+itself — and every one of them is optional: a key left out is a
 setting the device keeps as it already holds it. The POSIX timezone the device
 runs on is not among them: it is derived from `device.timezone`, so
 `Europe/Paris` becomes `CET-1CEST,M3.5.0,M10.5.0/3` on its own rather than being
 written a second time in a format nobody edits by hand.
+
+`brightnessWindows` makes that single level vary with the hour: a list of
+stretches, each carrying `from`, `to`, `level` and optional `days`, written in
+the same grammar as a sleep window — `HH:MM` bounds, days among `mon` to `sun`,
+the seven of the week without the key. The hours are read in `device.timezone`,
+which the section is not allowed to leave out once it declares a window, and
+outside every window the panel is held at `device.brightness`, which becomes
+required for the same reason: without it there would be no level to fall back
+on. `from` is included and `to` excluded, so `'07:00'` to `'09:00'` followed by
+`'09:00'` to `'22:00'` never disputes a minute, and a `to` earlier than its
+`from` runs past midnight into the next day, `'22:00'` to `'07:00'` being a
+single night anchored on the evening it starts. Two windows covering the same
+minute are not refused: the last one declared in the file wins, which is what
+lets a broad window be written first and trimmed underneath.
+
+This is where `brightnessWindows` differs from `sleep:` in kind, and the
+difference is worth naming. The device stores the sleep schedule and goes on
+applying it whether the client runs or not; it holds no schedule of levels at
+all, so the client is the one that walks these windows, once a minute, and
+pushes `POST /brightness` when the level changes — one call per boundary
+crossed, not one per minute. A stopped consumer therefore stops the variation:
+the panel keeps the last level pushed until the client comes back, and pushes
+again at its first tick.
 
 The `sleep:` section, at the top level of the file rather than inside a group,
 turns the panel off between hours of the day: `black` blanks it, `clock` leaves
