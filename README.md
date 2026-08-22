@@ -582,6 +582,18 @@ first minutes of the morning and a night of sleep never turns the container
 `unhealthy`. A section carrying `enabled: false`, or no `sleep:` section at all,
 suspends nothing and leaves the cycles strictly as they were.
 
+The brightness windows of `device:` are held back the same way: the tick that
+walks them is wrapped in the sleep window exactly as a cycle is, so no level is
+pushed while the panel is off, and the first tick after the wake-up applies the
+window covering that instant rather than the level the panel was dimmed to
+before going dark. A brightness window overlapping a sleep window is not an
+error and needs no trimming — an evening dimming written `'22:00'` to `'07:00'`
+over a night of sleep from `'00:00'` to `'07:00'` simply does nothing for the
+hours the panel is off, since there is nothing lit left to dim. The two
+sections still differ in kind: the device goes on applying its sleep schedule
+whether the client runs or not, while the brightness windows stop varying the
+moment the client stops.
+
 A timezone is required as soon as the section is enabled — either `timezone` on
 the section itself, or `device.timezone` once for the whole device — and it
 must name the timezone the device itself is set to. The container clock runs on

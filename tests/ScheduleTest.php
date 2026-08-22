@@ -190,6 +190,16 @@ final class ScheduleTest extends TestCase
         self::assertSame(['weather'], array_keys($schedule->syncMessages()));
     }
 
+    public function testTheBrightnessTickIsWrappedInTheSleepTriggerWhenTheFileDeclaresASchedule(): void
+    {
+        $schedule = self::createSchedule('syncs-brightness-and-sleep.yaml');
+
+        $brightnessTrigger = $schedule->getSchedule()->getRecurringMessages()[1]->getTrigger();
+
+        self::assertInstanceOf(SleepScheduleTrigger::class, $brightnessTrigger);
+        self::assertSame('every 1 minute, asleep mon,tue,wed,thu,fri,sat,sun 00:00-07:00 Europe/Paris', (string) $brightnessTrigger);
+    }
+
     private static function brightnessTickId(): string
     {
         return RecurringMessage::every(BrightnessSchedule::TICK_INTERVAL, new ApplyBrightnessMessage())->getId();
