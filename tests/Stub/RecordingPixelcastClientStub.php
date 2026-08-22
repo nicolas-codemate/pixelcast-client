@@ -100,12 +100,14 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
 
     /**
      * @param array<string, \Throwable> $trackerFailures keyed by tracker name
+     * @param array<int, \Throwable> $laMetricIconFailures keyed by LaMetric icon id
      */
     public function __construct(
         private readonly ?\Throwable $failure = null,
         private readonly array $trackerFailures = [],
         private readonly ?\Throwable $sleepStateFailure = null,
         private readonly ?\Throwable $settingsSnapshotFailure = null,
+        private readonly array $laMetricIconFailures = [],
     ) {
     }
 
@@ -242,6 +244,10 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
 
     public function downloadLaMetricIcon(int $laMetricIconId, ?string $iconName = null): void
     {
+        if (isset($this->laMetricIconFailures[$laMetricIconId])) {
+            throw $this->laMetricIconFailures[$laMetricIconId];
+        }
+
         $this->failIfConfigured();
 
         $this->downloadedLaMetricIcons[] = ['id' => $laMetricIconId, 'name' => $iconName];

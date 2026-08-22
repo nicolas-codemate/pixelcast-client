@@ -27,7 +27,7 @@ SYNC_API_FILES := \
 	schemas/stats.yaml \
 	schemas/settings.yaml
 
-.PHONY: build build-prod up up-prod down down-prod logs logs-prod shell shell-prod enable-xdebug disable-xdebug test lint cs-fix cs-check sync sync-api inspect
+.PHONY: build build-prod up up-prod down down-prod logs logs-prod shell shell-prod enable-xdebug disable-xdebug test lint cs-fix cs-check sync icons-seed sync-api inspect
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m\033[0m\n"} /^[0-9a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -83,6 +83,9 @@ cs-check: ## verify coding style without modifying files
 
 sync: ## dispatch a sync message (interactive); pass ARGS="weather" or ARGS="--all"
 	$(DOCKER_COMPOSE) exec php bin/console app:sync $(ARGS)
+
+icons-seed: ## download the icons the tracker items name onto the device; pass ARGS="--force" to re-download
+	$(DOCKER_COMPOSE) exec php bin/console app:icons:seed $(ARGS)
 
 sync-api: ## fetch and vendor OpenAPI + AsyncAPI specs into sync/
 	@mkdir -p sync/schemas
