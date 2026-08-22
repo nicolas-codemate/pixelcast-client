@@ -22,6 +22,10 @@ syncs:
         items:
             - symbol: 1rTDCAM
               currency: eur
+              activeWindow:
+                  days: [mon, tue, wed, thu, fri]
+                  from: '09:00'
+                  to: '17:30'
 
 sleep:
     enabled: true

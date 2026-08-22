@@ -144,6 +144,10 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertSame('Europe/Paris', $config->deviceSleep->timezone->getName());
         self::assertStringEndsWith('Europe/Paris', (string) $config->sleepSchedule());
         self::assertStringEndsWith('Europe/Paris', (string) $config->syncGroupOfType(BoursoramaSyncConfig::class)->activeWindow);
+
+        $trackedItem = $config->syncGroupOfType(BoursoramaSyncConfig::class)->items[0];
+        self::assertNotNull($trackedItem->activeWindow);
+        self::assertStringEndsWith('Europe/Paris', (string) $trackedItem->activeWindow);
     }
 
     public function testALocalTimezoneWinsOverTheDeviceOne(): void
