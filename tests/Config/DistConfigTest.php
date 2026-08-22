@@ -23,6 +23,19 @@ final class DistConfigTest extends TestCase
         self::assertSame(['weather'], array_keys($config->enabledSyncGroups()));
     }
 
+    public function testTheDistFileLetsTheSleepScheduleInheritTheDeviceTimezone(): void
+    {
+        $config = SyncsConfigLoaderFactory::forConfigFile(SyncsConfigLoaderFactory::projectFilePath(self::DIST_FILE))->load();
+
+        self::assertNotNull($config->device);
+        self::assertNotNull($config->device->timezone);
+        self::assertSame('Europe/Paris', $config->device->timezone->getName());
+
+        self::assertNotNull($config->deviceSleep);
+        self::assertNotNull($config->deviceSleep->timezone);
+        self::assertSame('Europe/Paris', $config->deviceSleep->timezone->getName());
+    }
+
     public function testTheDistFileDocumentsEverySyncGroupOfTheRegistry(): void
     {
         $syncTypesFromDistFile = self::syncTypesDocumentedByDistFile();

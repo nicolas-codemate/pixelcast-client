@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Config\Sleep;
 
+use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sleep\DeviceSleepConfig;
 use PHPUnit\Framework\TestCase;
 
@@ -60,17 +61,47 @@ final class DeviceSleepConfigTest extends TestCase
         self::assertSame('mon,tue,wed,thu,fri,sat,sun 00:00-07:00 America/New_York', (string) $sleepSchedule);
     }
 
+    public function testAScheduleWithoutATimezoneFallsBackOnTheDeviceOne(): void
+    {
+        $sleepConfig = self::sleepConfig(['timezone' => null], new \DateTimeZone('America/New_York'));
+
+        self::assertNotNull($sleepConfig->timezone);
+        self::assertSame('America/New_York', $sleepConfig->timezone->getName());
+    }
+
+    public function testADeclaredTimezoneWinsOverTheDeviceOne(): void
+    {
+        $sleepConfig = self::sleepConfig(['timezone' => 'America/New_York'], new \DateTimeZone('Europe/Paris'));
+
+        self::assertNotNull($sleepConfig->timezone);
+        self::assertSame('America/New_York', $sleepConfig->timezone->getName());
+    }
+
+    public function testAnEnabledScheduleWithoutAnyTimezoneAtAllIsRefusedAndNamesBothKeys(): void
+    {
+        try {
+            self::sleepConfig(['timezone' => null]);
+        } catch (PixelCastConfigException $rejection) {
+            self::assertStringContainsString('sleep.timezone', $rejection->getMessage());
+            self::assertStringContainsString('device.timezone', $rejection->getMessage());
+
+            return;
+        }
+
+        self::fail('An enabled schedule without any timezone at all was accepted.');
+    }
+
     /**
-     * @param array<string, mixed> $sleepOptions
+     * @param array<string, mixed> $sleepOptions a timezone written null is a section that does not declare one
      */
-    private static function sleepConfig(array $sleepOptions): DeviceSleepConfig
+    private static function sleepConfig(array $sleepOptions, ?\DateTimeZone $deviceTimezone = null): DeviceSleepConfig
     {
         $sleepConfig = DeviceSleepConfig::optionalFromConfigTree([
             DeviceSleepConfig::OPTION_KEY => array_merge(
                 ['enabled' => true, 'timezone' => 'Europe/Paris', 'windows' => [['from' => '00:00', 'to' => '07:00']]],
                 $sleepOptions,
             ),
-        ]);
+        ], $deviceTimezone);
 
         self::assertNotNull($sleepConfig);
 

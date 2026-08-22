@@ -23,8 +23,9 @@ interface SyncGroupConfig
 
     /**
      * @param array<string, mixed> $options options already validated against pixelcast.schema.json
+     * @param \DateTimeZone|null $deviceTimezone the timezone of the device, which an active window falls back on
      */
-    public static function fromOptions(array $options): self;
+    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone = null): self;
 
     public function syncMessage(): SyncMessage;
 

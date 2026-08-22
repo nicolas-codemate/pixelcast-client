@@ -102,6 +102,18 @@ final class SyncOptionReader
     /**
      * @param array<string, mixed> $options
      */
+    public static function optionalTimezone(array $options, string $key, string $parentPath): ?\DateTimeZone
+    {
+        if (!self::isDeclared($options, $key)) {
+            return null;
+        }
+
+        return self::requireTimezone($options, $key, $parentPath);
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
     public static function requireFloat(array $options, string $key, string $parentPath): float
     {
         $value = self::requireOption($options, $key, $parentPath);

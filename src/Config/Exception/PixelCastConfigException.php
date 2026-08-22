@@ -42,6 +42,20 @@ final class PixelCastConfigException extends \RuntimeException
         return new self(\sprintf('Missing required PixelCast config key "%s".', $key));
     }
 
+    /**
+     * A key that is declared either where it is used or once for the whole device, and that is
+     * declared in neither place.
+     */
+    public static function missingKeyOrDeviceDefault(string $key, string $deviceKey, string $reason): self
+    {
+        return new self(\sprintf(
+            'Missing required PixelCast config key "%s": %s Declare it there, or once for the whole device under "%s".',
+            $key,
+            $reason,
+            $deviceKey,
+        ));
+    }
+
     public static function invalidValue(string $key, string $reason, ?\Throwable $previous = null): self
     {
         return new self(

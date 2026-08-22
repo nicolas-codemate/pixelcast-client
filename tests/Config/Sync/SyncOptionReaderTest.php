@@ -47,6 +47,13 @@ final class SyncOptionReaderTest extends TestCase
         self::assertSame('#4CAF50', SyncOptionReader::optionalColor(['labelColor' => '#4caf50'], 'labelColor', self::PARENT_PATH)?->hexCode);
     }
 
+    public function testAnOptionalTimezoneIsNullWhenAbsentOrNull(): void
+    {
+        self::assertNull(SyncOptionReader::optionalTimezone([], 'timezone', self::PARENT_PATH));
+        self::assertNull(SyncOptionReader::optionalTimezone(['timezone' => null], 'timezone', self::PARENT_PATH));
+        self::assertSame('Europe/Paris', SyncOptionReader::optionalTimezone(['timezone' => 'Europe/Paris'], 'timezone', self::PARENT_PATH)?->getName());
+    }
+
     public function testAnOptionalIntegerIsNullWhenAbsentOrNull(): void
     {
         self::assertNull(SyncOptionReader::optionalInt([], 'staleAfter', self::PARENT_PATH, minimum: 0, maximum: 604800));

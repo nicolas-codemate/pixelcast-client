@@ -34,7 +34,7 @@ final readonly class ClaudeSyncConfig implements SyncGroupConfig
         return 'claude';
     }
 
-    public static function fromOptions(array $options): self
+    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone = null): self
     {
         $optionsPath = 'syncs.'.self::syncType();
 
@@ -45,7 +45,7 @@ final readonly class ClaudeSyncConfig implements SyncGroupConfig
             interval: $interval,
             // All four behaviours, unlike the weather group: the gauge layout draws `dim` and `badge`.
             staleDeclaration: StaleDeclaration::fromOptions($options, $optionsPath, $interval, StaleBehavior::cases()),
-            activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath),
+            activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath, $deviceTimezone),
             hiddenRows: SyncOptionReader::optionalEnumList($options, 'hiddenRows', $optionsPath, ClaudeUsageRowLabel::class),
         );
     }

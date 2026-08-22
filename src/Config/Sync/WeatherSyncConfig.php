@@ -29,7 +29,7 @@ final readonly class WeatherSyncConfig implements SyncGroupConfig
         return 'weather';
     }
 
-    public static function fromOptions(array $options): self
+    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone = null): self
     {
         $optionsPath = 'syncs.'.self::syncType();
 
@@ -39,7 +39,7 @@ final readonly class WeatherSyncConfig implements SyncGroupConfig
             enabled: SyncOptionReader::requireBool($options, 'enabled', $optionsPath),
             interval: $interval,
             staleDeclaration: StaleDeclaration::fromOptions($options, $optionsPath, $interval, StaleBehavior::ACCEPTED_OUTSIDE_TRACKER_AND_GAUGE),
-            activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath),
+            activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath, $deviceTimezone),
             latitude: SyncOptionReader::requireFloat($options, 'latitude', $optionsPath),
             longitude: SyncOptionReader::requireFloat($options, 'longitude', $optionsPath),
             units: SyncOptionReader::requireEnum($options, 'units', $optionsPath, WeatherUnits::class),

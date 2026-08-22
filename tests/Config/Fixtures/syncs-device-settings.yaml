@@ -1,0 +1,19 @@
+# Sample configuration used by SyncsConfigLoaderTest: the device section carries every panel
+# setting on top of the timezone, which is what app:device:settings pushes.
+device:
+    timezone: Europe/Paris
+    brightness: 120
+    autoRotate: true
+    defaultDuration: 8000
+    weatherDuration: 12000
+    ntp:
+        server: pool.ntp.org
+
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr

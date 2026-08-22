@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Config;
 
+use App\Config\Device\DeviceConfig;
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sleep\DeviceSleepConfig;
 use App\Config\Sleep\SleepSchedule;
@@ -22,6 +23,7 @@ final readonly class SyncsConfig
     public function __construct(
         private array $syncGroups,
         public ?DeviceSleepConfig $deviceSleep = null,
+        public ?DeviceConfig $device = null,
     ) {
     }
 

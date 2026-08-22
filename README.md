@@ -483,19 +483,39 @@ the cycle — the same behaviour as a tracker group without its API key. The gro
 ships `enabled: false` in `pixelcast.yaml.dist`, since a group enabled before its
 token exists warns at every cycle.
 
-Any group may declare an `activeWindow` — `days`, `from`, `to` and a `timezone`
-— and is then scheduled during those hours only: outside them no provider is
-called and the healthcheck does not watch the group. Both bounds are inclusive,
-so a `to: '17:45'` against a 15-minute cycle still fires the 17:45 run, and
-`days` is optional, the seven of the week otherwise. A window spanning midnight
-is refused at startup: `timezone` exists precisely so the window is written in
-the local hours of the market, where it does not cross midnight, rather than in
-the UTC of the container clock. `app:sync <type>` ignores the window and pushes
-the group at any hour, which is what keeps it usable to test a closed market in
-the evening. A consumer stopped while the window was open and started again
-after it closed pushes nothing at that restart: the cycles missed in between are
+Any group may declare an `activeWindow` — `days`, `from`, `to` and a
+`timezone`, the last of which falls back on `device.timezone` — and is then
+scheduled during those hours only: outside them no provider is called and the
+healthcheck does not watch the group. Both bounds are inclusive, so a
+`to: '17:45'` against a 15-minute cycle still fires the 17:45 run, and `days`
+is optional, the seven of the week otherwise. A window spanning midnight is
+refused at startup: `timezone` exists precisely so the window is written in the
+local hours of the market, where it does not cross midnight, rather than in the
+UTC of the container clock. `app:sync <type>` ignores the window and pushes the
+group at any hour, which is what keeps it usable to test a closed market in the
+evening. A consumer stopped while the window was open and started again after
+it closed pushes nothing at that restart: the cycles missed in between are
 dropped and the group waits for its first run following the reopening. A quote
 read hours after the close is worth nothing, so it is not caught up.
+
+The `device:` section, at the top level of the file like `sleep:`, describes the
+device itself rather than what is shown on it. Its first key is `timezone`, the
+one the device is set to, and it is what `sleep.timezone` and
+every `activeWindow.timezone` fall back on: naming it once at the top of the
+file saves writing `Europe/Paris` again in every section that reads hours. A
+section naming its own timezone keeps it, so an ETF listed in New York still
+declares `America/New_York` on its window while the panel sleeps on Paris hours.
+The whole section is optional and a `pixelcast.yaml` without it behaves exactly
+as before, each section naming its own timezone.
+
+The same section carries the settings of the panel itself: `brightness` from 0
+to 255, `autoRotate`, `defaultDuration` and `weatherDuration` in milliseconds,
+and `ntp.server`. They are pushed by `bin/console app:device:settings` alone,
+never by the scheduler, and every one of them is optional — a key left out is a
+setting the device keeps as it already holds it. The POSIX timezone the device
+runs on is not among them: it is derived from `device.timezone`, so
+`Europe/Paris` becomes `CET-1CEST,M3.5.0,M10.5.0/3` on its own rather than being
+written a second time in a format nobody edits by hand.
 
 The `sleep:` section, at the top level of the file rather than inside a group,
 turns the panel off between hours of the day: `black` blanks it, `clock` leaves
@@ -538,17 +558,19 @@ first minutes of the morning and a night of sleep never turns the container
 `unhealthy`. A section carrying `enabled: false`, or no `sleep:` section at all,
 suspends nothing and leaves the cycles strictly as they were.
 
-`timezone` is required as soon as the section is enabled, and must name the
-timezone the device itself is set to. The container clock runs on UTC, so a
-Paris night written `00:00` to `07:00` and read as UTC would suspend the cycles
-from 02:00 to 09:00 local in summer: the panel dark and the cycles still running
-for two hours, then the panel lit and the cycles suspended for two more, which
-is the very wall of STALE badges the wake-up push exists to avoid, moved to the
-morning. The client does not guess it, so an existing `pixelcast.yaml` carrying
-an enabled `sleep:` section needs that one line added — without it the consumer
-stops at startup naming `sleep.timezone`. A section left on `enabled: false`
-suspends nothing and is asked for nothing, so it loads untouched. The file is what the client obeys: it suspends
-its cycles whether or not `app:device:sleep` has ever run, while the panel
+A timezone is required as soon as the section is enabled — either `timezone` on
+the section itself, or `device.timezone` once for the whole device — and it
+must name the timezone the device itself is set to. The container clock runs on
+UTC, so a Paris night written `00:00` to `07:00` and read as UTC would suspend
+the cycles from 02:00 to 09:00 local in summer: the panel dark and the cycles
+still running for two hours, then the panel lit and the cycles suspended for
+two more, which is the very wall of STALE badges the wake-up push exists to
+avoid, moved to the morning. The client does not guess it, so an existing
+`pixelcast.yaml` carrying an enabled `sleep:` section needs one of those two
+lines — without either the consumer stops at startup naming them both. A
+section left on `enabled: false` suspends nothing and is asked for nothing, so
+it loads untouched. The file is what the client obeys: it suspends its cycles
+whether or not `app:device:sleep` has ever run, while the panel
 itself only goes off once that command has pushed the schedule to the device.
 
 The same three keys — `activeWindow`, `staleAfter` and `staleBehavior` — also
@@ -629,6 +651,20 @@ schedule did leave. Against the simulator, `make inspect` shows the same
 schedule under `state.sleep`. The command decides the panel alone: the cycles
 follow the section from the file, so a screen that never received the schedule
 stays lit all night while the client has already stopped pushing to it.
+
+The panel settings leave the same way, from the `device:` section:
+
+```
+docker compose run --rm php bin/console app:device:settings
+```
+
+The command reads the section, derives the POSIX timezone from
+`device.timezone`, pushes the whole thing, then reads the device back and prints
+one row per setting it now holds. The device keeps these settings across
+reboots, so this is run once, when the section changes, and a device that takes
+the push but cannot be read back leaves a warning and a successful run, exactly
+as for the schedule. A `pixelcast.yaml` without a `device:` section has nothing
+to push and the command says so rather than sending an empty update.
 
 The all-time high a `bottomLine: ath` row shows is caught up by hand, outside
 the scheduler: Boursorama serves it as twenty years of daily bars, a few hundred

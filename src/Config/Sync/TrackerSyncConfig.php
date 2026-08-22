@@ -35,7 +35,7 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
      */
     abstract public static function acceptedBottomLines(): array;
 
-    public static function fromOptions(array $options): static
+    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone = null): static
     {
         $optionsPath = 'syncs.'.static::syncType();
 
@@ -49,6 +49,7 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
                 \sprintf('%s.items[%d]', $optionsPath, $index),
                 $staleDeclaration,
                 static::acceptedBottomLines(),
+                $deviceTimezone,
             );
         }
 
@@ -56,7 +57,7 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
             enabled: SyncOptionReader::requireBool($options, 'enabled', $optionsPath),
             interval: $interval,
             staleDeclaration: $staleDeclaration,
-            activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath),
+            activeWindow: ActiveWindow::optionalFromOptions($options, $optionsPath, $deviceTimezone),
             items: $items,
         );
     }

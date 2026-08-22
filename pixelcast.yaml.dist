@@ -5,6 +5,38 @@
 # actually accepts or rejects this file is the copy embedded in the image, applied
 # every time the configuration is loaded.
 
+# The device itself rather than what is shown on it. The whole section is optional: without it
+# every section that needs a timezone names its own, exactly as before. The panel settings below
+# are stored by the device and pushed only by `bin/console app:device:settings`, never by the
+# scheduler, so editing them here changes nothing on the screen until that command has run.
+device:
+    # Timezone the device is set to. The sleep schedule and every group activeWindow read their
+    # hours in it unless they name a timezone of their own, so it is written once here rather than
+    # copied into each section. The POSIX timezone the device runs on is derived from it and pushed
+    # with the ntp settings below, which is why it is never written by hand.
+    timezone: Europe/Paris
+
+    # How bright the panel is, 0 the dimmest and 255 the brightest. Without this key the device
+    # keeps the level it already holds.
+    # brightness: 120
+
+    # Whether the device moves from one app to the next on its own. Without this key the device
+    # keeps what it already holds.
+    # autoRotate: true
+
+    # How long an app stays on the screen before the rotation moves on, in milliseconds. Without
+    # this key the device keeps what it already holds.
+    # defaultDuration: 8000
+
+    # How long the weather app stays on the screen, in milliseconds. It splits this duration
+    # between its own pages, so it needs more room than a plain app: 3000 at least, 60000 at most.
+    # weatherDuration: 12000
+
+    # Where the device reads the time it applies the sleep schedule in. Only the server is written
+    # here, the POSIX timezone that goes with it comes from the timezone above.
+    # ntp:
+    #     server: pool.ntp.org
+
 # Sync groups, keyed by sync type. The key is also what `app:sync <type>` accepts.
 # Omitting a group is the same as disabling it.
 syncs:
@@ -286,10 +318,11 @@ sleep:
     # A disabled schedule leaves the panel on and suspends no group, whatever the windows below say.
     enabled: true
 
-    # Timezone the windows below are read in, required as soon as this section exists. Name the
-    # timezone the device itself is set to: the container clock runs on UTC and would suspend the
-    # cycles two hours late on a Paris night in summer.
-    timezone: Europe/Paris
+    # Timezone the windows below are read in. Without this key the device.timezone above applies,
+    # and one of the two is required as soon as this section is enabled. Name the timezone the
+    # device itself is set to: the container clock runs on UTC and would suspend the cycles two
+    # hours late on a Paris night in summer.
+    # timezone: Europe/Paris
 
     # What the panel shows while asleep: black blanks it, clock leaves a dimmed clock, which in a
     # dark room is still a source of light. Without this key the panel is blanked.

@@ -9,7 +9,6 @@ use App\Config\Sync\SyncGroupRegistry;
 use App\Config\Sync\TrackerItem;
 use App\Config\Sync\TrackerSyncConfig;
 use App\Tests\Factory\SchemaPropertyReader;
-use App\Tests\Factory\SyncsConfigLoaderFactory;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -126,16 +125,7 @@ final class TrackerItemMatchesSchemaTest extends TestCase
      */
     private static function trackerItemPropertiesDeclaredBySchema(): array
     {
-        $rawSchema = file_get_contents(SyncsConfigLoaderFactory::projectFilePath('pixelcast.schema.json'));
-        self::assertIsString($rawSchema);
-
-        $schema = json_decode($rawSchema, true, 512, \JSON_THROW_ON_ERROR);
-        self::assertIsArray($schema);
-        self::assertIsArray($schema['definitions']);
-        self::assertIsArray($schema['definitions']['trackerItem']);
-        self::assertIsArray($schema['definitions']['trackerItem']['properties']);
-
-        return SchemaPropertyReader::asPropertyMap($schema['definitions']['trackerItem']['properties']);
+        return SchemaPropertyReader::clientSchemaPropertiesOf('trackerItem');
     }
 
     /**
