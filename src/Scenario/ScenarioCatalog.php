@@ -275,6 +275,25 @@ final class ScenarioCatalog
                 ],
             ),
             new ScenarioDefinition(
+                id: 'indicator-slot-2-fade',
+                label: 'Indicator - slot 2 (fading blue)',
+                description: 'fading blue on slot 2',
+                httpMethod: 'POST',
+                path: '/indicator2',
+                body: [
+                    'mode' => 'fade',
+                    'color' => '#00D4FF',
+                    'fadePeriod' => 2000,
+                ],
+            ),
+            new ScenarioDefinition(
+                id: 'indicator-clear-slot-1',
+                label: 'Indicator - turn off slot 1',
+                description: 'turn off the indicator on slot 1',
+                httpMethod: 'DELETE',
+                path: '/indicator1',
+            ),
+            new ScenarioDefinition(
                 id: 'brightness',
                 label: 'Brightness - set to 200',
                 description: 'set device brightness to 200/255',

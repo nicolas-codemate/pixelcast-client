@@ -9,6 +9,8 @@ use App\Client\CustomApp\CustomAppPayload;
 use App\Client\CustomApp\Zone;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Gauge\GaugeRow;
+use App\Client\Indicator\IndicatorMode;
+use App\Client\Indicator\IndicatorPayload;
 use App\Client\StaleBehavior;
 use App\Client\Text\PolymorphicTextField;
 use App\Client\Text\TextSegment;
@@ -35,6 +37,17 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
         yield 'percent above the ceiling' => [['rows' => [['label' => '5h', 'percent' => 101]]]];
         yield 'one row over the limit' => [['rows' => array_fill(0, 10, ['label' => '5h', 'percent' => 41])]];
         yield 'malformed color' => [['rows' => [['label' => '5h', 'percent' => 41, 'color' => 'green']]]];
+    }
+
+    /**
+     * @return iterable<string, array{IndicatorPayload}>
+     */
+    public static function indicatorPayloadProvider(): iterable
+    {
+        yield 'solid' => [IndicatorPayload::create(IndicatorMode::Solid, Color::fromHexCode('#00FF00'))];
+        yield 'blink' => [IndicatorPayload::create(IndicatorMode::Blink, Color::fromHexCode('#FF0000'), blinkIntervalMilliseconds: 250)];
+        yield 'fade' => [IndicatorPayload::create(IndicatorMode::Fade, Color::fromHexCode('#00D4FF'), fadePeriodMilliseconds: 3000)];
+        yield 'off' => [IndicatorPayload::create(IndicatorMode::Off)];
     }
 
     protected function setUp(): void
@@ -229,6 +242,37 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
         );
 
         $result = $this->validator->validateRequest('POST', '/custom', ['name' => 'rooms'], $payload->toArray());
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
+    public function testFadingIndicatorScenarioPayloadValidatesAgainstSpec(): void
+    {
+        $fadingIndicator = $this->catalog->findById('indicator-slot-2-fade', true);
+        self::assertNotNull($fadingIndicator);
+
+        $result = $this->validator->validate($fadingIndicator);
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
+    public function testClearIndicatorScenarioValidatesAgainstSpec(): void
+    {
+        $clearIndicator = $this->catalog->findById('indicator-clear-slot-1', true);
+        self::assertNotNull($clearIndicator);
+
+        $result = $this->validator->validate($clearIndicator);
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+        self::assertNull($result->errorMessage);
+    }
+
+    #[DataProvider('indicatorPayloadProvider')]
+    public function testValidateRequestAcceptsAnIndicatorPayload(IndicatorPayload $payload): void
+    {
+        $result = $this->validator->validateRequest('POST', '/indicator3', [], $payload->toArray());
 
         self::assertTrue($result->valid, $result->errorMessage ?? '');
         self::assertNull($result->errorMessage);

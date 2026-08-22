@@ -8,6 +8,7 @@ use App\Client\CustomApp\CustomAppPayload;
 use App\Client\Gauge\GaugePayload;
 use App\Client\Icon\IconsSnapshot;
 use App\Client\Icon\IconUpload;
+use App\Client\Indicator\IndicatorPayload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClientInterface;
 use App\Client\Settings\BrightnessLevel;
@@ -95,6 +96,16 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
      * @var list<array{id: int, name: string|null}>
      */
     public array $downloadedLaMetricIcons = [];
+
+    /**
+     * @var list<array{slot: int, indicator: IndicatorPayload}>
+     */
+    public array $setIndicators = [];
+
+    /**
+     * @var list<int>
+     */
+    public array $clearedIndicatorSlots = [];
 
     public int $dismissedNotificationCount = 0;
 
@@ -255,6 +266,20 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         $this->failIfConfigured();
 
         $this->downloadedLaMetricIcons[] = ['id' => $laMetricIconId, 'name' => $iconName];
+    }
+
+    public function setIndicator(int $slot, IndicatorPayload $indicator): void
+    {
+        $this->failIfConfigured();
+
+        $this->setIndicators[] = ['slot' => $slot, 'indicator' => $indicator];
+    }
+
+    public function clearIndicator(int $slot): void
+    {
+        $this->failIfConfigured();
+
+        $this->clearedIndicatorSlots[] = $slot;
     }
 
     public function reboot(): void
