@@ -238,6 +238,15 @@ final class PixelcastClientHttpTest extends SimulatorHttpTestCase
         self::assertSame(['lametric_2867'], $client->listIcons()->iconNames(), $this->server->serverOutput());
     }
 
+    public function testLaMetricIconIsStoredUnderTheNameTheClientAsksFor(): void
+    {
+        $client = $this->buildPixelcastClient();
+
+        $client->downloadLaMetricIcon(15392, 'bitcoin');
+
+        self::assertSame(['bitcoin'], $client->listIcons()->iconNames(), $this->server->serverOutput());
+    }
+
     public function testRebootIsAcceptedByTheDevice(): void
     {
         $this->buildPixelcastClient()->reboot();
