@@ -56,7 +56,6 @@ final class PixelcastClientTest extends TestCase
     private const string EXPECTED_ICON_UPLOAD_URL = 'http://device.test/api/icons?name=bitcoin';
     private const string EXPECTED_ICON_DELETE_URL = 'http://device.test/api/icons?name=bitcoin';
     private const string EXPECTED_LAMETRIC_ICON_URL = 'http://device.test/api/icons/lametric';
-    private const string EXPECTED_INDICATOR_URL = 'http://device.test/api/indicator2';
     private const array FIRMWARE_DAY_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
     // The "scheduleActive" example of sync/openapi.yaml.
@@ -92,6 +91,16 @@ final class PixelcastClientTest extends TestCase
         yield 'no free slot' => [500, '{"error":"no free slot"}', DeviceBusyException::class, '/500/'];
         yield 'queue full' => [503, '{"error":"queue full"}', DeviceBusyException::class, '/503/'];
         yield 'unmapped status' => [418, 'teapot', DeviceUnreachableException::class, '/418/'];
+    }
+
+    /**
+     * @return iterable<string, array{int, string}>
+     */
+    public static function indicatorSlotProvider(): iterable
+    {
+        yield 'first corner' => [1, 'http://device.test/api/indicator1'];
+        yield 'second corner' => [2, 'http://device.test/api/indicator2'];
+        yield 'third corner' => [3, 'http://device.test/api/indicator3'];
     }
 
     /**
@@ -430,44 +439,48 @@ final class PixelcastClientTest extends TestCase
         self::assertSame(['id' => 2867], self::decodedRequestBody($response));
     }
 
-    public function testSetIndicatorSendsThePayloadToTheAddressedSlot(): void
+    #[DataProvider('indicatorSlotProvider')]
+    public function testSetIndicatorSendsThePayloadToTheAddressedSlot(int $slot, string $expectedUrl): void
     {
-        $response = new MockResponse('{"success":true,"indicator":2,"mode":"blink","color":"#FF0000"}');
+        $response = new MockResponse('{"success":true,"indicator":'.$slot.',"mode":"blink","color":"#FF0000"}');
         $payload = IndicatorPayload::create(IndicatorMode::Blink, Color::fromHexCode('#FF0000'), blinkIntervalMilliseconds: 500);
 
-        $this->buildClient($response)->setIndicator(2, $payload);
+        $this->buildClient($response)->setIndicator($slot, $payload);
 
         self::assertSame('POST', $response->getRequestMethod());
-        self::assertSame(self::EXPECTED_INDICATOR_URL, $response->getRequestUrl());
+        self::assertSame($expectedUrl, $response->getRequestUrl());
         self::assertSame($payload->toArray(), self::decodedRequestBody($response));
     }
 
-    public function testClearIndicatorDeletesTheAddressedSlot(): void
+    #[DataProvider('indicatorSlotProvider')]
+    public function testClearIndicatorDeletesTheAddressedSlot(int $slot, string $expectedUrl): void
     {
         $response = new MockResponse('{"success":true,"mode":"off"}');
 
-        $this->buildClient($response)->clearIndicator(2);
+        $this->buildClient($response)->clearIndicator($slot);
 
         self::assertSame('DELETE', $response->getRequestMethod());
-        self::assertSame(self::EXPECTED_INDICATOR_URL, $response->getRequestUrl());
+        self::assertSame($expectedUrl, $response->getRequestUrl());
     }
 
     #[DataProvider('indicatorSlotOutOfRangeProvider')]
-    public function testIndicatorSlotOutsideTheThreeCornersIsRefusedBeforeSendingAnything(int $slot): void
+    public function testSetIndicatorRefusesASlotOutsideTheThreeCornersBeforeSendingAnything(int $slot): void
     {
-        $httpClient = new MockHttpClient(new MockResponse('{"success":true}'), self::TEST_DEVICE_BASE_URL.'/');
-        $client = new PixelcastClient($httpClient, $this->outboundPayloadValidator);
+        $this->assertIndicatorSlotIsRefusedBeforeSending(
+            static function (PixelcastClient $client) use ($slot): void {
+                $client->setIndicator($slot, IndicatorPayload::create(IndicatorMode::Solid, Color::fromHexCode('#00FF00')));
+            },
+        );
+    }
 
-        try {
-            $client->setIndicator($slot, IndicatorPayload::create(IndicatorMode::Solid, Color::fromHexCode('#00FF00')));
-        } catch (\InvalidArgumentException $invalidSlot) {
-            self::assertStringContainsString('between 1 and 3', $invalidSlot->getMessage());
-            self::assertSame(0, $httpClient->getRequestsCount());
-
-            return;
-        }
-
-        self::fail('The client addressed an indicator slot the device does not carry.');
+    #[DataProvider('indicatorSlotOutOfRangeProvider')]
+    public function testClearIndicatorRefusesASlotOutsideTheThreeCornersBeforeSendingAnything(int $slot): void
+    {
+        $this->assertIndicatorSlotIsRefusedBeforeSending(
+            static function (PixelcastClient $client) use ($slot): void {
+                $client->clearIndicator($slot);
+            },
+        );
     }
 
     public function testFetchStatsRefusesABodyThatIsNotAJsonObject(): void
@@ -536,6 +549,25 @@ final class PixelcastClientTest extends TestCase
         $this->expectExceptionMessageMatches('/connection refused/');
 
         $client->pushWeather(self::buildPayload());
+    }
+
+    /**
+     * @param \Closure(PixelcastClient): void $callOnTheClient
+     */
+    private function assertIndicatorSlotIsRefusedBeforeSending(\Closure $callOnTheClient): void
+    {
+        $httpClient = new MockHttpClient(new MockResponse('{"success":true}'), self::TEST_DEVICE_BASE_URL.'/');
+
+        try {
+            $callOnTheClient(new PixelcastClient($httpClient, $this->outboundPayloadValidator));
+        } catch (\InvalidArgumentException $invalidSlot) {
+            self::assertStringContainsString('between 1 and 3', $invalidSlot->getMessage());
+            self::assertSame(0, $httpClient->getRequestsCount());
+
+            return;
+        }
+
+        self::fail('The client addressed an indicator slot the device does not carry.');
     }
 
     private function buildClient(MockResponse $response): PixelcastClient

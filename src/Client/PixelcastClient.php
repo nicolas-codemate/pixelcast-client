@@ -44,8 +44,8 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     private const string LAMETRIC_ICON_SPEC_PATH = '/icons/lametric';
     private const string UPLOADED_ICON_FIELD_NAME = 'file';
     private const string INDICATOR_SPEC_PATH_PREFIX = '/indicator';
-    private const int FIRST_INDICATOR_SLOT = 1;
-    private const int LAST_INDICATOR_SLOT = 3;
+    private const int MINIMUM_INDICATOR_SLOT = 1;
+    private const int MAXIMUM_INDICATOR_SLOT = 3;
     private const string REBOOT_SPEC_PATH = '/reboot';
 
     public function __construct(
@@ -180,8 +180,8 @@ final readonly class PixelcastClient implements PixelcastClientInterface
 
     private static function indicatorSpecPath(int $slot): string
     {
-        if ($slot < self::FIRST_INDICATOR_SLOT || $slot > self::LAST_INDICATOR_SLOT) {
-            throw new \InvalidArgumentException(\sprintf('An indicator slot must be between %d and %d, got %d.', self::FIRST_INDICATOR_SLOT, self::LAST_INDICATOR_SLOT, $slot));
+        if ($slot < self::MINIMUM_INDICATOR_SLOT || $slot > self::MAXIMUM_INDICATOR_SLOT) {
+            throw new \InvalidArgumentException(\sprintf('An indicator slot must be between %d and %d, got %d.', self::MINIMUM_INDICATOR_SLOT, self::MAXIMUM_INDICATOR_SLOT, $slot));
         }
 
         return self::INDICATOR_SPEC_PATH_PREFIX.$slot;
