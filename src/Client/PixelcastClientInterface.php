@@ -10,6 +10,8 @@ use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
+use App\Client\Icon\IconsSnapshot;
+use App\Client\Icon\IconUpload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\Settings\BrightnessLevel;
 use App\Client\Settings\SettingsPayload;
@@ -68,6 +70,24 @@ interface PixelcastClientInterface
     public function pushBrightness(BrightnessLevel $brightness): void;
 
     public function fetchStats(): StatsSnapshot;
+
+    /**
+     * The snapshot also carries how full the device filesystem is, which tells whether another icon still fits.
+     */
+    public function listIcons(): IconsSnapshot;
+
+    public function uploadIcon(IconUpload $icon): void;
+
+    /**
+     * @throws ResourceNotFoundException no icon carries this name
+     */
+    public function deleteIcon(string $iconName): void;
+
+    /**
+     * @param int $laMetricIconId identifier in the LaMetric icon database
+     * @param string|null $iconName local name to store the icon under, the identifier when omitted
+     */
+    public function downloadLaMetricIcon(int $laMetricIconId, ?string $iconName = null): void;
 
     public function reboot(): void;
 }

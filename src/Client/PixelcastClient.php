@@ -10,6 +10,9 @@ use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Exception\InvalidPayloadException;
 use App\Client\Exception\ResourceNotFoundException;
 use App\Client\Gauge\GaugePayload;
+use App\Client\Http\MultipartFormDataBody;
+use App\Client\Icon\IconsSnapshot;
+use App\Client\Icon\IconUpload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\Settings\BrightnessLevel;
 use App\Client\Settings\SettingsPayload;
@@ -36,6 +39,9 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     private const string SETTINGS_SPEC_PATH = '/settings';
     private const string BRIGHTNESS_SPEC_PATH = '/brightness';
     private const string STATS_SPEC_PATH = '/stats';
+    private const string ICONS_SPEC_PATH = '/icons';
+    private const string LAMETRIC_ICON_SPEC_PATH = '/icons/lametric';
+    private const string UPLOADED_ICON_FIELD_NAME = 'file';
     private const string REBOOT_SPEC_PATH = '/reboot';
 
     public function __construct(
@@ -115,6 +121,44 @@ final readonly class PixelcastClient implements PixelcastClientInterface
         return StatsSnapshot::fromResponseBody($this->fetchDecodedBody(self::STATS_SPEC_PATH));
     }
 
+    public function listIcons(): IconsSnapshot
+    {
+        return IconsSnapshot::fromResponseBody($this->fetchDecodedBody(self::ICONS_SPEC_PATH));
+    }
+
+    public function uploadIcon(IconUpload $icon): void
+    {
+        $multipartBody = MultipartFormDataBody::forFile(
+            self::UPLOADED_ICON_FIELD_NAME,
+            $icon->fileName(),
+            $icon->mimeType,
+            $icon->binaryContents,
+        );
+
+        // The outbound validator only builds JSON requests, so this one is checked by IconUpload instead.
+        $this->performRequest('POST', self::ICONS_SPEC_PATH, [
+            'query' => ['name' => $icon->name],
+            'headers' => ['Content-Type' => $multipartBody->contentTypeHeader()],
+            'body' => $multipartBody->contents,
+        ]);
+    }
+
+    public function deleteIcon(string $iconName): void
+    {
+        $this->sendValidated('DELETE', self::ICONS_SPEC_PATH, queryParameters: ['name' => $iconName]);
+    }
+
+    public function downloadLaMetricIcon(int $laMetricIconId, ?string $iconName = null): void
+    {
+        $body = ['id' => $laMetricIconId];
+
+        if (null !== $iconName) {
+            $body['name'] = $iconName;
+        }
+
+        $this->sendValidated('POST', self::LAMETRIC_ICON_SPEC_PATH, body: $body);
+    }
+
     public function reboot(): void
     {
         $this->sendValidated('POST', self::REBOOT_SPEC_PATH);
@@ -167,6 +211,14 @@ final readonly class PixelcastClient implements PixelcastClientInterface
             $requestOptions['json'] = $body;
         }
 
+        return $this->performRequest($httpMethod, $specPath, $requestOptions);
+    }
+
+    /**
+     * @param array<string, mixed> $requestOptions
+     */
+    private function performRequest(string $httpMethod, string $specPath, array $requestOptions): string
+    {
         try {
             // The spec path is absolute, the scoped client needs it relative to resolve it against a base URI already carrying /api.
             $response = $this->deviceClient->request($httpMethod, ltrim($specPath, '/'), $requestOptions);

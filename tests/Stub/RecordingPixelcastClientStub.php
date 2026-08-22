@@ -6,6 +6,8 @@ namespace App\Tests\Stub;
 
 use App\Client\CustomApp\CustomAppPayload;
 use App\Client\Gauge\GaugePayload;
+use App\Client\Icon\IconsSnapshot;
+use App\Client\Icon\IconUpload;
 use App\Client\Notification\NotificationPayload;
 use App\Client\PixelcastClientInterface;
 use App\Client\Settings\BrightnessLevel;
@@ -74,6 +76,23 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
     public ?SettingsSnapshot $settingsSnapshotToReturn = null;
 
     public ?StatsSnapshot $statsSnapshotToReturn = null;
+
+    public ?IconsSnapshot $iconsSnapshotToReturn = null;
+
+    /**
+     * @var list<IconUpload>
+     */
+    public array $uploadedIcons = [];
+
+    /**
+     * @var list<string>
+     */
+    public array $deletedIconNames = [];
+
+    /**
+     * @var list<array{id: int, name: string|null}>
+     */
+    public array $downloadedLaMetricIcons = [];
 
     public int $dismissedNotificationCount = 0;
 
@@ -198,6 +217,34 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         $this->failIfConfigured();
 
         return $this->statsSnapshotToReturn ?? StatsSnapshot::fromResponseBody([]);
+    }
+
+    public function listIcons(): IconsSnapshot
+    {
+        $this->failIfConfigured();
+
+        return $this->iconsSnapshotToReturn ?? IconsSnapshot::fromResponseBody([]);
+    }
+
+    public function uploadIcon(IconUpload $icon): void
+    {
+        $this->failIfConfigured();
+
+        $this->uploadedIcons[] = $icon;
+    }
+
+    public function deleteIcon(string $iconName): void
+    {
+        $this->failIfConfigured();
+
+        $this->deletedIconNames[] = $iconName;
+    }
+
+    public function downloadLaMetricIcon(int $laMetricIconId, ?string $iconName = null): void
+    {
+        $this->failIfConfigured();
+
+        $this->downloadedLaMetricIcons[] = ['id' => $laMetricIconId, 'name' => $iconName];
     }
 
     public function reboot(): void
