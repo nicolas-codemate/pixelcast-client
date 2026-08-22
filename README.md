@@ -112,13 +112,14 @@ mount.
 `pixelcast.yaml` is read at startup, validated against `pixelcast.schema.json`,
 and read again whenever its modification time changes, so an edit takes effect on
 the next sync cycle without restarting the container. What is picked up straight
-away are the options of a group — colours, tracker items, thresholds. The
-interval of a group, its `enabled` flag and the sleep window are held by the
-scheduler for the life of the consumer, so those wait for its hourly recycle. The
-`yaml-language-server` directive on the first line points at the schema published
-on `main` and only serves editor completion; the one that decides is the copy
-embedded in the image. API keys never belong in this file: it rejects any key it
-does not declare, naming it.
+away are the options of a group — colours, tracker items, thresholds — and the
+bounds and levels of brightness windows already declared. The interval of a
+group, its `enabled` flag, the sleep window and whether `brightnessWindows`
+exists at all are held by the scheduler for the life of the consumer, so those
+wait for its hourly recycle. The `yaml-language-server` directive on the first
+line points at the schema published on `main` and only serves editor completion;
+the one that decides is the copy embedded in the image. API keys never belong in
+this file: it rejects any key it does not declare, naming it.
 
 An invalid configuration stops the consumer before it starts, with a message
 naming the faulty key, such as `syncs.weather.interval`. Since `compose.yaml`
@@ -510,12 +511,36 @@ as before, each section naming its own timezone.
 
 The same section carries the settings of the panel itself: `brightness` from 0
 to 255, `autoRotate`, `defaultDuration` and `weatherDuration` in milliseconds,
-and `ntp.server`. They are pushed by `bin/console app:device:settings` alone,
-never by the scheduler, and every one of them is optional — a key left out is a
+and `ntp.server`. They are pushed by `bin/console app:device:settings` alone —
+the one exception being `brightnessWindows` below, which the scheduler applies
+itself — and every one of them is optional: a key left out is a
 setting the device keeps as it already holds it. The POSIX timezone the device
 runs on is not among them: it is derived from `device.timezone`, so
 `Europe/Paris` becomes `CET-1CEST,M3.5.0,M10.5.0/3` on its own rather than being
 written a second time in a format nobody edits by hand.
+
+`brightnessWindows` makes that single level vary with the hour: a list of
+stretches, each carrying `from`, `to`, `level` and optional `days`, written in
+the same grammar as a sleep window — `HH:MM` bounds, days among `mon` to `sun`,
+the seven of the week without the key. The hours are read in `device.timezone`,
+which the section is not allowed to leave out once it declares a window, and
+outside every window the panel is held at `device.brightness`, which becomes
+required for the same reason: without it there would be no level to fall back
+on. `from` is included and `to` excluded, so `'07:00'` to `'09:00'` followed by
+`'09:00'` to `'22:00'` never disputes a minute, and a `to` earlier than its
+`from` runs past midnight into the next day, `'22:00'` to `'07:00'` being a
+single night anchored on the evening it starts. Two windows covering the same
+minute are not refused: the last one declared in the file wins, which is what
+lets a broad window be written first and trimmed underneath.
+
+This is where `brightnessWindows` differs from `sleep:` in kind, and the
+difference is worth naming. The device stores the sleep schedule and goes on
+applying it whether the client runs or not; it holds no schedule of levels at
+all, so the client is the one that walks these windows, once a minute, and
+pushes `POST /brightness` when the level changes — one call per boundary
+crossed, not one per minute. A stopped consumer therefore stops the variation:
+the panel keeps the last level pushed until the client comes back, and pushes
+again at its first tick.
 
 The `sleep:` section, at the top level of the file rather than inside a group,
 turns the panel off between hours of the day: `black` blanks it, `clock` leaves
@@ -557,6 +582,18 @@ rather than from the last push, so the group keeps its full tolerance for the
 first minutes of the morning and a night of sleep never turns the container
 `unhealthy`. A section carrying `enabled: false`, or no `sleep:` section at all,
 suspends nothing and leaves the cycles strictly as they were.
+
+The brightness windows of `device:` are held back the same way: the tick that
+walks them is wrapped in the sleep window exactly as a cycle is, so no level is
+pushed while the panel is off, and the first tick after the wake-up applies the
+window covering that instant rather than the level the panel was dimmed to
+before going dark. A brightness window overlapping a sleep window is not an
+error and needs no trimming — an evening dimming written `'22:00'` to `'07:00'`
+over a night of sleep from `'00:00'` to `'07:00'` simply does nothing for the
+hours the panel is off, since there is nothing lit left to dim. The two
+sections still differ in kind: the device goes on applying its sleep schedule
+whether the client runs or not, while the brightness windows stop varying the
+moment the client stops.
 
 A timezone is required as soon as the section is enabled — either `timezone` on
 the section itself, or `device.timezone` once for the whole device — and it

@@ -1,0 +1,17 @@
+# Sample configuration used by SyncsConfigLoaderTest: brightness windows without the level the panel
+# is held at outside them, which leaves the client with nothing to fall back on.
+device:
+    timezone: Europe/Paris
+    brightnessWindows:
+        - from: '22:00'
+          to: '07:00'
+          level: 20
+
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr

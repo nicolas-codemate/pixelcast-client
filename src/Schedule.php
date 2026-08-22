@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Config\Device\BrightnessSchedule;
 use App\Config\Sleep\SleepSchedule;
+use App\Config\Sync\ActiveWindow;
 use App\Config\Sync\SyncGroupConfig;
 use App\Config\SyncsConfigLoader;
+use App\Message\ApplyBrightnessMessage;
 use App\Message\SyncMessage;
 use App\Scheduler\ActiveWindowTrigger;
 use App\Scheduler\SleepScheduleTrigger;
@@ -44,18 +47,32 @@ final readonly class Schedule implements ScheduleProviderInterface, SyncMessageR
             ->processOnlyLastMissedRun(true);
 
         foreach ($config->enabledSyncGroups() as $syncGroup) {
-            $schedule->add(self::recurringMessageOf($syncGroup, $sleepSchedule));
+            $schedule->add(self::recurringMessageOf(
+                $syncGroup->interval->expression,
+                $syncGroup->syncMessage(),
+                $sleepSchedule,
+                $syncGroup->activeWindow,
+            ));
+        }
+
+        // The brightness tick belongs to no sync group, so it carries no active window: only the
+        // sleep schedule holds it back, which keeps it silent while the panel is off.
+        if (null !== $config->brightnessSchedule()) {
+            $schedule->add(self::recurringMessageOf(
+                BrightnessSchedule::TICK_INTERVAL,
+                new ApplyBrightnessMessage(),
+                $sleepSchedule,
+            ));
         }
 
         return $schedule;
     }
 
-    private static function recurringMessageOf(SyncGroupConfig $syncGroup, ?SleepSchedule $sleepSchedule): RecurringMessage
+    private static function recurringMessageOf(string $interval, object $message, ?SleepSchedule $sleepSchedule, ?ActiveWindow $activeWindow = null): RecurringMessage
     {
-        $syncMessage = $syncGroup->syncMessage();
-        $recurringMessage = RecurringMessage::every($syncGroup->interval->expression, $syncMessage);
+        $recurringMessage = RecurringMessage::every($interval, $message);
 
-        if (null === $sleepSchedule && null === $syncGroup->activeWindow) {
+        if (null === $sleepSchedule && null === $activeWindow) {
             return $recurringMessage;
         }
 
@@ -67,10 +84,10 @@ final readonly class Schedule implements ScheduleProviderInterface, SyncMessageR
             $trigger = new SleepScheduleTrigger($trigger, $sleepSchedule);
         }
 
-        if (null !== $syncGroup->activeWindow) {
-            $trigger = new ActiveWindowTrigger($trigger, $syncGroup->activeWindow);
+        if (null !== $activeWindow) {
+            $trigger = new ActiveWindowTrigger($trigger, $activeWindow);
         }
 
-        return RecurringMessage::trigger($trigger, $syncMessage);
+        return RecurringMessage::trigger($trigger, $message);
     }
 }

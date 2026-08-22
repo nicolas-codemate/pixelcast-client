@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Config;
 
+use App\Config\Device\BrightnessSchedule;
 use App\Config\Device\DeviceConfig;
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sleep\DeviceSleepConfig;
@@ -30,6 +31,11 @@ final readonly class SyncsConfig
     public function sleepSchedule(): ?SleepSchedule
     {
         return $this->deviceSleep?->sleepSchedule();
+    }
+
+    public function brightnessSchedule(): ?BrightnessSchedule
+    {
+        return $this->device?->brightnessSchedule;
     }
 
     /**

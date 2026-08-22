@@ -23,6 +23,9 @@ final readonly class DeviceConfig
 
     private const string TIMEZONE_OPTION_KEY = 'timezone';
     private const string BRIGHTNESS_OPTION_KEY = 'brightness';
+    private const string BRIGHTNESS_PATH = self::OPTION_KEY.'.'.self::BRIGHTNESS_OPTION_KEY;
+    private const string BRIGHTNESS_WINDOWS_OPTION_KEY = 'brightnessWindows';
+    private const string BRIGHTNESS_WINDOWS_PATH = self::OPTION_KEY.'.'.self::BRIGHTNESS_WINDOWS_OPTION_KEY;
     private const string AUTO_ROTATE_OPTION_KEY = 'autoRotate';
     private const string DEFAULT_DURATION_OPTION_KEY = 'defaultDuration';
     private const string WEATHER_DURATION_OPTION_KEY = 'weatherDuration';
@@ -38,6 +41,7 @@ final readonly class DeviceConfig
     private function __construct(
         public ?\DateTimeZone $timezone,
         public ?BrightnessLevel $brightness,
+        public ?BrightnessSchedule $brightnessSchedule,
         public ?bool $autoRotate,
         public ?int $defaultDurationMilliseconds,
         public ?int $weatherDurationMilliseconds,
@@ -56,10 +60,13 @@ final readonly class DeviceConfig
 
         $options = SyncOptionReader::asStringKeyedMap($configTree[self::OPTION_KEY], self::OPTION_KEY);
         $brightnessLevel = SyncOptionReader::optionalInt($options, self::BRIGHTNESS_OPTION_KEY, self::OPTION_KEY, BrightnessLevel::MINIMUM_LEVEL, BrightnessLevel::MAXIMUM_LEVEL);
+        $timezone = SyncOptionReader::optionalTimezone($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY);
+        $brightness = null === $brightnessLevel ? null : BrightnessLevel::create($brightnessLevel);
 
         return new self(
-            timezone: SyncOptionReader::optionalTimezone($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY),
-            brightness: null === $brightnessLevel ? null : BrightnessLevel::create($brightnessLevel),
+            timezone: $timezone,
+            brightness: $brightness,
+            brightnessSchedule: self::readBrightnessSchedule($options, $brightness, $timezone),
             autoRotate: SyncOptionReader::optionalBool($options, self::AUTO_ROTATE_OPTION_KEY, self::OPTION_KEY),
             defaultDurationMilliseconds: SyncOptionReader::optionalInt($options, self::DEFAULT_DURATION_OPTION_KEY, self::OPTION_KEY, self::MINIMUM_DEFAULT_DURATION_MILLISECONDS, \PHP_INT_MAX),
             weatherDurationMilliseconds: SyncOptionReader::optionalInt($options, self::WEATHER_DURATION_OPTION_KEY, self::OPTION_KEY, SettingsPayload::MINIMUM_WEATHER_DURATION_MILLISECONDS, SettingsPayload::MAXIMUM_WEATHER_DURATION_MILLISECONDS),
@@ -98,6 +105,54 @@ final readonly class DeviceConfig
         } catch (\InvalidArgumentException $refusedByTheClient) {
             throw PixelCastConfigException::invalidValue(self::TIMEZONE_PATH, $refusedByTheClient->getMessage(), $refusedByTheClient);
         }
+    }
+
+    /**
+     * The declared windows read as a planning the client can reason about, null when the section
+     * declares none: the panel then keeps the single level it already holds.
+     *
+     * The two keys the windows lean on are asked for as the section is read, so a file declaring
+     * windows without them stops the consumer at startup rather than at the first tick.
+     *
+     * @param array<string, mixed> $options
+     */
+    private static function readBrightnessSchedule(array $options, ?BrightnessLevel $brightness, ?\DateTimeZone $timezone): ?BrightnessSchedule
+    {
+        $windows = self::readBrightnessWindows($options);
+
+        if ([] === $windows) {
+            return null;
+        }
+
+        if (null === $brightness) {
+            throw PixelCastConfigException::invalidValue(self::BRIGHTNESS_WINDOWS_PATH, \sprintf('declare "%s" as well: it is the level the panel is held at outside every window', self::BRIGHTNESS_PATH));
+        }
+
+        if (null === $timezone) {
+            throw PixelCastConfigException::invalidValue(self::BRIGHTNESS_WINDOWS_PATH, \sprintf('declare "%s" as well: the bounds are local hours, and the container clock runs on UTC', self::TIMEZONE_PATH));
+        }
+
+        return BrightnessSchedule::of($windows, $brightness, $timezone);
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     *
+     * @return list<BrightnessWindow>
+     */
+    private static function readBrightnessWindows(array $options): array
+    {
+        if (!SyncOptionReader::isDeclared($options, self::BRIGHTNESS_WINDOWS_OPTION_KEY)) {
+            return [];
+        }
+
+        $windows = [];
+
+        foreach (SyncOptionReader::requireListOfMaps($options, self::BRIGHTNESS_WINDOWS_OPTION_KEY, self::OPTION_KEY) as $index => $windowOptions) {
+            $windows[] = BrightnessWindow::fromOptions($windowOptions, \sprintf('%s[%d]', self::BRIGHTNESS_WINDOWS_PATH, $index));
+        }
+
+        return $windows;
     }
 
     /**

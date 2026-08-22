@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests;
 
+use App\Config\Device\BrightnessSchedule;
+use App\Message\ApplyBrightnessMessage;
 use App\Message\SyncTrackerMessage;
 use App\Message\SyncWeatherMessage;
 use App\Schedule;
@@ -161,6 +163,46 @@ final class ScheduleTest extends TestCase
             'every 15 minutes, asleep mon,tue,wed,thu,fri,sat,sun 00:00-07:00 Europe/Paris, only mon,tue,wed,thu,fri 09:00-17:45 Europe/Paris',
             (string) $boursoramaTrigger,
         );
+    }
+
+    public function testAFileWithoutBrightnessWindowsSchedulesNothingBesidesItsGroups(): void
+    {
+        $schedule = self::createSchedule('syncs-valid.yaml');
+
+        self::assertNotContains(self::brightnessTickId(), self::scheduledIds($schedule));
+    }
+
+    public function testTheBrightnessTickIsScheduledEveryMinuteWhenTheFileDeclaresWindows(): void
+    {
+        $schedule = self::createSchedule('syncs-device-brightness-windows.yaml');
+
+        $recurringMessages = $schedule->getSchedule()->getRecurringMessages();
+
+        self::assertCount(2, $recurringMessages, 'the brightness tick comes after the sync groups');
+        self::assertSame('every 1 minute', (string) $recurringMessages[1]->getTrigger());
+        self::assertSame(self::brightnessTickId(), $recurringMessages[1]->getId());
+    }
+
+    public function testTheBrightnessTickIsNoSyncGroup(): void
+    {
+        $schedule = self::createSchedule('syncs-device-brightness-windows.yaml');
+
+        self::assertSame(['weather'], array_keys($schedule->syncMessages()));
+    }
+
+    public function testTheBrightnessTickIsWrappedInTheSleepTriggerWhenTheFileDeclaresASchedule(): void
+    {
+        $schedule = self::createSchedule('syncs-brightness-and-sleep.yaml');
+
+        $brightnessTrigger = $schedule->getSchedule()->getRecurringMessages()[1]->getTrigger();
+
+        self::assertInstanceOf(SleepScheduleTrigger::class, $brightnessTrigger);
+        self::assertSame('every 1 minute, asleep mon,tue,wed,thu,fri,sat,sun 00:00-07:00 Europe/Paris', (string) $brightnessTrigger);
+    }
+
+    private static function brightnessTickId(): string
+    {
+        return RecurringMessage::every(BrightnessSchedule::TICK_INTERVAL, new ApplyBrightnessMessage())->getId();
     }
 
     /**

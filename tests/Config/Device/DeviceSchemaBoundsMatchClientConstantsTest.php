@@ -18,6 +18,7 @@ use PHPUnit\Framework\TestCase;
 final class DeviceSchemaBoundsMatchClientConstantsTest extends TestCase
 {
     private const string DEVICE_DEFINITION = 'device';
+    private const string BRIGHTNESS_WINDOW_DEFINITION = 'brightnessWindow';
 
     public function testTheSchemaBoundsTheBrightnessToTheLevelsTheClientEnforces(): void
     {
@@ -25,6 +26,14 @@ final class DeviceSchemaBoundsMatchClientConstantsTest extends TestCase
 
         self::assertSame(BrightnessLevel::MINIMUM_LEVEL, $brightnessSchema['minimum']);
         self::assertSame(BrightnessLevel::MAXIMUM_LEVEL, $brightnessSchema['maximum']);
+    }
+
+    public function testTheSchemaBoundsAWindowLevelToTheLevelsTheClientEnforces(): void
+    {
+        $levelSchema = SchemaPropertyReader::clientSchemaPropertiesOf(self::BRIGHTNESS_WINDOW_DEFINITION)['level'];
+
+        self::assertSame(BrightnessLevel::MINIMUM_LEVEL, $levelSchema['minimum']);
+        self::assertSame(BrightnessLevel::MAXIMUM_LEVEL, $levelSchema['maximum']);
     }
 
     public function testTheSchemaBoundsTheWeatherDurationToTheMillisecondsTheClientEnforces(): void

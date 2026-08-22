@@ -1,0 +1,28 @@
+# Sample configuration used by SleepingBrightnessCyclesTest: an evening brightness window running
+# past midnight over a sleep window that keeps the panel off until 07:00.
+device:
+    timezone: Europe/Paris
+    brightness: 200
+    brightnessWindows:
+        - from: '07:00'
+          to: '22:00'
+          level: 120
+        - from: '22:00'
+          to: '07:00'
+          level: 20
+
+syncs:
+    weather:
+        enabled: true
+        interval: '30 minutes'
+        latitude: 48.8566
+        longitude: 2.3522
+        units: metric
+        locale: fr
+
+sleep:
+    enabled: true
+    timezone: Europe/Paris
+    windows:
+        - from: '00:00'
+          to: '07:00'

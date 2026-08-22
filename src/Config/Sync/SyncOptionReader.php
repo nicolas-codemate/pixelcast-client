@@ -169,14 +169,10 @@ final class SyncOptionReader
     /**
      * @param array<string, mixed> $options
      */
-    public static function optionalInt(array $options, string $key, string $parentPath, int $minimum, int $maximum): ?int
+    public static function requireInt(array $options, string $key, string $parentPath, int $minimum, int $maximum): int
     {
-        if (!self::isDeclared($options, $key)) {
-            return null;
-        }
-
         $optionPath = self::optionPath($parentPath, $key);
-        $value = $options[$key];
+        $value = self::requireOption($options, $key, $parentPath);
 
         if (!\is_int($value)) {
             throw PixelCastConfigException::invalidValue($optionPath, 'expected an integer');
@@ -187,6 +183,18 @@ final class SyncOptionReader
         }
 
         return $value;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    public static function optionalInt(array $options, string $key, string $parentPath, int $minimum, int $maximum): ?int
+    {
+        if (!self::isDeclared($options, $key)) {
+            return null;
+        }
+
+        return self::requireInt($options, $key, $parentPath, $minimum, $maximum);
     }
 
     /**
