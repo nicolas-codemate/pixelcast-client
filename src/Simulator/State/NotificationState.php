@@ -18,11 +18,13 @@ final class NotificationState implements ResettableState
             ? $payload['id']
             : 'notif_'.bin2hex(random_bytes(6));
 
+        $landsAtHeadOfQueue = $urgent || [] === $this->queue;
+
         $entry = [
             'urgent' => $urgent,
             ...$payload,
             'id' => $id,
-            'enqueuedAt' => new \DateTimeImmutable()->format(\DateTimeInterface::ATOM),
+            'displayed' => $landsAtHeadOfQueue,
         ];
 
         if ($urgent) {
@@ -41,6 +43,7 @@ final class NotificationState implements ResettableState
         }
 
         array_shift($this->queue);
+        $this->markHeadOfQueueAsDisplayed();
 
         return true;
     }
@@ -59,6 +62,11 @@ final class NotificationState implements ResettableState
     public function list(): array
     {
         return $this->queue;
+    }
+
+    public function currentIndex(): int
+    {
+        return [] === $this->queue ? -1 : 0;
     }
 
     public function count(): int
@@ -97,10 +105,24 @@ final class NotificationState implements ResettableState
     public function restoreFromPersistence(array $persistedState): void
     {
         $this->queue = PersistedStateReader::payloadList($persistedState['queue'] ?? null);
+        $this->markHeadOfQueueAsDisplayed();
     }
 
     public function domainKey(): string
     {
         return 'notifications';
+    }
+
+    /**
+     * The head of the queue is what the device has on screen, so reaching that position is what
+     * makes an entry displayed - and it stays displayed once an urgent notification pushes it back.
+     */
+    private function markHeadOfQueueAsDisplayed(): void
+    {
+        if ([] === $this->queue) {
+            return;
+        }
+
+        $this->queue[0]['displayed'] = true;
     }
 }
