@@ -57,7 +57,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAValidOptionMapIsHydrated(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions(), null);
 
         self::assertFalse($trackerSync->enabled);
         self::assertSame('15 minutes', $trackerSync->interval->expression);
@@ -70,7 +70,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAnItemKeepsItsOptionalDisplayFieldsWhenItHasThemAndIsNullOtherwise(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions(), null);
 
         self::assertSame('BTC', $trackerSync->items[0]->symbol);
         self::assertSame('eur', $trackerSync->items[0]->currency);
@@ -92,7 +92,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAnItemWithoutABottomLineKeyCarriesNoBottomLine(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions(), null);
 
         self::assertNull($trackerSync->items[0]->bottomLine);
         self::assertNull($trackerSync->items[1]->bottomLine);
@@ -130,7 +130,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideAcceptedBottomLines')]
     public function testAGroupReadsEveryBottomLineItAccepts(string $syncGroupClass, BottomLine $bottomLine): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::optionsWithBottomLine($bottomLine->value));
+        $trackerSync = $syncGroupClass::fromOptions(self::optionsWithBottomLine($bottomLine->value), null);
 
         self::assertSame($bottomLine, $trackerSync->items[0]->bottomLine);
     }
@@ -144,7 +144,7 @@ final class TrackerSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage(\sprintf('syncs.%s.items[0].bottomLine', $expectedSyncType));
 
-        $syncGroupClass::fromOptions(self::optionsWithBottomLine($bottomLine->value));
+        $syncGroupClass::fromOptions(self::optionsWithBottomLine($bottomLine->value), null);
     }
 
     /**
@@ -163,7 +163,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testWithoutFreshnessKeysTheSilenceToleratedIsThreeIntervalsAndTheBehaviourIsLeftToTheFirmware(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions(), null);
 
         self::assertSame(2700, $trackerSync->staleDeclaration->staleAfterInSeconds);
         self::assertNull($trackerSync->staleDeclaration->staleBehavior);
@@ -175,7 +175,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testWithoutAnActiveWindowTheGroupRunsAroundTheClock(string $syncGroupClass, string $expectedSyncType): void
     {
-        self::assertNull($syncGroupClass::fromOptions(self::validOptions())->activeWindow);
+        self::assertNull($syncGroupClass::fromOptions(self::validOptions(), null)->activeWindow);
     }
 
     /**
@@ -186,7 +186,7 @@ final class TrackerSyncConfigTest extends TestCase
     {
         $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
             'activeWindow' => ['days' => ['mon'], 'from' => '09:00', 'to' => '17:45', 'timezone' => 'Europe/Paris'],
-        ]));
+        ]), null);
 
         self::assertNotNull($trackerSync->activeWindow);
         self::assertSame('mon 09:00-17:45 Europe/Paris', (string) $trackerSync->activeWindow);
@@ -203,7 +203,7 @@ final class TrackerSyncConfigTest extends TestCase
 
         $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
             'activeWindow' => ['from' => '22:00', 'to' => '06:00', 'timezone' => 'Europe/Paris'],
-        ]));
+        ]), null);
     }
 
     /**
@@ -212,7 +212,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testATrackerGroupAcceptsTheFourBehavioursItsLayoutDraws(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'dim']));
+        $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'dim']), null);
 
         self::assertSame(StaleBehavior::Dim, $trackerSync->staleDeclaration->staleBehavior);
     }
@@ -223,7 +223,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testTheGroupIsTriggeredByATrackerSyncMessageCarryingItsType(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::validOptions());
+        $trackerSync = $syncGroupClass::fromOptions(self::validOptions(), null);
 
         self::assertEquals(new SyncTrackerMessage($expectedSyncType), $trackerSync->syncMessage());
     }
@@ -236,7 +236,7 @@ final class TrackerSyncConfigTest extends TestCase
     {
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage(\sprintf('syncs.%s.interval', $expectedSyncType));
-        $syncGroupClass::fromOptions(array_merge(self::validOptions(), ['interval' => 'every fortnight']));
+        $syncGroupClass::fromOptions(array_merge(self::validOptions(), ['interval' => 'every fortnight']), null);
     }
 
     /**
@@ -255,7 +255,7 @@ final class TrackerSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage(\sprintf('syncs.%s.items[1].symbol', $expectedSyncType));
 
-        $syncGroupClass::fromOptions($options);
+        $syncGroupClass::fromOptions($options, null);
     }
 
     /**
@@ -271,7 +271,7 @@ final class TrackerSyncConfigTest extends TestCase
             'items' => [
                 ['symbol' => 'BTC', 'currency' => 'eur', 'activeWindow' => ['from' => '22:00', 'to' => '06:00', 'timezone' => 'Europe/Paris']],
             ],
-        ]));
+        ]), null);
     }
 
     /**
@@ -283,7 +283,7 @@ final class TrackerSyncConfigTest extends TestCase
         $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
             'staleAfter' => 1200,
             'staleBehavior' => 'hide',
-        ]));
+        ]), null);
 
         self::assertSame(1200, $trackerSync->items[0]->staleDeclaration->staleAfterInSeconds);
         self::assertSame(StaleBehavior::Hide, $trackerSync->items[0]->staleDeclaration->staleBehavior);
@@ -299,7 +299,7 @@ final class TrackerSyncConfigTest extends TestCase
             'staleAfter' => 1200,
             'staleBehavior' => 'hide',
             'items' => [['symbol' => 'BTC', 'currency' => 'eur', 'staleAfter' => 0]],
-        ]));
+        ]), null);
 
         self::assertSame(0, $trackerSync->items[0]->staleDeclaration->staleAfterInSeconds);
         self::assertSame(StaleBehavior::Hide, $trackerSync->items[0]->staleDeclaration->staleBehavior);
@@ -315,7 +315,7 @@ final class TrackerSyncConfigTest extends TestCase
             'staleAfter' => 1200,
             'staleBehavior' => 'hide',
             'items' => [['symbol' => 'BTC', 'currency' => 'eur', 'staleBehavior' => 'badge']],
-        ]));
+        ]), null);
 
         self::assertSame(1200, $trackerSync->items[0]->staleDeclaration->staleAfterInSeconds);
         self::assertSame(StaleBehavior::Badge, $trackerSync->items[0]->staleDeclaration->staleBehavior);
@@ -327,7 +327,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testOnlyTheItemsWhoseOwnWindowIsOpenAreFetched(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::twoMarketsOptions());
+        $trackerSync = $syncGroupClass::fromOptions(self::twoMarketsOptions(), null);
 
         $itemsAtTheEuropeanOpening = $trackerSync->itemsToFetchAt(self::parisInstant('2026-08-03 10:00:00'));
         self::assertCount(1, $itemsAtTheEuropeanOpening);
@@ -343,7 +343,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testWithoutAnInstantToJudgeTheWindowsEveryItemIsFetched(string $syncGroupClass, string $expectedSyncType): void
     {
-        $trackerSync = $syncGroupClass::fromOptions(self::twoMarketsOptions());
+        $trackerSync = $syncGroupClass::fromOptions(self::twoMarketsOptions(), null);
 
         self::assertSame($trackerSync->items, $trackerSync->itemsToFetchAt(null));
     }
@@ -354,7 +354,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAGroupIsDispatchableFromTheLaterOfItsOwnOpeningAndTheEarliestItemStillOpen(string $syncGroupClass, string $expectedSyncType): void
     {
-        $activity = $syncGroupClass::fromOptions(self::twoMarketsOptions())->activityAt(self::parisInstant('2026-08-03 16:00:00'));
+        $activity = $syncGroupClass::fromOptions(self::twoMarketsOptions(), null)->activityAt(self::parisInstant('2026-08-03 16:00:00'));
 
         self::assertTrue($activity->isActive);
         self::assertSame(25200, $activity->secondsSinceBecameActive);
@@ -366,7 +366,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testAGroupWhoseItemsAreAllClosedIsNotDispatchableEvenInsideItsOwnWindow(string $syncGroupClass, string $expectedSyncType): void
     {
-        $activity = $syncGroupClass::fromOptions(self::twoMarketsOptions())->activityAt(self::parisInstant('2026-08-03 08:30:00'));
+        $activity = $syncGroupClass::fromOptions(self::twoMarketsOptions(), null)->activityAt(self::parisInstant('2026-08-03 08:30:00'));
 
         self::assertFalse($activity->isActive);
         self::assertNull($activity->secondsSinceBecameActive);
@@ -381,7 +381,7 @@ final class TrackerSyncConfigTest extends TestCase
         $options = self::twoMarketsOptions();
         unset($options['activeWindow']);
 
-        $activity = $syncGroupClass::fromOptions($options)->activityAt(self::parisInstant('2026-08-03 16:00:00'));
+        $activity = $syncGroupClass::fromOptions($options, null)->activityAt(self::parisInstant('2026-08-03 16:00:00'));
 
         self::assertTrue($activity->isActive);
         self::assertSame(25200, $activity->secondsSinceBecameActive);
@@ -393,7 +393,7 @@ final class TrackerSyncConfigTest extends TestCase
     #[DataProvider('provideTrackerSyncGroups')]
     public function testWithoutAnyWindowAtAllTheGroupHasAlwaysBeenDispatchable(string $syncGroupClass, string $expectedSyncType): void
     {
-        $activity = $syncGroupClass::fromOptions(self::validOptions())->activityAt(self::parisInstant('2026-08-08 03:00:00'));
+        $activity = $syncGroupClass::fromOptions(self::validOptions(), null)->activityAt(self::parisInstant('2026-08-08 03:00:00'));
 
         self::assertTrue($activity->isActive);
         self::assertNull($activity->secondsSinceBecameActive);
@@ -407,7 +407,7 @@ final class TrackerSyncConfigTest extends TestCase
     {
         $trackerSync = $syncGroupClass::fromOptions(array_merge(self::validOptions(), [
             'activeWindow' => self::windowOptions('08:00', '18:00'),
-        ]));
+        ]), null);
 
         self::assertSame(28800, $trackerSync->activityAt(self::parisInstant('2026-08-03 16:00:00'))->secondsSinceBecameActive);
         self::assertFalse($trackerSync->activityAt(self::parisInstant('2026-08-03 19:00:00'))->isActive);

@@ -35,7 +35,7 @@ final class WeatherSyncConfigTest extends TestCase
 
     public function testAValidOptionMapIsHydrated(): void
     {
-        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions());
+        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions(), null);
 
         self::assertTrue($weatherSync->enabled);
         self::assertSame('30 minutes', $weatherSync->interval->expression);
@@ -47,7 +47,7 @@ final class WeatherSyncConfigTest extends TestCase
 
     public function testWithoutFreshnessKeysTheSilenceToleratedIsThreeIntervalsAndTheBehaviourIsLeftToTheFirmware(): void
     {
-        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions());
+        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions(), null);
 
         self::assertSame(5400, $weatherSync->staleDeclaration->staleAfterInSeconds);
         self::assertNull($weatherSync->staleDeclaration->staleBehavior);
@@ -55,7 +55,7 @@ final class WeatherSyncConfigTest extends TestCase
 
     public function testWithoutAnActiveWindowTheGroupRunsAroundTheClock(): void
     {
-        self::assertNull(WeatherSyncConfig::fromOptions(self::validOptions())->activeWindow);
+        self::assertNull(WeatherSyncConfig::fromOptions(self::validOptions(), null)->activeWindow);
     }
 
     public function testTheWeatherGroupRefusesABehaviourOnlyTheTrackerLayoutDraws(): void
@@ -63,12 +63,12 @@ final class WeatherSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.weather.staleBehavior');
 
-        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'dim']));
+        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'dim']), null);
     }
 
     public function testTheGroupIsTriggeredByAWeatherSyncMessage(): void
     {
-        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions());
+        $weatherSync = WeatherSyncConfig::fromOptions(self::validOptions(), null);
 
         self::assertInstanceOf(SyncWeatherMessage::class, $weatherSync->syncMessage());
     }
@@ -78,7 +78,7 @@ final class WeatherSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.weather.interval');
 
-        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['interval' => 'every fortnight']));
+        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['interval' => 'every fortnight']), null);
     }
 
     public function testAMissingOptionNamesItsFullPath(): void
@@ -89,12 +89,12 @@ final class WeatherSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.weather.latitude');
 
-        WeatherSyncConfig::fromOptions($options);
+        WeatherSyncConfig::fromOptions($options, null);
     }
 
     public function testWithoutAnActiveWindowTheGroupHasAlwaysBeenDispatchable(): void
     {
-        $activity = WeatherSyncConfig::fromOptions(self::validOptions())->activityAt(new \DateTimeImmutable('2026-08-08 03:00:00'));
+        $activity = WeatherSyncConfig::fromOptions(self::validOptions(), null)->activityAt(new \DateTimeImmutable('2026-08-08 03:00:00'));
 
         self::assertTrue($activity->isActive);
         self::assertNull($activity->secondsSinceBecameActive);
@@ -104,7 +104,7 @@ final class WeatherSyncConfigTest extends TestCase
     {
         $weatherSync = WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), [
             'activeWindow' => ['days' => ['mon'], 'from' => '08:00', 'to' => '18:00', 'timezone' => 'Europe/Paris'],
-        ]));
+        ]), null);
 
         $insideTheWindow = $weatherSync->activityAt(new \DateTimeImmutable('2026-08-03 16:00:00', new \DateTimeZone('Europe/Paris')));
         self::assertTrue($insideTheWindow->isActive);
@@ -120,6 +120,6 @@ final class WeatherSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.weather.units');
 
-        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['units' => 'kelvin']));
+        WeatherSyncConfig::fromOptions(array_merge(self::validOptions(), ['units' => 'kelvin']), null);
     }
 }

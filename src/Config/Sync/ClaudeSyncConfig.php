@@ -34,7 +34,7 @@ final readonly class ClaudeSyncConfig implements SyncGroupConfig
         return 'claude';
     }
 
-    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone = null): self
+    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone): self
     {
         $optionsPath = 'syncs.'.self::syncType();
 

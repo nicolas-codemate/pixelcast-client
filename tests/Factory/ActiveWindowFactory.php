@@ -23,7 +23,7 @@ final class ActiveWindowFactory
                 'to' => '17:45',
                 'timezone' => $timezoneName,
             ],
-        ], self::PARENT_PATH);
+        ], self::PARENT_PATH, null);
         Assert::assertNotNull($activeWindow);
 
         return $activeWindow;

@@ -17,8 +17,8 @@ final class ActiveWindowTest extends TestCase
 
     public function testAGroupWithoutTheKeyHasNoWindow(): void
     {
-        self::assertNull(ActiveWindow::optionalFromOptions([], self::PARENT_PATH));
-        self::assertNull(ActiveWindow::optionalFromOptions(['activeWindow' => null], self::PARENT_PATH));
+        self::assertNull(ActiveWindow::optionalFromOptions([], self::PARENT_PATH, null));
+        self::assertNull(ActiveWindow::optionalFromOptions(['activeWindow' => null], self::PARENT_PATH, null));
     }
 
     public function testADeclaredWindowKeepsItsDaysItsBoundsAndItsTimezone(): void

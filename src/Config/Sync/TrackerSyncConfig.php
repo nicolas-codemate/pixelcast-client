@@ -35,7 +35,7 @@ abstract readonly class TrackerSyncConfig implements SyncGroupConfig
      */
     abstract public static function acceptedBottomLines(): array;
 
-    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone = null): static
+    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone): static
     {
         $optionsPath = 'syncs.'.static::syncType();
 
