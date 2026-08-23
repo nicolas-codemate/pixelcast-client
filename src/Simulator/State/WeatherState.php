@@ -15,18 +15,23 @@ final class WeatherState implements ResettableState
     /** @var array<string, mixed>|null */
     private ?array $today = null;
 
+    /** @var array<string, mixed> */
+    private array $staleDeclaration = [];
+
     private ?\DateTimeImmutable $lastUpdatedAt = null;
 
     /**
      * @param array<string, mixed>|null $current
      * @param list<array<string, mixed>> $forecast
      * @param array<string, mixed>|null $today
+     * @param array<string, mixed> $staleDeclaration
      */
-    public function update(?array $current, array $forecast, ?array $today): void
+    public function update(?array $current, array $forecast, ?array $today, array $staleDeclaration): void
     {
         $this->current = $current;
         $this->forecast = $forecast;
         $this->today = $today;
+        $this->staleDeclaration = $staleDeclaration;
         $this->lastUpdatedAt = new \DateTimeImmutable();
     }
 
@@ -54,6 +59,14 @@ final class WeatherState implements ResettableState
         return $this->today;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function staleDeclaration(): array
+    {
+        return $this->staleDeclaration;
+    }
+
     public function lastUpdatedAt(): ?\DateTimeImmutable
     {
         return $this->lastUpdatedAt;
@@ -64,6 +77,7 @@ final class WeatherState implements ResettableState
         $this->current = null;
         $this->forecast = [];
         $this->today = null;
+        $this->staleDeclaration = [];
         $this->lastUpdatedAt = null;
     }
 
@@ -77,6 +91,7 @@ final class WeatherState implements ResettableState
             'current' => $this->current,
             'forecast' => $this->forecast,
             'today' => $this->today,
+            'staleDeclaration' => $this->staleDeclaration,
             'lastUpdatedAt' => $this->lastUpdatedAt?->format(\DateTimeInterface::ATOM),
         ];
     }
@@ -90,6 +105,7 @@ final class WeatherState implements ResettableState
             'current' => $this->current,
             'forecast' => $this->forecast,
             'today' => $this->today,
+            'staleDeclaration' => $this->staleDeclaration,
             'lastUpdatedAt' => $this->lastUpdatedAt?->format(\DateTimeInterface::ATOM),
         ];
     }
@@ -102,6 +118,7 @@ final class WeatherState implements ResettableState
         $this->current = PersistedStateReader::payload($persistedState['current'] ?? null);
         $this->forecast = PersistedStateReader::payloadList($persistedState['forecast'] ?? null);
         $this->today = PersistedStateReader::payload($persistedState['today'] ?? null);
+        $this->staleDeclaration = PersistedStateReader::payload($persistedState['staleDeclaration'] ?? null) ?? [];
         $this->lastUpdatedAt = PersistedStateReader::atomDate($persistedState['lastUpdatedAt'] ?? null);
     }
 

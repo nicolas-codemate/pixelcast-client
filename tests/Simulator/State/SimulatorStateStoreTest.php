@@ -44,7 +44,12 @@ final class SimulatorStateStoreTest extends TestCase
     public function testSavedDomainStateIsRestoredIntoFreshInstances(): void
     {
         $savedWeather = new WeatherState();
-        $savedWeather->update(['icon' => 'w_rain', 'temp' => 9], [['icon' => 'w_clear_day', 'temp' => 14]], ['hours' => [['h' => 15, 'temp' => 22]]]);
+        $savedWeather->update(
+            ['icon' => 'w_rain', 'temp' => 9],
+            [['icon' => 'w_clear_day', 'temp' => 14]],
+            ['hours' => [['h' => 15, 'temp' => 22]]],
+            ['staleAfter' => 7200, 'staleBehavior' => 'none'],
+        );
 
         $savedTrackers = new TrackerState();
         $savedTrackers->upsert('btc', ['name' => 'btc', 'value' => '42']);
@@ -106,6 +111,7 @@ final class SimulatorStateStoreTest extends TestCase
 
         self::assertSame(['icon' => 'w_rain', 'temp' => 9], $restoredWeather->current());
         self::assertSame([['icon' => 'w_clear_day', 'temp' => 14]], $restoredWeather->forecast());
+        self::assertSame(['staleAfter' => 7200, 'staleBehavior' => 'none'], $restoredWeather->staleDeclaration());
         self::assertSame(
             $savedWeather->lastUpdatedAt()?->format(\DateTimeInterface::ATOM),
             $restoredWeather->lastUpdatedAt()?->format(\DateTimeInterface::ATOM),
@@ -214,7 +220,7 @@ final class SimulatorStateStoreTest extends TestCase
     public function testPurgeResetsEveryStateAndDeletesTheStateFile(): void
     {
         $weather = new WeatherState();
-        $weather->update(['icon' => 'w_rain', 'temp' => 9], [], null);
+        $weather->update(['icon' => 'w_rain', 'temp' => 9], [], null, []);
 
         $requestLog = new RequestLog();
         $requestLog->record($this->createLogEntry('/weather'));
