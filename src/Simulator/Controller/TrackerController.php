@@ -43,7 +43,17 @@ final class TrackerController extends AbstractSimulatorController
             return $this->notFound();
         }
 
-        return new JsonResponse(['name' => $name] + $payload);
+        $freshness = FreshnessProjection::of(
+            $payload,
+            new \DateTimeImmutable(),
+            $trackers->pushedAt($name),
+            self::DEFAULT_STALE_AFTER_SECONDS,
+            self::DEFAULT_STALE_BEHAVIOR,
+        );
+
+        // The projection comes before the stored payload so that staleAfter and staleBehavior
+        // answer the value the simulator actually applies, not whatever was pushed under them.
+        return new JsonResponse(['name' => $name] + $freshness + $payload);
     }
 
     #[Route('/tracker', methods: ['POST'])]
