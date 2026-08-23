@@ -50,11 +50,11 @@ final class SystemControllerTest extends SimulatorWebTestCase
         $this->client->request('GET', '/api/stats');
         $statsApps = $this->jsonResponse()['apps'] ?? null;
         self::assertIsArray($statsApps);
-        self::assertSame(1, $statsApps['count'] ?? null);
+        $statsAppsCount = $statsApps['count'] ?? null;
+        self::assertSame(1, $statsAppsCount);
 
         $this->client->request('GET', '/api/apps');
-        $appsPayload = $this->jsonResponse();
-        self::assertSame($appsPayload['count'], $statsApps['count']);
+        self::assertSame($this->jsonResponse()['count'] ?? null, $statsAppsCount);
     }
 
     public function testGetSettingsReturnsDefaults(): void

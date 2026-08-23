@@ -54,7 +54,7 @@ final class SystemController extends AbstractSimulatorController
                 'connected' => false,
             ],
             'apps' => [
-                'count' => \count($apps->list()),
+                'count' => $apps->count(),
                 'current' => '',
                 'rotationEnabled' => $rotationEnabled,
             ],
