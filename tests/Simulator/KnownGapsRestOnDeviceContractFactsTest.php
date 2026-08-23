@@ -12,7 +12,7 @@ use Symfony\Component\Yaml\Yaml;
 
 /**
  * The simulator knowingly answers a few things the device contract in sync/ does not spell out. Each
- * one rests on a fact of the contract: no nullable property here, no declared default there. sync/ is
+ * one rests on a fact of the contract: no null form here, no declared default there. sync/ is
  * rewritten wholesale by `make sync-api`, so the reasoning cannot live in it; it lives here, next to
  * the fact it rests on. A re-sync that takes that fact away fails this test instead of leaving the gap
  * behind as an unexplained special case.
@@ -29,15 +29,30 @@ final class KnownGapsRestOnDeviceContractFactsTest extends TestCase
      */
     public static function knownGapProvider(): iterable
     {
-        yield 'WeatherController::getWeather() leaves out the keys it has no value for: WeatherResponse requires no property and lets none of them hold null' => [
+        yield 'WeatherController::getWeather() leaves out the keys it has no value for: WeatherResponse requires nothing, declares no null form, and carries exactly the keys the projection answers' => [
             static function (): void {
                 self::assertArrayNotHasKey(
                     'required',
                     SchemaPropertyReader::deviceContractDefinitionOf('weather.yaml', 'WeatherResponse'),
                 );
 
-                foreach (SchemaPropertyReader::deviceContractPropertiesOf('weather.yaml', 'WeatherResponse') as $propertyName => $propertySchema) {
-                    self::assertArrayNotHasKey('nullable', $propertySchema, $propertyName.' now holds null.');
+                $answeredProperties = SchemaPropertyReader::deviceContractPropertiesOf('weather.yaml', 'WeatherResponse');
+                self::assertSame(
+                    ['valid', 'age', 'stale', 'staleAfter', 'staleBehavior', 'current', 'forecast', 'today'],
+                    array_keys($answeredProperties),
+                );
+
+                foreach ($answeredProperties as $propertyName => $propertySchema) {
+                    self::assertFalse(self::declaresANullForm($propertySchema), $propertyName.' now holds null.');
+                }
+
+                // current and today are bare references, so a null form would be written on the
+                // definition they point at rather than on the property itself.
+                foreach (['WeatherCurrent', 'WeatherToday'] as $referencedDefinition) {
+                    self::assertFalse(
+                        self::declaresANullForm(SchemaPropertyReader::deviceContractDefinitionOf('weather.yaml', $referencedDefinition)),
+                        $referencedDefinition.' now holds null.',
+                    );
                 }
             },
         ];
@@ -91,7 +106,7 @@ final class KnownGapsRestOnDeviceContractFactsTest extends TestCase
 
                 foreach (SchemaPropertyReader::acceptedFormsOf($zoneProperties['color']) as $acceptedForm) {
                     self::assertIsArray($acceptedForm);
-                    self::assertNotSame('null', $acceptedForm['type'] ?? null);
+                    self::assertFalse(self::declaresANullForm($acceptedForm));
                 }
 
                 $listedAppProperties = SchemaPropertyReader::deviceContractPropertiesOf('custom-app.yaml', 'AppResponse');
@@ -121,6 +136,35 @@ final class KnownGapsRestOnDeviceContractFactsTest extends TestCase
     public function testTheKnownGapRestsOnAFactOfTheDeviceContract(\Closure $pinTheContractFactTheGapRestsOn): void
     {
         $pinTheContractFactTheGapRestsOn();
+    }
+
+    /**
+     * OpenAPI 3.1 has no `nullable` keyword: a value allowed to be null says so with a null type,
+     * either on its own or as one branch of a combined schema.
+     *
+     * @param array<mixed> $schema
+     */
+    private static function declaresANullForm(array $schema): bool
+    {
+        $declaredType = $schema['type'] ?? null;
+        if ('null' === $declaredType || (\is_array($declaredType) && \in_array('null', $declaredType, true))) {
+            return true;
+        }
+
+        foreach (['oneOf', 'anyOf'] as $combinedSchemaKeyword) {
+            $branches = $schema[$combinedSchemaKeyword] ?? null;
+            if (!\is_array($branches)) {
+                continue;
+            }
+
+            foreach ($branches as $branch) {
+                if (\is_array($branch) && self::declaresANullForm($branch)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
