@@ -18,7 +18,8 @@ final class FreshnessProjection
         int $defaultStaleAfterSeconds,
         string $defaultStaleBehavior,
     ): array {
-        $pushedStaleAfter = $payload['staleAfter'] ?? null;
+        // lifetime is the deprecated name of staleAfter, still accepted from a push.
+        $pushedStaleAfter = $payload['staleAfter'] ?? $payload['lifetime'] ?? null;
         $staleAfter = \is_int($pushedStaleAfter) ? $pushedStaleAfter : $defaultStaleAfterSeconds;
 
         $pushedStaleBehavior = $payload['staleBehavior'] ?? null;

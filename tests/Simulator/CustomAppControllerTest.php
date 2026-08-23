@@ -84,6 +84,30 @@ final class CustomAppControllerTest extends SimulatorWebTestCase
         self::assertSame('#FF8800', $rightZone['color'] ?? null);
     }
 
+    public function testALifetimePushIsProjectedAsStaleAfter(): void
+    {
+        $this->pushCustomApp('legacy', ['text' => 'hi', 'lifetime' => 300]);
+
+        $listedApp = $this->firstItemOfList('/api/apps', 'apps');
+
+        self::assertSame(300, $listedApp['staleAfter'] ?? null);
+    }
+
+    public function testALifetimePushIsProjectedAsStaleAfterOnAMultiZoneApp(): void
+    {
+        $this->pushCustomApp('legacy-dashboard', [
+            'lifetime' => 300,
+            'zones' => [
+                ['text' => 'left', 'color' => [255, 136, 0]],
+                ['text' => 'right', 'color' => 16746496],
+            ],
+        ]);
+
+        $listedApp = $this->firstItemOfList('/api/apps', 'apps');
+
+        self::assertSame(300, $listedApp['staleAfter'] ?? null);
+    }
+
     /**
      * @param array<string, mixed> $payload
      */
