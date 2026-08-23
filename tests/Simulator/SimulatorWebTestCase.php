@@ -99,6 +99,21 @@ abstract class SimulatorWebTestCase extends WebTestCase
     /**
      * @return array<string, mixed>
      */
+    protected static function weatherPushPayload(): array
+    {
+        return [
+            'current' => [
+                'icon' => 'w_clear_day',
+                'temp' => 22,
+                'humidity' => 50,
+            ],
+            'forecast' => [['day' => 'LUN', 'icon' => 'w_rain', 'temp_min' => 12, 'temp_max' => 19]],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     protected static function customAppPushPayload(): array
     {
         return [

@@ -117,17 +117,22 @@ final class WeatherControllerTest extends SimulatorWebTestCase
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private static function weatherPushPayload(): array
+    public function testAKeyTheForecastDaySchemaDoesNotDeclareIsNotReadBack(): void
     {
-        return [
-            'current' => [
-                'icon' => 'w_clear_day',
-                'temp' => 22,
-                'humidity' => 50,
-            ],
-        ];
+        $this->postJson('/api/weather', [
+            ...self::weatherPushPayload(),
+            'forecast' => [[
+                'day' => 'LUN',
+                'icon' => 'w_rain',
+                'temp_min' => 12,
+                'temp_max' => 19,
+                'extra' => 'not declared',
+            ]],
+        ]);
+
+        $forecastDayKeys = array_keys($this->firstItemOfList('/api/weather', 'forecast'));
+        sort($forecastDayKeys);
+
+        self::assertSame(['day', 'icon', 'temp_max', 'temp_min'], $forecastDayKeys);
     }
 }

@@ -21,12 +21,12 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 
     /**
      * Endpoints returning a list of objects whose items no projection test pins to the contract.
-     * Each one is recorded as a follow-up rather than fixed here.
+     * Each one is recorded as a follow-up rather than fixed here. None is open right now: this is
+     * where the next list endpoint arriving through `make sync-api` lands until it gets covered.
+     *
+     * @var list<string>
      */
-    private const array LISTS_NO_PROJECTION_TEST_COVERS = [
-        // GET /weather echoes the forecast days it was pushed, so nothing holds them to ForecastDay.
-        '/weather',
-    ];
+    private const array LISTS_NO_PROJECTION_TEST_COVERS = [];
 
     /**
      * @return iterable<string, array{string, string, string, string, \Closure(self): mixed, list<string>, string}>
@@ -63,6 +63,16 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
             static fn (self $test) => $test->postJson('/api/gauge?name=disks', self::gaugePushPayload()),
             [],
             '?name=disks',
+        ];
+
+        yield '/weather' => [
+            '/weather',
+            'forecast',
+            'weather.yaml',
+            'WeatherResponse',
+            static fn (self $test) => $test->postJson('/api/weather', self::weatherPushPayload()),
+            [],
+            '',
         ];
 
         yield '/apps' => [
