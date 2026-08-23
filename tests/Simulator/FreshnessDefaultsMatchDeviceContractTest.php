@@ -7,6 +7,7 @@ namespace App\Tests\Simulator;
 use App\Simulator\Controller\CustomAppController;
 use App\Simulator\Controller\GaugeController;
 use App\Simulator\Controller\TrackerController;
+use App\Simulator\Controller\WeatherController;
 use App\Tests\Factory\SchemaPropertyReader;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +29,8 @@ final class FreshnessDefaultsMatchDeviceContractTest extends TestCase
         yield 'gauge staleBehavior' => ['gauge.yaml', 'GaugeUpdateRequest', 'staleBehavior', GaugeController::DEFAULT_STALE_BEHAVIOR];
         yield 'custom app staleAfter' => ['custom-app.yaml', 'CustomAppRequest', 'staleAfter', CustomAppController::DEFAULT_STALE_AFTER_SECONDS];
         yield 'custom app staleBehavior' => ['custom-app.yaml', 'CustomAppRequest', 'staleBehavior', CustomAppController::DEFAULT_STALE_BEHAVIOR];
+        yield 'weather staleAfter' => ['weather.yaml', 'WeatherUpdateRequest', 'staleAfter', WeatherController::DEFAULT_STALE_AFTER_SECONDS];
+        yield 'weather staleBehavior' => ['weather.yaml', 'WeatherUpdateRequest', 'staleBehavior', WeatherController::DEFAULT_STALE_BEHAVIOR];
     }
 
     #[DataProvider('freshnessDefaultProvider')]
