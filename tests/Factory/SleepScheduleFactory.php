@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Factory;
 
+use App\Config\Schedule\DayOfWeekSet;
+use App\Config\Schedule\TimeOfDayWindow;
 use App\Config\Sleep\SleepSchedule;
-use App\Config\Sleep\SleepWindow;
 use App\Config\Sync\ActiveWindowDay;
 
 /**
@@ -25,7 +26,7 @@ final class SleepScheduleFactory
     }
 
     /**
-     * @param list<SleepWindow> $windows
+     * @param list<TimeOfDayWindow> $windows
      */
     public static function everyNightWithWindows(array $windows): SleepSchedule
     {
@@ -34,16 +35,16 @@ final class SleepScheduleFactory
 
     /**
      * @param list<ActiveWindowDay> $days
-     * @param list<SleepWindow> $windows
+     * @param list<TimeOfDayWindow> $windows
      */
     public static function onDaysWithWindows(array $days, array $windows): SleepSchedule
     {
-        return SleepSchedule::of($days, $windows, new \DateTimeZone(self::SCHEDULE_TIMEZONE));
+        return SleepSchedule::of(DayOfWeekSet::of($days), $windows, new \DateTimeZone(self::SCHEDULE_TIMEZONE));
     }
 
-    public static function windowOf(string $fromTimeOfDay, string $toTimeOfDay): SleepWindow
+    public static function windowOf(string $fromTimeOfDay, string $toTimeOfDay): TimeOfDayWindow
     {
-        return SleepWindow::fromOptions(['from' => $fromTimeOfDay, 'to' => $toTimeOfDay], self::PARENT_PATH);
+        return TimeOfDayWindow::fromOptions(['from' => $fromTimeOfDay, 'to' => $toTimeOfDay], self::PARENT_PATH);
     }
 
     public static function instantAt(string $rawInstant): \DateTimeImmutable

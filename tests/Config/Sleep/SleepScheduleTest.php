@@ -41,6 +41,20 @@ final class SleepScheduleTest extends TestCase
         self::assertSame('2026-08-06 07:00:00 Europe/Paris', $wakeUpBeforeMidnight->format('Y-m-d H:i:s e'));
     }
 
+    public function testANightDeclaredOnOneDayStillCoversTheSmallHoursOfTheDayAfter(): void
+    {
+        $schedule = SleepScheduleFactory::onDaysWithWindows(
+            [ActiveWindowDay::Friday],
+            [SleepScheduleFactory::windowOf('22:00', '07:00')],
+        );
+
+        $wakeUpOnSaturdayMorning = $schedule->endOfTheSleepCovering(SleepScheduleFactory::instantAt('2026-08-08 03:00:00'));
+
+        self::assertNotNull($wakeUpOnSaturdayMorning);
+        self::assertSame('2026-08-08 07:00:00 Europe/Paris', $wakeUpOnSaturdayMorning->format('Y-m-d H:i:s e'));
+        self::assertNull($schedule->endOfTheSleepCovering(SleepScheduleFactory::instantAt('2026-08-08 23:00:00')));
+    }
+
     public function testADayLeftOutOfTheScheduleIsNeverAsleep(): void
     {
         $schedule = SleepScheduleFactory::onDaysWithWindows(

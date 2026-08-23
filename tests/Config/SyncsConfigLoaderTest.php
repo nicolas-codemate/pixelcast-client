@@ -6,6 +6,7 @@ namespace App\Tests\Config;
 
 use App\Client\StaleBehavior;
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Schedule\DayOfWeekSet;
 use App\Config\Sleep\SleepDisplayMode;
 use App\Config\Sync\ActiveWindowDay;
 use App\Config\Sync\BoursoramaSyncConfig;
@@ -123,7 +124,7 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertNotNull($config->deviceSleep);
         self::assertTrue($config->deviceSleep->enabled);
         self::assertSame(SleepDisplayMode::Black, $config->deviceSleep->displayMode);
-        self::assertSame(ActiveWindowDay::cases(), $config->deviceSleep->days);
+        self::assertEquals(DayOfWeekSet::everyDay(), $config->deviceSleep->days);
         self::assertSame(['00:00-07:00'], array_map(strval(...), $config->deviceSleep->windows));
         self::assertNotNull($config->deviceSleep->timezone);
         self::assertSame('Europe/Paris', $config->deviceSleep->timezone->getName());
@@ -250,7 +251,7 @@ final class SyncsConfigLoaderTest extends TestCase
 
         self::assertNotNull($config->deviceSleep);
         self::assertSame(SleepDisplayMode::Clock, $config->deviceSleep->displayMode);
-        self::assertSame([ActiveWindowDay::Friday, ActiveWindowDay::Saturday], $config->deviceSleep->days);
+        self::assertEquals(DayOfWeekSet::of([ActiveWindowDay::Friday, ActiveWindowDay::Saturday]), $config->deviceSleep->days);
         self::assertSame(['22:00-07:00'], array_map(strval(...), $config->deviceSleep->windows));
     }
 

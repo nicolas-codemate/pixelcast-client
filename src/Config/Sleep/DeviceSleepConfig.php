@@ -6,6 +6,8 @@ namespace App\Config\Sleep;
 
 use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepSlot;
+use App\Config\Schedule\DayOfWeekSet;
+use App\Config\Schedule\TimeOfDayWindow;
 use App\Config\Sync\ActiveWindowDay;
 use App\Config\Sync\SyncOptionReader;
 
@@ -19,7 +21,6 @@ final readonly class DeviceSleepConfig
 
     private const string ENABLED_OPTION_KEY = 'enabled';
     private const string DISPLAY_MODE_OPTION_KEY = 'displayMode';
-    private const string DAYS_OPTION_KEY = 'days';
     private const string WINDOWS_OPTION_KEY = 'windows';
     private const string TIMEZONE_OPTION_KEY = 'timezone';
 
@@ -34,13 +35,12 @@ final readonly class DeviceSleepConfig
     ];
 
     /**
-     * @param list<ActiveWindowDay> $days
-     * @param list<SleepWindow> $windows
+     * @param list<TimeOfDayWindow> $windows
      */
     private function __construct(
         public bool $enabled,
         public SleepDisplayMode $displayMode,
-        public array $days,
+        public DayOfWeekSet $days,
         public array $windows,
         public ?\DateTimeZone $timezone,
     ) {
@@ -56,13 +56,13 @@ final readonly class DeviceSleepConfig
         }
 
         $options = SyncOptionReader::asStringKeyedMap($configTree[self::OPTION_KEY], self::OPTION_KEY);
-        $declaredDays = SyncOptionReader::optionalEnumList($options, self::DAYS_OPTION_KEY, self::OPTION_KEY, ActiveWindowDay::class);
+        $days = DayOfWeekSet::fromOptions($options, self::OPTION_KEY);
         $enabled = SyncOptionReader::requireBool($options, self::ENABLED_OPTION_KEY, self::OPTION_KEY);
 
         return new self(
             $enabled,
             SyncOptionReader::optionalEnum($options, self::DISPLAY_MODE_OPTION_KEY, self::OPTION_KEY, SleepDisplayMode::cases()) ?? SleepDisplayMode::Black,
-            [] === $declaredDays ? ActiveWindowDay::cases() : $declaredDays,
+            $days,
             self::readWindows($options),
             $enabled ? SyncOptionReader::requireTimezoneOrDeviceDefault($options, self::TIMEZONE_OPTION_KEY, self::OPTION_KEY, $deviceTimezone, 'the schedule is applied by the device in its own local time, which the container clock does not share.') : null,
         );
@@ -88,7 +88,7 @@ final readonly class DeviceSleepConfig
 
         foreach ($this->sleepWindowsByFirmwareDayName() as $firmwareDayName => $windows) {
             $sleepSlotsByDayName[$firmwareDayName] = array_map(
-                static fn (SleepWindow $window): SleepSlot => new SleepSlot($window->fromTimeOfDay, $window->toTimeOfDay),
+                static fn (TimeOfDayWindow $window): SleepSlot => new SleepSlot($window->fromTimeOfDay, $window->toTimeOfDay),
                 $windows,
             );
         }
@@ -100,7 +100,7 @@ final readonly class DeviceSleepConfig
      * The seven days, the ones left out of "days" carrying no window: the firmware leaves untouched
      * any day the payload omits, so a day has to be sent empty for the device to forget its windows.
      *
-     * @return array<string, list<SleepWindow>>
+     * @return array<string, list<TimeOfDayWindow>>
      */
     private function sleepWindowsByFirmwareDayName(): array
     {
@@ -108,7 +108,7 @@ final readonly class DeviceSleepConfig
 
         foreach (ActiveWindowDay::cases() as $day) {
             $firmwareDayName = self::FIRMWARE_DAY_NAME_BY_DAY[$day->value];
-            $windowsByFirmwareDayName[$firmwareDayName] = \in_array($day, $this->days, true) ? $this->windows : [];
+            $windowsByFirmwareDayName[$firmwareDayName] = $this->days->contains($day) ? $this->windows : [];
         }
 
         return $windowsByFirmwareDayName;
@@ -117,7 +117,7 @@ final readonly class DeviceSleepConfig
     /**
      * @param array<string, mixed> $options
      *
-     * @return list<SleepWindow>
+     * @return list<TimeOfDayWindow>
      */
     private static function readWindows(array $options): array
     {
@@ -125,7 +125,7 @@ final readonly class DeviceSleepConfig
         $windows = [];
 
         foreach (SyncOptionReader::requireListOfMaps($options, self::WINDOWS_OPTION_KEY, self::OPTION_KEY) as $index => $windowOptions) {
-            $windows[] = SleepWindow::fromOptions($windowOptions, \sprintf('%s[%d]', $windowsPath, $index));
+            $windows[] = TimeOfDayWindow::fromOptions($windowOptions, \sprintf('%s[%d]', $windowsPath, $index));
         }
 
         return $windows;

@@ -5,31 +5,22 @@ declare(strict_types=1);
 namespace App\Config\Device;
 
 use App\Client\Settings\BrightnessLevel;
-use App\Config\Exception\PixelCastConfigException;
-use App\Config\Sync\ActiveWindowDay;
+use App\Config\Schedule\DayOfWeekSet;
+use App\Config\Schedule\TimeOfDayWindow;
 use App\Config\Sync\SyncOptionReader;
 
 /**
- * A stretch of the day the panel is held at a level of its own, both bounds written as HH:MM.
- *
- * A "to" earlier than "from" is accepted here and runs past midnight, the same grammar as a sleep
- * window: an evening dimming from '22:00' to '07:00' is one night, not twenty-three hours.
+ * A stretch of the day the panel is held at a level of its own, on the days the window is declared
+ * on.
  */
 final readonly class BrightnessWindow implements \Stringable
 {
-    private const string FROM_OPTION_KEY = 'from';
-    private const string TO_OPTION_KEY = 'to';
     private const string LEVEL_OPTION_KEY = 'level';
-    private const string DAYS_OPTION_KEY = 'days';
 
-    /**
-     * @param list<ActiveWindowDay> $days
-     */
     private function __construct(
-        public string $fromTimeOfDay,
-        public string $toTimeOfDay,
+        private TimeOfDayWindow $timeOfDayWindow,
         public BrightnessLevel $level,
-        public array $days,
+        private DayOfWeekSet $days,
     ) {
     }
 
@@ -38,54 +29,29 @@ final readonly class BrightnessWindow implements \Stringable
      */
     public static function fromOptions(array $options, string $parentPath): self
     {
-        $fromTimeOfDay = SyncOptionReader::requireTimeOfDay($options, self::FROM_OPTION_KEY, $parentPath);
-        $toTimeOfDay = SyncOptionReader::requireTimeOfDay($options, self::TO_OPTION_KEY, $parentPath);
-
-        if ($fromTimeOfDay === $toTimeOfDay) {
-            throw PixelCastConfigException::invalidValue($parentPath.'.'.self::TO_OPTION_KEY, \sprintf('expected a time other than "%s": a window opening and closing at the same minute covers nothing', $fromTimeOfDay));
-        }
-
+        $timeOfDayWindow = TimeOfDayWindow::fromOptions($options, $parentPath);
         $declaredLevel = SyncOptionReader::requireInt($options, self::LEVEL_OPTION_KEY, $parentPath, BrightnessLevel::MINIMUM_LEVEL, BrightnessLevel::MAXIMUM_LEVEL);
-        $declaredDays = SyncOptionReader::optionalEnumList($options, self::DAYS_OPTION_KEY, $parentPath, ActiveWindowDay::class);
 
         return new self(
-            $fromTimeOfDay,
-            $toTimeOfDay,
+            $timeOfDayWindow,
             BrightnessLevel::create($declaredLevel),
-            [] === $declaredDays ? ActiveWindowDay::cases() : $declaredDays,
+            DayOfWeekSet::fromOptions($options, $parentPath),
         );
     }
 
-    /**
-     * The stretch this window opens on the given day, which ends the morning after when the two
-     * times are written the wrong way round.
-     *
-     * The day is expected in the timezone the window is declared in.
-     */
-    public function stretchStartingOn(\DateTimeImmutable $localDay): BrightnessStretch
+    public function covers(\DateTimeImmutable $localInstant): bool
     {
-        $start = self::atTimeOfDay($localDay, $this->fromTimeOfDay);
-        $end = self::atTimeOfDay($localDay, $this->toTimeOfDay);
-
-        if ($end <= $start) {
-            $end = $end->modify('+1 day');
+        foreach ($this->days->anchorDaysPossiblyCovering($localInstant) as $anchorDay) {
+            if ($this->timeOfDayWindow->stretchStartingOn($anchorDay)->covers($localInstant)) {
+                return true;
+            }
         }
 
-        return BrightnessStretch::of($start, $end);
-    }
-
-    public function coversTheDayOf(\DateTimeImmutable $localDay): bool
-    {
-        return \in_array(ActiveWindowDay::ofLocalInstant($localDay), $this->days, true);
+        return false;
     }
 
     public function __toString(): string
     {
-        return \sprintf('%s-%s@%d', $this->fromTimeOfDay, $this->toTimeOfDay, $this->level->level);
-    }
-
-    private static function atTimeOfDay(\DateTimeImmutable $localDay, string $timeOfDay): \DateTimeImmutable
-    {
-        return $localDay->setTime((int) substr($timeOfDay, 0, 2), (int) substr($timeOfDay, 3, 2));
+        return \sprintf('%s@%d', $this->timeOfDayWindow, $this->level->level);
     }
 }
