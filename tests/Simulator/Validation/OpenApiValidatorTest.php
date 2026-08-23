@@ -10,6 +10,7 @@ use App\Tests\Factory\SyncsConfigLoaderFactory;
 use League\OpenAPIValidation\PSR7\OperationAddress;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 final class OpenApiValidatorTest extends TestCase
@@ -65,7 +66,7 @@ final class OpenApiValidatorTest extends TestCase
             return self::$validator;
         }
 
-        $factory = new OpenApiValidatorFactory();
+        $factory = new OpenApiValidatorFactory(new ArrayAdapter());
         $requestValidator = $factory->create(SyncsConfigLoaderFactory::projectFilePath(self::SPEC_FILE));
 
         return self::$validator = new OpenApiValidator(
