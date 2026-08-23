@@ -311,11 +311,11 @@ final class ScenarioCatalog
             ),
             new ScenarioDefinition(
                 id: 'icon-register',
-                label: 'Icon - register sun_icon (LaMetric 2867)',
+                label: 'Icon - register sun_icon (LaMetric 2155)',
                 description: 'register a LaMetric icon by id',
                 httpMethod: 'POST',
                 path: '/icons/lametric',
-                body: ['id' => 2867, 'name' => 'sun_icon'],
+                body: ['id' => 2155, 'name' => 'sun_icon'],
             ),
             new ScenarioDefinition(
                 id: 'reset-simulator',

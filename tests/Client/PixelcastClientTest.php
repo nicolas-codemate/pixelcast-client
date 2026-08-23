@@ -423,20 +423,20 @@ final class PixelcastClientTest extends TestCase
     {
         $response = new MockResponse('{"success":true}');
 
-        $this->buildClient($response)->downloadLaMetricIcon(2867, 'bitcoin');
+        $this->buildClient($response)->downloadLaMetricIcon(15392, 'bitcoin');
 
         self::assertSame('POST', $response->getRequestMethod());
         self::assertSame(self::EXPECTED_LAMETRIC_ICON_URL, $response->getRequestUrl());
-        self::assertSame(['id' => 2867, 'name' => 'bitcoin'], self::decodedRequestBody($response));
+        self::assertSame(['id' => 15392, 'name' => 'bitcoin'], self::decodedRequestBody($response));
     }
 
     public function testDownloadLaMetricIconOmitsTheNameSoTheDeviceFallsBackOnTheIdentifier(): void
     {
         $response = new MockResponse('{"success":true}');
 
-        $this->buildClient($response)->downloadLaMetricIcon(2867);
+        $this->buildClient($response)->downloadLaMetricIcon(15392);
 
-        self::assertSame(['id' => 2867], self::decodedRequestBody($response));
+        self::assertSame(['id' => 15392], self::decodedRequestBody($response));
     }
 
     #[DataProvider('indicatorSlotProvider')]
