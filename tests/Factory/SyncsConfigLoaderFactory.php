@@ -29,7 +29,7 @@ final class SyncsConfigLoaderFactory
      */
     public static function messageGeneratorForFixture(string $fixtureName, CacheInterface $scheduleState, ClockInterface $clock): MessageGenerator
     {
-        $schedule = new Schedule($scheduleState, self::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName));
+        $schedule = new Schedule($scheduleState, self::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureName), $clock);
 
         return new MessageGenerator($schedule, self::SCHEDULE_NAME, $clock);
     }

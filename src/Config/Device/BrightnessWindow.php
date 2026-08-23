@@ -50,6 +50,22 @@ final readonly class BrightnessWindow implements \Stringable
         return false;
     }
 
+    /**
+     * The instants this window opens and closes at, from the day before the given one to the given
+     * number of days ahead, in the timezone the window is read in.
+     *
+     * @return iterable<\DateTimeImmutable>
+     */
+    public function boundsWithinDaysAfter(\DateTimeImmutable $localInstant, int $numberOfDaysAfter): iterable
+    {
+        foreach ($this->days->anchorDaysWithinDaysAfter($localInstant, $numberOfDaysAfter) as $anchorDay) {
+            $stretch = $this->timeOfDayWindow->stretchStartingOn($anchorDay);
+
+            yield $stretch->start;
+            yield $stretch->end;
+        }
+    }
+
     public function __toString(): string
     {
         return \sprintf('%s@%d', $this->timeOfDayWindow, $this->level->level);

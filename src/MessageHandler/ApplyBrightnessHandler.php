@@ -33,9 +33,10 @@ final class ApplyBrightnessHandler
     public function __invoke(ApplyBrightnessMessage $message): void
     {
         try {
-            // Read on every tick rather than carried by the message: editing a declared window
-            // takes effect on the next minute. A file gaining its first window waits for the
-            // consumer to be recycled, since the scheduler registers the tick only at startup.
+            // Read on every run rather than carried by the message: editing the level of a declared
+            // window takes effect on the next run. Editing its hours, or gaining a first window,
+            // waits for the consumer to be recycled, since the scheduler reads the windows it wakes
+            // up on only at startup.
             $brightnessSchedule = $this->configLoader->load()->brightnessSchedule();
 
             if (null === $brightnessSchedule) {

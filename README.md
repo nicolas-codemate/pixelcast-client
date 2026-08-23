@@ -113,10 +113,10 @@ mount.
 and read again whenever its modification time changes, so an edit takes effect on
 the next sync cycle without restarting the container. What is picked up straight
 away are the options of a group — colours, tracker items, thresholds — and the
-bounds and levels of brightness windows already declared. The interval of a
-group, its `enabled` flag, the sleep window and whether `brightnessWindows`
-exists at all are held by the scheduler for the life of the consumer, so those
-wait for its hourly recycle. The `yaml-language-server` directive on the first
+levels of brightness windows already declared. The interval of a group, its
+`enabled` flag, the sleep window, the hours of a brightness window and whether
+`brightnessWindows` exists at all are held by the scheduler for the life of the
+consumer, so those wait for its hourly recycle. The `yaml-language-server` directive on the first
 line points at the schema published on `main` and only serves editor completion;
 the one that decides is the copy embedded in the image. API keys never belong in
 this file: it rejects any key it does not declare, naming it.
@@ -551,18 +551,20 @@ lets a broad window be written first and trimmed underneath.
 This is where `brightnessWindows` differs from `sleep:` in kind, and the
 difference is worth naming. The device stores the sleep schedule and goes on
 applying it whether the client runs or not; it holds no schedule of levels at
-all, so the client is the one that walks these windows, once a minute, and
-pushes `POST /brightness` when the level changes — one call per boundary
-crossed, not one per minute. A stopped consumer therefore stops the variation:
-the panel keeps the last level pushed until the client comes back, and pushes
-again at its first tick.
+all, so the client is the one that walks these windows: it wakes up on the
+bounds of the windows it was given, and nowhere in between, since the level it
+would push there is the one the panel already holds. Two to six wake-ups a day
+with the usual windows, and one `POST /brightness` per bound crossed. A stopped
+consumer therefore stops the variation: the panel keeps the last level pushed
+until the client comes back, which takes the brightness in hand as soon as it
+starts rather than waiting for the next bound.
 
 Skipping the call rests on knowing the level the panel already holds, and
 `app:device:settings` records that level too when the section carries
 `brightness`. Both writers record it in the same place, so pushing the `device`
 section in the middle of a window does not leave the scheduler holding a level
-the panel no longer shows: the next tick reads the difference and puts the level
-of the window back.
+the panel no longer shows: the next run reads the difference and puts the level
+of the window back, at the latest at the bound that follows.
 
 The `sleep:` section, at the top level of the file rather than inside a group,
 turns the panel off between hours of the day: `black` blanks it, `clock` leaves
@@ -605,9 +607,9 @@ first minutes of the morning and a night of sleep never turns the container
 `unhealthy`. A section carrying `enabled: false`, or no `sleep:` section at all,
 suspends nothing and leaves the cycles strictly as they were.
 
-The brightness windows of `device:` are held back the same way: the tick that
+The brightness windows of `device:` are held back the same way: the trigger that
 walks them is wrapped in the sleep window exactly as a cycle is, so no level is
-pushed while the panel is off, and the first tick after the wake-up applies the
+pushed while the panel is off, and the first run after the wake-up applies the
 window covering that instant rather than the level the panel was dimmed to
 before going dark. A brightness window overlapping a sleep window is not an
 error and needs no trimming — an evening dimming written `'22:00'` to `'07:00'`

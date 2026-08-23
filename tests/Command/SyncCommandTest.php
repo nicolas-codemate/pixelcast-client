@@ -15,6 +15,7 @@ use App\Tests\Stub\PlainSyncMessageStub;
 use App\Tests\Stub\StaticSyncMessageRegistryStub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -272,6 +273,7 @@ final class SyncCommandTest extends TestCase
         $schedule = new Schedule(
             new ArrayAdapter(),
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
+            new MockClock(),
         );
 
         return new CommandTester(new SyncCommand($this->messageBus, $schedule));
