@@ -71,7 +71,7 @@ abstract class AbstractDevicePushCommand extends Command
             $snapshot = $this->readBack();
         } catch (PixelcastClientException $readBackFailure) {
             $io->warning([
-                \sprintf('The %s was pushed, but reading the device back failed: %s', $this->pushedThingName(), $readBackFailure->getMessage()),
+                \sprintf('The push of the %s went through, but reading the device back failed: %s', $this->pushedThingName(), $readBackFailure->getMessage()),
                 'Nothing says the device did not take the push. Run the command again to see what it holds.',
             ]);
 
