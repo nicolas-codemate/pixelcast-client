@@ -31,7 +31,7 @@ final class CustomAppController extends AbstractSimulatorController
 
         return new JsonResponse([
             'apps' => $projected,
-            'count' => \count($storedApps),
+            'count' => $apps->count(),
             'currentIndex' => [] === $storedApps ? -1 : 0,
             'rotationEnabled' => true,
         ]);

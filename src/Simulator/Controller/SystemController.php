@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Simulator\Controller;
 
 use App\Simulator\State\BrightnessState;
+use App\Simulator\State\CustomAppState;
 use App\Simulator\State\SettingsState;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,7 +27,7 @@ final class SystemController extends AbstractSimulatorController
     private static ?int $simulatorBootEpoch = null;
 
     #[Route('/stats', methods: ['GET'])]
-    public function getStats(BrightnessState $brightness, SettingsState $settings): JsonResponse
+    public function getStats(BrightnessState $brightness, SettingsState $settings, CustomAppState $apps): JsonResponse
     {
         self::$simulatorBootEpoch ??= time();
 
@@ -53,7 +54,7 @@ final class SystemController extends AbstractSimulatorController
                 'connected' => false,
             ],
             'apps' => [
-                'count' => 0,
+                'count' => $apps->count(),
                 'current' => '',
                 'rotationEnabled' => $rotationEnabled,
             ],

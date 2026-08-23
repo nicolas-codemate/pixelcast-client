@@ -42,6 +42,21 @@ final class SystemControllerTest extends SimulatorWebTestCase
         self::assertSame(200, $payload['brightness'] ?? null);
     }
 
+    public function testStatsAppsCountReflectsStoredCustomApps(): void
+    {
+        $this->postJson('/api/custom?name=foo', self::customAppPushPayload());
+        self::assertSame(Response::HTTP_OK, $this->client->getResponse()->getStatusCode());
+
+        $this->client->request('GET', '/api/stats');
+        $statsApps = $this->jsonResponse()['apps'] ?? null;
+        self::assertIsArray($statsApps);
+        $statsAppsCount = $statsApps['count'] ?? null;
+        self::assertSame(1, $statsAppsCount);
+
+        $this->client->request('GET', '/api/apps');
+        self::assertSame($this->jsonResponse()['count'] ?? null, $statsAppsCount);
+    }
+
     public function testGetSettingsReturnsDefaults(): void
     {
         $this->client->request('GET', '/api/settings');

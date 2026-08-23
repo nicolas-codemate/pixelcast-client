@@ -53,6 +53,11 @@ final class CustomAppState implements ResettableState
         return $this->apps;
     }
 
+    public function count(): int
+    {
+        return \count($this->apps);
+    }
+
     public function has(string $name): bool
     {
         return \array_key_exists($name, $this->apps);
@@ -71,7 +76,7 @@ final class CustomAppState implements ResettableState
     {
         return [
             'apps' => $this->apps,
-            'count' => \count($this->apps),
+            'count' => $this->count(),
             'appsPushedAt' => PersistedStateReader::atomStringMap($this->pushedAtByName),
         ];
     }
