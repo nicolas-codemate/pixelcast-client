@@ -44,7 +44,7 @@ final readonly class TrackerItem
             activeWindow: ActiveWindow::optionalFromOptions($options, $itemPath, $deviceTimezone),
             bottomLine: self::readBottomLine($options, $itemPath, $acceptedBottomLines),
             volumeBars: SyncOptionReader::optionalBool($options, 'volumeBars', $itemPath) ?? true,
-            lametricId: SyncOptionReader::optionalInt($options, 'lametricId', $itemPath, 1, \PHP_INT_MAX),
+            lametricId: SyncOptionReader::optionalInt($options, 'lametricId', $itemPath, 1),
         );
     }
 

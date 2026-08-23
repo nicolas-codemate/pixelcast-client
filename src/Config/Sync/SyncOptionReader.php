@@ -169,7 +169,7 @@ final class SyncOptionReader
     /**
      * @param array<string, mixed> $options
      */
-    public static function requireInt(array $options, string $key, string $parentPath, int $minimum, int $maximum): int
+    public static function requireInt(array $options, string $key, string $parentPath, int $minimum, ?int $maximum = null): int
     {
         $optionPath = self::optionPath($parentPath, $key);
         $value = self::requireOption($options, $key, $parentPath);
@@ -178,8 +178,12 @@ final class SyncOptionReader
             throw PixelCastConfigException::invalidValue($optionPath, 'expected an integer');
         }
 
-        if ($value < $minimum || $value > $maximum) {
-            throw PixelCastConfigException::invalidValue($optionPath, \sprintf('expected an integer between %d and %d, got %d', $minimum, $maximum, $value));
+        if ($value < $minimum || (null !== $maximum && $value > $maximum)) {
+            $expectation = null === $maximum
+                ? \sprintf('expected an integer of at least %d, got %d', $minimum, $value)
+                : \sprintf('expected an integer between %d and %d, got %d', $minimum, $maximum, $value);
+
+            throw PixelCastConfigException::invalidValue($optionPath, $expectation);
         }
 
         return $value;
@@ -188,7 +192,7 @@ final class SyncOptionReader
     /**
      * @param array<string, mixed> $options
      */
-    public static function optionalInt(array $options, string $key, string $parentPath, int $minimum, int $maximum): ?int
+    public static function optionalInt(array $options, string $key, string $parentPath, int $minimum, ?int $maximum = null): ?int
     {
         if (!self::isDeclared($options, $key)) {
             return null;
