@@ -47,24 +47,6 @@ final class FreshnessProjectionTest extends TestCase
         self::assertFalse($freshness['stale']);
     }
 
-    public function testALifetimeAliasIsReadAsStaleAfterWhenStaleAfterIsAbsent(): void
-    {
-        $pushedAt = new \DateTimeImmutable('2026-08-22T10:00:00+00:00');
-
-        $freshness = self::project(['lifetime' => 300], $pushedAt, $pushedAt);
-
-        self::assertSame(300, $freshness['staleAfter']);
-    }
-
-    public function testStaleAfterWinsOverALifetimeAliasWhenBothArePresent(): void
-    {
-        $pushedAt = new \DateTimeImmutable('2026-08-22T10:00:00+00:00');
-
-        $freshness = self::project(['staleAfter' => 120, 'lifetime' => 300], $pushedAt, $pushedAt);
-
-        self::assertSame(120, $freshness['staleAfter']);
-    }
-
     public function testThePushedStaleBehaviorWinsOverTheDefault(): void
     {
         $pushedAt = new \DateTimeImmutable('2026-08-22T10:00:00+00:00');

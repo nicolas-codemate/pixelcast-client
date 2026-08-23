@@ -100,7 +100,7 @@ final class CustomAppController extends AbstractSimulatorController
         }
 
         $freshness = FreshnessProjection::of(
-            $payload,
+            self::withLifetimeReadAsStaleAfter($payload),
             $now,
             $pushedAt,
             self::DEFAULT_STALE_AFTER_SECONDS,
@@ -113,6 +113,22 @@ final class CustomAppController extends AbstractSimulatorController
             'staleAfter' => $freshness['staleAfter'],
             'staleBehavior' => $freshness['staleBehavior'],
         ];
+    }
+
+    /**
+     * lifetime is the deprecated name of staleAfter on a custom app push, and only custom apps accept it.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private static function withLifetimeReadAsStaleAfter(array $payload): array
+    {
+        if (!\array_key_exists('staleAfter', $payload) && \array_key_exists('lifetime', $payload)) {
+            $payload['staleAfter'] = $payload['lifetime'];
+        }
+
+        return $payload;
     }
 
     /**
