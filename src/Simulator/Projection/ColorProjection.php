@@ -21,6 +21,36 @@ final class ColorProjection
         }
     }
 
+    /**
+     * A color that reads as none of the three accepted forms is dropped, because a response schema
+     * allows only a hex string there and requires none of the color fields.
+     *
+     * @template TKey of array-key
+     *
+     * @param array<TKey, mixed> $fields
+     *
+     * @return array<TKey, mixed>
+     */
+    public static function withColorFieldsAsHexCodes(array $fields, string ...$colorFieldNames): array
+    {
+        foreach ($colorFieldNames as $colorFieldName) {
+            if (!\array_key_exists($colorFieldName, $fields)) {
+                continue;
+            }
+
+            $hexCode = self::hexCodeOf($fields[$colorFieldName]);
+            if (null === $hexCode) {
+                unset($fields[$colorFieldName]);
+
+                continue;
+            }
+
+            $fields[$colorFieldName] = $hexCode;
+        }
+
+        return $fields;
+    }
+
     private static function colorOf(mixed $pushedColor): ?Color
     {
         if (\is_string($pushedColor)) {
