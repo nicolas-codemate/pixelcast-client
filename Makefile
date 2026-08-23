@@ -93,6 +93,7 @@ sync-api: ## fetch and vendor OpenAPI + AsyncAPI specs into sync/
 		echo "  fetch $$f"; \
 		curl -fLsS -o sync/$$f $(SYNC_API_BASE_URL)/$$f; \
 	done
+	@echo "  sync/ replaced: run 'make test' - KnownGapsRestOnDeviceContractFactsTest names the deliberate gaps the new contract may have invalidated"
 
 inspect: ## dump current simulator state via GET /api/__inspect
 	@curl -fsS "http://localhost:$${PIXELCAST_SIMULATOR_HOST_PORT:-8088}/api/__inspect" | jq .
