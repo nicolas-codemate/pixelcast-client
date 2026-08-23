@@ -557,6 +557,13 @@ crossed, not one per minute. A stopped consumer therefore stops the variation:
 the panel keeps the last level pushed until the client comes back, and pushes
 again at its first tick.
 
+Skipping the call rests on knowing the level the panel already holds, and
+`app:device:settings` records that level too when the section carries
+`brightness`. Both writers record it in the same place, so pushing the `device`
+section in the middle of a window does not leave the scheduler holding a level
+the panel no longer shows: the next tick reads the difference and puts the level
+of the window back.
+
 The `sleep:` section, at the top level of the file rather than inside a group,
 turns the panel off between hours of the day: `black` blanks it, `clock` leaves
 a dimmed clock on it, which in a dark room is still a source of light. The
