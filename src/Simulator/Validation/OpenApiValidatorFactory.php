@@ -11,6 +11,8 @@ use Psr\Cache\CacheItemPoolInterface;
 
 final class OpenApiValidatorFactory
 {
+    private const int CACHED_SCHEMA_TTL_IN_SECONDS = 31536000;
+
     public function __construct(
         private readonly CacheItemPoolInterface $cache,
     ) {
@@ -24,15 +26,13 @@ final class OpenApiValidatorFactory
 
         $validator = new ValidatorBuilder()
             ->fromYamlFile($specPath)
-            ->setCache($this->cache)
+            ->setCache($this->cache, self::CACHED_SCHEMA_TTL_IN_SECONDS)
             ->overrideCacheKey($this->cacheKeyFor($specPath))
             ->getServerRequestValidator();
 
-        // The resolved schema graph is self-referencing (a $ref target points back at its parent),
-        // so a cache hit rebuilds it through unserialize() every call. PHP's cycle collector does not
-        // reclaim those cycles on its own fast enough here, and memory grows by roughly 2 MB per call
-        // across the test suite's 57 kernel boots until it exhausts the process memory_limit. Forcing
-        // a collection after each call keeps memory flat, matching the uncached code's behavior.
+        // A cache hit rebuilds the schema through unserialize(), and the resolved graph is
+        // self-referencing, so the discarded copies form cycles PHP never collects on its own: they
+        // pile up at roughly 2 MB per call until a process that builds several hits its memory_limit.
         gc_collect_cycles();
 
         return $validator;
@@ -45,14 +45,12 @@ final class OpenApiValidatorFactory
             ->getResponseValidator();
     }
 
-    // sync/openapi.yaml and its referenced schema files are only ever overwritten in place by
-    // `make sync-api`, so a path-based cache key would keep serving a stale schema forever; hashing
-    // the file contents makes any change a cache miss on the very next request.
+    // `make sync-api` overwrites the spec files in place, and the library's default cache key is the
+    // file path, so only the contents can tell a stale entry from a fresh one.
     private function cacheKeyFor(string $specPath): string
     {
         $globResult = glob(\dirname($specPath).'/schemas/*.yaml');
         $schemaFiles = false !== $globResult ? $globResult : [];
-        sort($schemaFiles);
 
         $digest = hash_init('xxh128');
         foreach ([$specPath, ...$schemaFiles] as $file) {
