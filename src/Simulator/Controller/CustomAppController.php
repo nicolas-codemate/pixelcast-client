@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Simulator\Controller;
 
+use App\Simulator\Projection\ColorProjection;
 use App\Simulator\Projection\FreshnessProjection;
 use App\Simulator\State\CustomAppState;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -70,10 +71,14 @@ final class CustomAppController extends AbstractSimulatorController
     private static function projectAppResponse(string $name, array $payload, \DateTimeImmutable $now, ?\DateTimeImmutable $pushedAt): array
     {
         $zonesRaw = $payload['zones'] ?? null;
-        $zones = \is_array($zonesRaw) ? array_values(array_filter(
-            $zonesRaw,
-            static fn (mixed $entry): bool => \is_array($entry),
-        )) : [];
+        $zones = [];
+        if (\is_array($zonesRaw)) {
+            foreach ($zonesRaw as $entry) {
+                if (\is_array($entry)) {
+                    $zones[] = self::withColorAsHexCode($entry);
+                }
+            }
+        }
 
         $projection = [
             'id' => $name,
@@ -87,6 +92,8 @@ final class CustomAppController extends AbstractSimulatorController
                 $projection[$field] = $payload[$field];
             }
         }
+
+        $projection = self::withColorAsHexCode($projection);
 
         if ([] !== $zones) {
             $projection['zones'] = $zones;
@@ -106,5 +113,33 @@ final class CustomAppController extends AbstractSimulatorController
             'staleAfter' => $freshness['staleAfter'],
             'staleBehavior' => $freshness['staleBehavior'],
         ];
+    }
+
+    /**
+     * A color that reads as none of the three accepted forms is dropped, because AppResponse
+     * allows only a hex string there and does not require the field.
+     *
+     * @template TKey of array-key
+     *
+     * @param array<TKey, mixed> $fields
+     *
+     * @return array<TKey, mixed>
+     */
+    private static function withColorAsHexCode(array $fields): array
+    {
+        if (!\array_key_exists('color', $fields)) {
+            return $fields;
+        }
+
+        $hexCode = ColorProjection::hexCodeOf($fields['color']);
+        if (null === $hexCode) {
+            unset($fields['color']);
+
+            return $fields;
+        }
+
+        $fields['color'] = $hexCode;
+
+        return $fields;
     }
 }
