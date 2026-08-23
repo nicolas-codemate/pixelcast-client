@@ -16,8 +16,7 @@ final class IndicatorController extends AbstractSimulatorController
     {
         $body = $this->decodeJsonBody($request);
         $slotNumber = (int) $slot;
-        $indicators->set($slotNumber, $body);
-        $appliedPayload = $indicators->get($slotNumber) ?? $body;
+        $appliedPayload = $indicators->set($slotNumber, $body);
 
         $response = [
             'success' => true,

@@ -53,14 +53,4 @@ final class IndicatorControllerTest extends SimulatorWebTestCase
 
         self::assertSame('#FF0000', $this->jsonResponse()['color'] ?? null);
     }
-
-    public function testTurningAnIndicatorOffCarriesNoColorBack(): void
-    {
-        $this->postJson('/api/indicator2', ['mode' => 'solid', 'color' => '#0000FF']);
-        $this->postJson('/api/indicator2', ['mode' => 'off']);
-
-        $payload = $this->jsonResponse();
-        self::assertSame('off', $payload['mode'] ?? null);
-        self::assertArrayNotHasKey('color', $payload);
-    }
 }

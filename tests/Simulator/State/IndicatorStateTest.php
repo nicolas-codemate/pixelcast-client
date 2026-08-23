@@ -52,6 +52,16 @@ final class IndicatorStateTest extends TestCase
         self::assertSame(['mode' => 'solid', 'color' => [0, 0, 255]], $state->get(1));
     }
 
+    public function testTheColorASlotKeepsIsAHexCodeWhicheverFormItWasPushedIn(): void
+    {
+        $state = new IndicatorState();
+        $state->set(1, ['mode' => 'solid', 'color' => [0, 0, 255]]);
+
+        $state->set(1, ['mode' => 'blink']);
+
+        self::assertSame(['mode' => 'blink', 'color' => '#0000FF'], $state->get(1));
+    }
+
     public function testTheKeptColorSurvivesAnExportAndARestore(): void
     {
         $exportingState = new IndicatorState();

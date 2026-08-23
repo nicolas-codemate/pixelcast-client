@@ -5,24 +5,32 @@ declare(strict_types=1);
 namespace App\Simulator\State;
 
 use App\Client\Indicator\IndicatorMode;
+use App\Simulator\Projection\ColorProjection;
 
 final class IndicatorState implements ResettableState
 {
     private const array VALID_SLOTS = [1, 2, 3];
+    private const array NOTHING_PER_SLOT = [1 => null, 2 => null, 3 => null];
 
     /** @var array<int, array<string, mixed>|null> */
-    private array $slots = [1 => null, 2 => null, 3 => null];
+    private array $slots = self::NOTHING_PER_SLOT;
 
-    /** @var array<int, mixed> */
-    private array $colorsKeptPerSlot = [1 => null, 2 => null, 3 => null];
+    /** @var array<int, string|null> */
+    private array $colorsKeptPerSlot = self::NOTHING_PER_SLOT;
 
     /**
      * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed> the payload as applied, which carries the color the slot keeps
      */
-    public function set(int $slot, array $payload): void
+    public function set(int $slot, array $payload): array
     {
         $this->assertSlot($slot);
-        $this->slots[$slot] = $this->withTheColorTheSlotKeeps($slot, $payload);
+
+        $appliedPayload = $this->withTheColorTheSlotKeeps($slot, $payload);
+        $this->slots[$slot] = $appliedPayload;
+
+        return $appliedPayload;
     }
 
     public function clear(int $slot): void
@@ -43,8 +51,8 @@ final class IndicatorState implements ResettableState
 
     public function reset(): void
     {
-        $this->slots = [1 => null, 2 => null, 3 => null];
-        $this->colorsKeptPerSlot = [1 => null, 2 => null, 3 => null];
+        $this->slots = self::NOTHING_PER_SLOT;
+        $this->colorsKeptPerSlot = self::NOTHING_PER_SLOT;
     }
 
     /**
@@ -56,6 +64,7 @@ final class IndicatorState implements ResettableState
             'slot1' => $this->slots[1],
             'slot2' => $this->slots[2],
             'slot3' => $this->slots[3],
+            'colorsKeptPerSlot' => $this->colorsKeptPerSlot,
         ];
     }
 
@@ -83,15 +92,10 @@ final class IndicatorState implements ResettableState
         }
 
         $persistedColors = $persistedState['colorsKeptPerSlot'] ?? null;
-        if (!\is_array($persistedColors)) {
-            return;
-        }
-
-        foreach ($persistedColors as $persistedSlot => $keptColor) {
-            $slot = (int) $persistedSlot;
-
-            if (\in_array($slot, self::VALID_SLOTS, true) && null !== $keptColor) {
-                $this->colorsKeptPerSlot[$slot] = $keptColor;
+        if (\is_array($persistedColors)) {
+            foreach (self::VALID_SLOTS as $slot) {
+                $keptColor = $persistedColors[$slot] ?? null;
+                $this->colorsKeptPerSlot[$slot] = \is_string($keptColor) ? $keptColor : null;
             }
         }
     }
@@ -120,32 +124,19 @@ final class IndicatorState implements ResettableState
     {
         $pushedColor = $payload['color'] ?? null;
         if (null !== $pushedColor) {
-            $this->colorsKeptPerSlot[$slot] = $pushedColor;
+            $this->colorsKeptPerSlot[$slot] = ColorProjection::hexCodeOf($pushedColor);
 
             return $payload;
         }
+
+        $pushedMode = $payload['mode'] ?? null;
+        $lightsTheIndicator = \is_string($pushedMode) && true === IndicatorMode::tryFrom($pushedMode)?->lightsTheIndicator();
 
         $keptColor = $this->colorsKeptPerSlot[$slot];
-        if (null === $keptColor || !self::lightsTheIndicator($payload)) {
-            return $payload;
+        if ($lightsTheIndicator && null !== $keptColor) {
+            $payload['color'] = $keptColor;
         }
-
-        $payload['color'] = $keptColor;
 
         return $payload;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private static function lightsTheIndicator(array $payload): bool
-    {
-        $pushedMode = $payload['mode'] ?? null;
-
-        if (!\is_string($pushedMode)) {
-            return false;
-        }
-
-        return IndicatorMode::tryFrom($pushedMode)?->lightsTheIndicator() ?? false;
     }
 }

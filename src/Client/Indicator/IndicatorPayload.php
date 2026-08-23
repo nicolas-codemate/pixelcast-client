@@ -67,8 +67,8 @@ final readonly class IndicatorPayload
     }
 
     /**
-     * A lit mode sent without a color keeps the color the slot already carries (firmware 1.10.1), so
-     * leaving the color out is how a caller changes nothing but the rhythm of an indicator already lit.
+     * The opposite is not checked: a lit mode sent without a color keeps the color the slot already
+     * carries (firmware 1.10.1), which is how a caller changes only the rhythm of a lit indicator.
      */
     private static function assertTurnedOffIndicatorCarriesNoColor(IndicatorMode $mode, ?Color $color): void
     {
