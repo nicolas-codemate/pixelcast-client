@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Simulator;
 
+use App\Simulator\Controller\GaugeController;
 use Symfony\Component\HttpFoundation\Response;
 
 final class GaugeControllerTest extends SimulatorWebTestCase
@@ -67,6 +68,46 @@ final class GaugeControllerTest extends SimulatorWebTestCase
         $payload = $this->jsonResponse();
         self::assertSame('disks', $payload['name'] ?? null);
         self::assertSame('Disks', $payload['title'] ?? null);
+    }
+
+    public function testGetExistingAnnouncesTheContractFreshnessDefaults(): void
+    {
+        $this->postJson('/api/gauge?name=disks', self::validGaugePayload());
+
+        $this->client->request('GET', '/api/gauge?name=disks');
+        $payload = $this->jsonResponse();
+
+        self::assertSame(0, $payload['age'] ?? null);
+        self::assertFalse($payload['stale'] ?? null);
+        self::assertSame(GaugeController::DEFAULT_STALE_AFTER_SECONDS, $payload['staleAfter'] ?? null);
+        self::assertSame(GaugeController::DEFAULT_STALE_BEHAVIOR, $payload['staleBehavior'] ?? null);
+    }
+
+    public function testThePushedFreshnessPolicyIsReadBackFromTheSingleGauge(): void
+    {
+        $this->postJson('/api/gauge?name=disks', [
+            ...self::validGaugePayload(),
+            'staleAfter' => 7200,
+            'staleBehavior' => 'badge',
+        ]);
+
+        $this->client->request('GET', '/api/gauge?name=disks');
+        $payload = $this->jsonResponse();
+
+        self::assertSame(7200, $payload['staleAfter'] ?? null);
+        self::assertSame('badge', $payload['staleBehavior'] ?? null);
+        self::assertFalse($payload['stale'] ?? null);
+    }
+
+    public function testAStaleAfterOfZeroIsReadBackAsNeverGoingStale(): void
+    {
+        $this->postJson('/api/gauge?name=disks', [...self::validGaugePayload(), 'staleAfter' => 0]);
+
+        $this->client->request('GET', '/api/gauge?name=disks');
+        $payload = $this->jsonResponse();
+
+        self::assertSame(0, $payload['staleAfter'] ?? null);
+        self::assertFalse($payload['stale'] ?? null);
     }
 
     public function testGetUnknownReturns404(): void

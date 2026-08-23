@@ -19,7 +19,9 @@ final class ResponseValidationTest extends SimulatorWebTestCase
     public static function specifiedReadEndpointProvider(): iterable
     {
         yield 'tracker list' => ['/api/trackers'];
+        yield 'single tracker' => ['/api/tracker?name=BTC'];
         yield 'gauge list' => ['/api/gauges'];
+        yield 'single gauge' => ['/api/gauge?name=disks'];
         yield 'custom app list' => ['/api/apps'];
         yield 'notification list' => ['/api/notify/list'];
         yield 'icon list' => ['/api/icons'];
