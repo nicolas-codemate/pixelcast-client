@@ -130,9 +130,6 @@ final class WeatherControllerTest extends SimulatorWebTestCase
             ]],
         ]);
 
-        $forecastDayKeys = array_keys($this->firstItemOfList('/api/weather', 'forecast'));
-        sort($forecastDayKeys);
-
-        self::assertSame(['day', 'icon', 'temp_max', 'temp_min'], $forecastDayKeys);
+        self::assertArrayNotHasKey('extra', $this->firstItemOfList('/api/weather', 'forecast'));
     }
 }

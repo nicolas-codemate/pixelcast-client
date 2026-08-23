@@ -21,62 +21,60 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 
     /**
      * Endpoints returning a list of objects whose items no projection test pins to the contract.
-     * Each one is recorded as a follow-up rather than fixed here. None is open right now: this is
-     * where the next list endpoint arriving through `make sync-api` lands until it gets covered.
+     * Each one is recorded as a follow-up rather than fixed here. None is open right now.
      *
      * @var list<string>
      */
     private const array LISTS_NO_PROJECTION_TEST_COVERS = [];
 
     /**
-     * @return iterable<string, array{string, string, string, string, \Closure(self): mixed, list<string>, string}>
+     * @return iterable<string, array{string, string, string, string, string, \Closure(self): mixed, list<string>}>
      */
     public static function coveredListEndpointProvider(): iterable
     {
         yield '/trackers' => [
             '/trackers',
+            '/api/trackers',
             'trackers',
             'tracker.yaml',
             'TrackerListResponse',
             static fn (self $test) => $test->postJson('/api/tracker?name=BTC', self::trackerPushPayload()),
             [],
-            '',
         ];
 
         yield '/gauges' => [
             '/gauges',
+            '/api/gauges',
             'gauges',
             'gauge.yaml',
             'GaugeListResponse',
             static fn (self $test) => $test->postJson('/api/gauge?name=disks', self::gaugePushPayload()),
             [],
-            '',
         ];
 
-        // The seeded row carries only the four properties the row schema gives no default, so the
-        // exact key equality also proves the three defaulted ones are filled in.
         yield '/gauge' => [
             '/gauge',
+            '/api/gauge?name=disks',
             'rows',
             'gauge.yaml',
             'GaugeResponse',
             static fn (self $test) => $test->postJson('/api/gauge?name=disks', self::gaugePushPayload()),
             [],
-            '?name=disks',
         ];
 
         yield '/weather' => [
             '/weather',
+            '/api/weather',
             'forecast',
             'weather.yaml',
             'WeatherResponse',
             static fn (self $test) => $test->postJson('/api/weather', self::weatherPushPayload()),
             [],
-            '',
         ];
 
         yield '/apps' => [
             '/apps',
+            '/api/apps',
             'apps',
             'custom-app.yaml',
             'AppListResponse',
@@ -87,27 +85,26 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
             ]),
             // AppResponse declares zones as "Present only when zoneCount >= 2".
             ['zones'],
-            '',
         ];
 
         yield '/notify/list' => [
             '/notify/list',
+            '/api/notify/list',
             'notifications',
             'notification.yaml',
             'NotificationListResponse',
             static fn (self $test) => $test->postJson('/api/notify', self::notificationPushPayload()),
             [],
-            '',
         ];
 
         yield '/icons' => [
             '/icons',
+            '/api/icons',
             'icons',
             'icon.yaml',
             'IconListResponse',
             static fn (self $test) => $test->uploadIcon('bitcoin'),
             [],
-            '',
         ];
     }
 
@@ -118,12 +115,12 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
     #[DataProvider('coveredListEndpointProvider')]
     public function testTheListItemCarriesExactlyThePropertiesTheContractDeclares(
         string $specPath,
+        string $readUrl,
         string $listKey,
         string $contractFileName,
         string $listResponseDefinition,
         \Closure $seedTheList,
         array $propertiesASinglePushCannotCarry,
-        string $readQueryString,
     ): void {
         $seedTheList($this);
 
@@ -134,7 +131,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 
         self::assertSame(
             self::sortedKeysOf($declaredProperties),
-            self::sortedKeysOf($this->firstItemOfList('/api'.$specPath.$readQueryString, $listKey)),
+            self::sortedKeysOf($this->firstItemOfList($readUrl, $listKey)),
         );
     }
 

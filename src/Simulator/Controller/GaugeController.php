@@ -20,7 +20,6 @@ final class GaugeController extends AbstractSimulatorController
     public const string DEFAULT_ROW_NOTE_COLOR = '#969696';
 
     private const array ECHOED_ROW_FIELDS = ['label', 'info', 'value', 'note', 'color', 'noteColor'];
-    private const array COLORED_ROW_FIELDS = ['color', 'noteColor'];
 
     #[Route('/gauges', methods: ['GET'])]
     public function listGauges(GaugeState $gauges): JsonResponse
@@ -125,7 +124,7 @@ final class GaugeController extends AbstractSimulatorController
             }
         }
 
-        return ColorProjection::withColorFieldsAsHexCodes($projection, ...self::COLORED_ROW_FIELDS) + [
+        return ColorProjection::withColorFieldsAsHexCodes($projection, 'color', 'noteColor') + [
             'percent' => \is_int($storedRow['percent'] ?? null) ? $storedRow['percent'] : self::DEFAULT_ROW_PERCENT,
             'color' => self::DEFAULT_ROW_COLOR,
             'noteColor' => self::DEFAULT_ROW_NOTE_COLOR,

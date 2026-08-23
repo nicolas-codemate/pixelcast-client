@@ -22,8 +22,8 @@ final class ColorProjection
     }
 
     /**
-     * A color that reads as none of the three accepted forms is dropped, because a response schema
-     * allows only a hex string there and requires none of the color fields.
+     * A color that reads as none of the three accepted forms is removed from the fields, leaving
+     * each caller free to fill the hole with the default its own contract declares.
      *
      * @template TKey of array-key
      *

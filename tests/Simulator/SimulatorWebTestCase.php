@@ -86,6 +86,9 @@ abstract class SimulatorWebTestCase extends WebTestCase
     }
 
     /**
+     * The row carries only the four properties the row schema gives no default, so a test asserting
+     * the exact key list of a read-back row also proves the three defaulted ones are filled in.
+     *
      * @return array<string, mixed>
      */
     protected static function gaugePushPayload(): array

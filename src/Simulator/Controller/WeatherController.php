@@ -89,8 +89,7 @@ final class WeatherController extends AbstractSimulatorController
     }
 
     /**
-     * ForecastDay declares no default and requires all four of its properties, so a day the
-     * request validation let through has nothing left to fill in.
+     * No default is filled in here, unlike a gauge row: ForecastDay declares none.
      *
      * @param array<string, mixed> $storedDay
      *
