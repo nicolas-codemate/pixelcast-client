@@ -10,6 +10,7 @@ use App\Config\Sleep\SleepDisplayMode;
 use App\Config\Sync\ActiveWindowDay;
 use App\Config\Sync\BoursoramaSyncConfig;
 use App\Config\Sync\CoinGeckoSyncConfig;
+use App\Config\Sync\SyncGroupRegistry;
 use App\Config\Sync\TwelveDataSyncConfig;
 use App\Config\Sync\WeatherSyncConfig;
 use App\Config\SyncsConfigLoader;
@@ -143,7 +144,15 @@ final class SyncsConfigLoaderTest extends TestCase
         self::assertNotNull($config->deviceSleep->timezone);
         self::assertSame('Europe/Paris', $config->deviceSleep->timezone->getName());
         self::assertStringEndsWith('Europe/Paris', (string) $config->sleepSchedule());
-        self::assertStringEndsWith('Europe/Paris', (string) $config->syncGroupOfType(BoursoramaSyncConfig::class)->activeWindow);
+
+        // The fixture gives every declared sync group a window without its own timezone, so a
+        // group that stops passing the device timezone down fails here instead of at the user's.
+        foreach (SyncGroupRegistry::syncTypes() as $syncType) {
+            $syncGroup = $config->syncGroupOfType(SyncGroupRegistry::syncGroupClassFor($syncType));
+
+            self::assertNotNull($syncGroup->activeWindow, $syncType);
+            self::assertStringEndsWith('Europe/Paris', (string) $syncGroup->activeWindow, $syncType);
+        }
 
         $trackedItem = $config->syncGroupOfType(BoursoramaSyncConfig::class)->items[0];
         self::assertNotNull($trackedItem->activeWindow);
