@@ -68,7 +68,7 @@ final readonly class DeviceConfig
             brightness: $brightness,
             brightnessSchedule: self::readBrightnessSchedule($options, $brightness, $timezone),
             autoRotate: SyncOptionReader::optionalBool($options, self::AUTO_ROTATE_OPTION_KEY, self::OPTION_KEY),
-            defaultDurationMilliseconds: SyncOptionReader::optionalInt($options, self::DEFAULT_DURATION_OPTION_KEY, self::OPTION_KEY, self::MINIMUM_DEFAULT_DURATION_MILLISECONDS, \PHP_INT_MAX),
+            defaultDurationMilliseconds: SyncOptionReader::optionalInt($options, self::DEFAULT_DURATION_OPTION_KEY, self::OPTION_KEY, self::MINIMUM_DEFAULT_DURATION_MILLISECONDS),
             weatherDurationMilliseconds: SyncOptionReader::optionalInt($options, self::WEATHER_DURATION_OPTION_KEY, self::OPTION_KEY, SettingsPayload::MINIMUM_WEATHER_DURATION_MILLISECONDS, SettingsPayload::MAXIMUM_WEATHER_DURATION_MILLISECONDS),
             ntpServer: self::readNtpServer($options),
         );

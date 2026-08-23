@@ -69,6 +69,19 @@ final class SyncOptionReaderTest extends TestCase
         SyncOptionReader::optionalInt(['staleAfter' => 604801], 'staleAfter', self::PARENT_PATH, minimum: 0, maximum: 604800);
     }
 
+    public function testAnOptionalIntegerWithNoMaximumAcceptsAnyValueAtOrAboveTheMinimum(): void
+    {
+        self::assertSame(\PHP_INT_MAX, SyncOptionReader::optionalInt(['lametricId' => \PHP_INT_MAX], 'lametricId', self::PARENT_PATH, minimum: 1));
+    }
+
+    public function testAnIntegerBelowItsMinimumWithNoMaximumNamesOnlyTheMinimum(): void
+    {
+        $this->expectException(PixelCastConfigException::class);
+        $this->expectExceptionMessage('expected an integer of at least 1, got 0');
+
+        SyncOptionReader::optionalInt(['lametricId' => 0], 'lametricId', self::PARENT_PATH, minimum: 1);
+    }
+
     public function testAnIntegerWrittenAsAStringIsRejected(): void
     {
         $this->expectException(PixelCastConfigException::class);
