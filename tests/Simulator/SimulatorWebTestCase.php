@@ -88,6 +88,17 @@ abstract class SimulatorWebTestCase extends WebTestCase
     /**
      * @return array<string, mixed>
      */
+    protected static function gaugePushPayload(): array
+    {
+        return [
+            'title' => 'Disks',
+            'rows' => [['label' => 'root', 'info' => '14:50', 'value' => '41%', 'note' => 'x1.2^']],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     protected static function customAppPushPayload(): array
     {
         return [

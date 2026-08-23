@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Simulator\Controller;
 
+use App\Simulator\Projection\ColorProjection;
 use App\Simulator\Projection\FreshnessProjection;
 use App\Simulator\State\GaugeState;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -14,6 +15,12 @@ final class GaugeController extends AbstractSimulatorController
 {
     public const int DEFAULT_STALE_AFTER_SECONDS = 3600;
     public const string DEFAULT_STALE_BEHAVIOR = 'dim';
+    public const int DEFAULT_ROW_PERCENT = 0;
+    public const string DEFAULT_ROW_COLOR = '#FFFFFF';
+    public const string DEFAULT_ROW_NOTE_COLOR = '#969696';
+
+    private const array ECHOED_ROW_FIELDS = ['label', 'info', 'value', 'note', 'color', 'noteColor'];
+    private const array COLORED_ROW_FIELDS = ['color', 'noteColor'];
 
     #[Route('/gauges', methods: ['GET'])]
     public function listGauges(GaugeState $gauges): JsonResponse
@@ -51,7 +58,7 @@ final class GaugeController extends AbstractSimulatorController
 
         // The projection comes before the stored payload so that staleAfter and staleBehavior
         // answer the value the simulator actually applies, not whatever was pushed under them.
-        return new JsonResponse(['name' => $name] + $freshness + $payload);
+        return new JsonResponse(['name' => $name] + $freshness + self::withProjectedRows($payload));
     }
 
     #[Route('/gauge', methods: ['POST'])]
@@ -78,6 +85,51 @@ final class GaugeController extends AbstractSimulatorController
         }
 
         return new JsonResponse(['success' => true]);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private static function withProjectedRows(array $payload): array
+    {
+        $storedRows = $payload['rows'] ?? null;
+        if (!\is_array($storedRows)) {
+            return $payload;
+        }
+
+        $projectedRows = [];
+        foreach ($storedRows as $storedRow) {
+            if (\is_array($storedRow)) {
+                $projectedRows[] = self::projectGaugeRow($storedRow);
+            }
+        }
+
+        $payload['rows'] = $projectedRows;
+
+        return $payload;
+    }
+
+    /**
+     * @param array<array-key, mixed> $storedRow
+     *
+     * @return array<string, mixed>
+     */
+    private static function projectGaugeRow(array $storedRow): array
+    {
+        $projection = [];
+        foreach (self::ECHOED_ROW_FIELDS as $field) {
+            if (\array_key_exists($field, $storedRow)) {
+                $projection[$field] = $storedRow[$field];
+            }
+        }
+
+        return ColorProjection::withColorFieldsAsHexCodes($projection, ...self::COLORED_ROW_FIELDS) + [
+            'percent' => \is_int($storedRow['percent'] ?? null) ? $storedRow['percent'] : self::DEFAULT_ROW_PERCENT,
+            'color' => self::DEFAULT_ROW_COLOR,
+            'noteColor' => self::DEFAULT_ROW_NOTE_COLOR,
+        ];
     }
 
     /**

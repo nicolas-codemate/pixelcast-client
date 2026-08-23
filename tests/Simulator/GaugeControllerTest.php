@@ -58,6 +58,46 @@ final class GaugeControllerTest extends SimulatorWebTestCase
         self::assertSame($coloredTitle, $this->jsonResponse()['title'] ?? null);
     }
 
+    public function testARowColorPushedAsAnRgbArrayIsReadBackAsAHexString(): void
+    {
+        $this->postJson('/api/gauge?name=disks', [
+            'title' => 'Disks',
+            'rows' => [['label' => 'root', 'percent' => 42, 'color' => [255, 136, 0]]],
+        ]);
+
+        self::assertSame('#FF8800', $this->firstItemOfList('/api/gauge?name=disks', 'rows')['color'] ?? null);
+    }
+
+    public function testARowNoteColorPushedAsAPackedIntegerIsReadBackAsAHexString(): void
+    {
+        $this->postJson('/api/gauge?name=disks', [
+            'title' => 'Disks',
+            'rows' => [['label' => 'root', 'percent' => 42, 'noteColor' => 16_746_496]],
+        ]);
+
+        self::assertSame('#FF8800', $this->firstItemOfList('/api/gauge?name=disks', 'rows')['noteColor'] ?? null);
+    }
+
+    public function testARowCarriesTheContractDefaultsForWhatThePushOmitted(): void
+    {
+        $this->postJson('/api/gauge?name=disks', ['rows' => [['label' => 'root']]]);
+
+        $row = $this->firstItemOfList('/api/gauge?name=disks', 'rows');
+
+        self::assertSame(GaugeController::DEFAULT_ROW_PERCENT, $row['percent'] ?? null);
+        self::assertSame(GaugeController::DEFAULT_ROW_COLOR, $row['color'] ?? null);
+        self::assertSame(GaugeController::DEFAULT_ROW_NOTE_COLOR, $row['noteColor'] ?? null);
+    }
+
+    public function testAKeyTheRowSchemaDoesNotDeclareIsNotReadBack(): void
+    {
+        $this->postJson('/api/gauge?name=disks', [
+            'rows' => [['label' => 'root', 'percent' => 42, 'extra' => 'not declared']],
+        ]);
+
+        self::assertArrayNotHasKey('extra', $this->firstItemOfList('/api/gauge?name=disks', 'rows'));
+    }
+
     public function testGetExistingReturnsPayload(): void
     {
         $this->postJson('/api/gauge?name=disks', self::validGaugePayload());

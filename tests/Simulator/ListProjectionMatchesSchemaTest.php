@@ -24,14 +24,12 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
      * Each one is recorded as a follow-up rather than fixed here.
      */
     private const array LISTS_NO_PROJECTION_TEST_COVERS = [
-        // GET /gauge echoes the rows it was pushed, so nothing holds them to the row schema.
-        '/gauge',
         // GET /weather echoes the forecast days it was pushed, so nothing holds them to ForecastDay.
         '/weather',
     ];
 
     /**
-     * @return iterable<string, array{string, string, string, string, \Closure(self): mixed, list<string>}>
+     * @return iterable<string, array{string, string, string, string, \Closure(self): mixed, list<string>, string}>
      */
     public static function coveredListEndpointProvider(): iterable
     {
@@ -42,6 +40,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
             'TrackerListResponse',
             static fn (self $test) => $test->postJson('/api/tracker?name=BTC', self::trackerPushPayload()),
             [],
+            '',
         ];
 
         yield '/gauges' => [
@@ -49,11 +48,21 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
             'gauges',
             'gauge.yaml',
             'GaugeListResponse',
-            static fn (self $test) => $test->postJson('/api/gauge?name=disks', [
-                'title' => 'Disks',
-                'rows' => [['label' => 'root', 'percent' => 42]],
-            ]),
+            static fn (self $test) => $test->postJson('/api/gauge?name=disks', self::gaugePushPayload()),
             [],
+            '',
+        ];
+
+        // The seeded row carries only the four properties the row schema gives no default, so the
+        // exact key equality also proves the three defaulted ones are filled in.
+        yield '/gauge' => [
+            '/gauge',
+            'rows',
+            'gauge.yaml',
+            'GaugeResponse',
+            static fn (self $test) => $test->postJson('/api/gauge?name=disks', self::gaugePushPayload()),
+            [],
+            '?name=disks',
         ];
 
         yield '/apps' => [
@@ -68,6 +77,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
             ]),
             // AppResponse declares zones as "Present only when zoneCount >= 2".
             ['zones'],
+            '',
         ];
 
         yield '/notify/list' => [
@@ -77,6 +87,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
             'NotificationListResponse',
             static fn (self $test) => $test->postJson('/api/notify', self::notificationPushPayload()),
             [],
+            '',
         ];
 
         yield '/icons' => [
@@ -86,6 +97,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
             'IconListResponse',
             static fn (self $test) => $test->uploadIcon('bitcoin'),
             [],
+            '',
         ];
     }
 
@@ -101,6 +113,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
         string $listResponseDefinition,
         \Closure $seedTheList,
         array $propertiesASinglePushCannotCarry,
+        string $readQueryString,
     ): void {
         $seedTheList($this);
 
@@ -111,7 +124,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 
         self::assertSame(
             self::sortedKeysOf($declaredProperties),
-            self::sortedKeysOf($this->firstItemOfList('/api'.$specPath, $listKey)),
+            self::sortedKeysOf($this->firstItemOfList('/api'.$specPath.$readQueryString, $listKey)),
         );
     }
 
