@@ -17,18 +17,19 @@ final class IndicatorController extends AbstractSimulatorController
         $body = $this->decodeJsonBody($request);
         $slotNumber = (int) $slot;
         $indicators->set($slotNumber, $body);
+        $appliedPayload = $indicators->get($slotNumber) ?? $body;
 
         $response = [
             'success' => true,
             'indicator' => $slotNumber,
         ];
 
-        $mode = $body['mode'] ?? null;
+        $mode = $appliedPayload['mode'] ?? null;
         if (\is_string($mode)) {
             $response['mode'] = $mode;
         }
 
-        $color = $body['color'] ?? null;
+        $color = $appliedPayload['color'] ?? null;
         if (\is_string($color)) {
             $response['color'] = $color;
         }
