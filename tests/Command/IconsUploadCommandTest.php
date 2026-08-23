@@ -9,33 +9,13 @@ use App\Client\Icon\IconUpload;
 use App\Command\IconsUploadCommand;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingPixelcastClientStub;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
-final class IconsUploadCommandTest extends TestCase
+final class IconsUploadCommandTest extends CommandTestCase
 {
     private const string GITHUB_ICON_RELATIVE_PATH = 'assets/icons/github.png';
     private const string PATH_OF_NO_FILE = '/tmp/pixelcast-icon-that-does-not-exist.png';
-
-    private string|false $terminalWidthBeforeTheTest;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // Console blocks wrap at the terminal width, and a width of 80 would fold the messages these
-        // assertions read.
-        $this->terminalWidthBeforeTheTest = getenv('COLUMNS');
-        putenv('COLUMNS=200');
-    }
-
-    protected function tearDown(): void
-    {
-        putenv(false === $this->terminalWidthBeforeTheTest ? 'COLUMNS' : 'COLUMNS='.$this->terminalWidthBeforeTheTest);
-
-        parent::tearDown();
-    }
 
     public function testALocalPngIsUploadedUnderTheGivenName(): void
     {

@@ -9,34 +9,14 @@ use App\Client\Sleep\SleepState;
 use App\Command\DeviceSleepCommand;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingPixelcastClientStub;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
-final class DeviceSleepCommandTest extends TestCase
+final class DeviceSleepCommandTest extends CommandTestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string FILE_WITH_A_SLEEP_SECTION = 'syncs-with-sleep.yaml';
     private const string FILE_WITHOUT_A_SLEEP_SECTION = 'syncs-valid.yaml';
-
-    private string|false $terminalWidthBeforeTheTest;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // Console blocks wrap at the terminal width, and a width of 80 would fold the messages these
-        // assertions read.
-        $this->terminalWidthBeforeTheTest = getenv('COLUMNS');
-        putenv('COLUMNS=200');
-    }
-
-    protected function tearDown(): void
-    {
-        putenv(false === $this->terminalWidthBeforeTheTest ? 'COLUMNS' : 'COLUMNS='.$this->terminalWidthBeforeTheTest);
-
-        parent::tearDown();
-    }
 
     public function testTheScheduleOfTheFileIsPushedForTheSevenDaysAndTheDeviceIsReadBack(): void
     {
