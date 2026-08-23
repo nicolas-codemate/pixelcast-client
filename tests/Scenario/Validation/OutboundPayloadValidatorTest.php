@@ -47,6 +47,7 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
         yield 'solid' => [IndicatorPayload::create(IndicatorMode::Solid, Color::fromHexCode('#00FF00'))];
         yield 'blink' => [IndicatorPayload::create(IndicatorMode::Blink, Color::fromHexCode('#FF0000'), blinkIntervalMilliseconds: 250)];
         yield 'fade' => [IndicatorPayload::create(IndicatorMode::Fade, Color::fromHexCode('#00D4FF'), fadePeriodMilliseconds: 3000)];
+        yield 'blink without a color' => [IndicatorPayload::create(IndicatorMode::Blink, blinkIntervalMilliseconds: 1000)];
         yield 'off' => [IndicatorPayload::create(IndicatorMode::Off)];
     }
 

@@ -127,6 +127,20 @@ final class KnownGapsRestOnDeviceContractFactsTest extends TestCase
                 self::assertSame([2, 4], SchemaPropertyReader::itemCountBoundsOf($pushedAppProperties['zones']));
             },
         ];
+
+        yield 'IndicatorState::withTheColorTheSlotKeeps() answers a color no request carried: IndicatorRequest requires nothing, and declares a default for each rhythm but none for the color' => [
+            static function (): void {
+                self::assertArrayNotHasKey(
+                    'required',
+                    SchemaPropertyReader::deviceContractDefinitionOf('indicator.yaml', 'IndicatorRequest'),
+                );
+
+                $pushedIndicatorProperties = SchemaPropertyReader::deviceContractPropertiesOf('indicator.yaml', 'IndicatorRequest');
+                self::assertSame(500, SchemaPropertyReader::declaredDefaultOf($pushedIndicatorProperties['blinkInterval']));
+                self::assertSame(2000, SchemaPropertyReader::declaredDefaultOf($pushedIndicatorProperties['fadePeriod']));
+                self::assertArrayNotHasKey('default', $pushedIndicatorProperties['color']);
+            },
+        ];
     }
 
     /**

@@ -34,6 +34,16 @@ final class IndicatorPayloadTest extends TestCase
         yield 'negative fade period' => [IndicatorMode::Fade, null, -2000];
     }
 
+    /**
+     * @return iterable<string, array{IndicatorMode}>
+     */
+    public static function litModeProvider(): iterable
+    {
+        yield 'solid' => [IndicatorMode::Solid];
+        yield 'blink' => [IndicatorMode::Blink];
+        yield 'fade' => [IndicatorMode::Fade];
+    }
+
     public function testSolidIndicatorCarriesOnlyItsModeAndColor(): void
     {
         $payload = IndicatorPayload::create(IndicatorMode::Solid, Color::fromHexCode('#00FF00'));
@@ -105,11 +115,25 @@ final class IndicatorPayloadTest extends TestCase
         IndicatorPayload::create(IndicatorMode::Off, Color::fromHexCode('#00FF00'));
     }
 
-    public function testLitIndicatorWithoutAColorIsRefused(): void
+    #[DataProvider('litModeProvider')]
+    public function testLitIndicatorWithoutAColorLeavesTheColorOutOfThePayload(IndicatorMode $mode): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/needs a color/');
+        $payload = IndicatorPayload::create($mode);
 
-        IndicatorPayload::create(IndicatorMode::Solid);
+        self::assertSame(['mode' => $mode->value], $payload->toArray());
+    }
+
+    public function testBlinkingIndicatorCanCarryItsIntervalAlone(): void
+    {
+        $payload = IndicatorPayload::create(IndicatorMode::Blink, blinkIntervalMilliseconds: 1000);
+
+        self::assertSame(['mode' => 'blink', 'blinkInterval' => 1000], $payload->toArray());
+    }
+
+    public function testFadingIndicatorCanCarryItsPeriodAlone(): void
+    {
+        $payload = IndicatorPayload::create(IndicatorMode::Fade, fadePeriodMilliseconds: 3000);
+
+        self::assertSame(['mode' => 'fade', 'fadePeriod' => 3000], $payload->toArray());
     }
 }

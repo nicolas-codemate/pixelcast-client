@@ -24,7 +24,7 @@ final readonly class IndicatorPayload
     ): self {
         self::assertRhythmMatchesMode($mode, IndicatorMode::Blink, 'blink interval', $blinkIntervalMilliseconds);
         self::assertRhythmMatchesMode($mode, IndicatorMode::Fade, 'fade period', $fadePeriodMilliseconds);
-        self::assertColorMatchesMode($mode, $color);
+        self::assertTurnedOffIndicatorCarriesNoColor($mode, $color);
 
         return new self($mode, $color, $blinkIntervalMilliseconds, $fadePeriodMilliseconds);
     }
@@ -66,14 +66,14 @@ final readonly class IndicatorPayload
         }
     }
 
-    private static function assertColorMatchesMode(IndicatorMode $mode, ?Color $color): void
+    /**
+     * The opposite is not checked: a lit mode sent without a color keeps the color the slot already
+     * carries (firmware 1.10.1), which is how a caller changes only the rhythm of a lit indicator.
+     */
+    private static function assertTurnedOffIndicatorCarriesNoColor(IndicatorMode $mode, ?Color $color): void
     {
         if (!$mode->lightsTheIndicator() && null !== $color) {
             throw new \InvalidArgumentException(\sprintf('The "%s" mode turns the indicator off, it carries no color.', $mode->value));
-        }
-
-        if ($mode->lightsTheIndicator() && null === $color) {
-            throw new \InvalidArgumentException(\sprintf('The "%s" mode lights the indicator, it needs a color.', $mode->value));
         }
     }
 }

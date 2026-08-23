@@ -34,4 +34,23 @@ final class IndicatorControllerTest extends SimulatorWebTestCase
         $payload = $this->jsonResponse();
         self::assertSame('off', $payload['mode'] ?? null);
     }
+
+    public function testALitModeWithoutAColorKeepsTheColorTheSlotAlreadyCarries(): void
+    {
+        $this->postJson('/api/indicator3', ['mode' => 'solid', 'color' => '#00FF00']);
+        $this->postJson('/api/indicator3', ['mode' => 'blink', 'blinkInterval' => 1000]);
+
+        $payload = $this->jsonResponse();
+        self::assertSame('blink', $payload['mode'] ?? null);
+        self::assertSame('#00FF00', $payload['color'] ?? null);
+    }
+
+    public function testATurnedOffSlotStillKnowsTheColorItCarried(): void
+    {
+        $this->postJson('/api/indicator1', ['mode' => 'solid', 'color' => '#FF0000']);
+        $this->deleteRequest('/api/indicator1');
+        $this->postJson('/api/indicator1', ['mode' => 'solid']);
+
+        self::assertSame('#FF0000', $this->jsonResponse()['color'] ?? null);
+    }
 }
