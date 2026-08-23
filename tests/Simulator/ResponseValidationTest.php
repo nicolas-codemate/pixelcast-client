@@ -6,6 +6,7 @@ namespace App\Tests\Simulator;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -54,14 +55,12 @@ final class ResponseValidationTest extends SimulatorWebTestCase
 
     public function testResponseTheSpecForbidsIsAnsweredWithAnError(): void
     {
-        // POST /api/custom accepts an RGB array as color while AppResponse only allows a hex
-        // string, so echoing that colour back is a mismatch a legitimate request can produce.
-        $this->postJson('/api/custom?name=rgb', ['text' => 'hi', 'color' => [255, 136, 0]]);
-        self::assertSame(
-            Response::HTTP_OK,
-            $this->client->getResponse()->getStatusCode(),
-            (string) $this->client->getResponse()->getContent(),
-        );
+        // AppListResponse declares `apps` as an array of objects, so a string there is a
+        // mismatch the response pass has to catch.
+        $this->replaceControllerWith(static fn (): JsonResponse => new JsonResponse([
+            'apps' => 'not-an-array',
+            'count' => 0,
+        ]));
 
         $this->client->request('GET', '/api/apps');
 
@@ -72,19 +71,7 @@ final class ResponseValidationTest extends SimulatorWebTestCase
     public function testControllerFailureKeepsItsOwnErrorResponse(): void
     {
         $thrownMessage = 'the simulator controller blew up';
-        $eventDispatcher = self::getContainer()->get('event_dispatcher');
-        self::assertInstanceOf(EventDispatcherInterface::class, $eventDispatcher);
-        // Replaces the matched controller once the request pass has run, which is the only way
-        // to reach the response pass through Symfony's exception handling.
-        $eventDispatcher->addListener(
-            KernelEvents::CONTROLLER,
-            static function (ControllerEvent $event) use ($thrownMessage): void {
-                if ($event->isMainRequest()) {
-                    $event->setController(static fn (): never => throw new \RuntimeException($thrownMessage));
-                }
-            },
-            -100,
-        );
+        $this->replaceControllerWith(static fn (): never => throw new \RuntimeException($thrownMessage));
 
         $this->client->request('GET', '/api/trackers');
 
@@ -94,6 +81,25 @@ final class ResponseValidationTest extends SimulatorWebTestCase
         // A validated response would be the validator's own application/json complaint instead.
         self::assertStringStartsWith('text/html', (string) $response->headers->get('Content-Type'));
         self::assertStringContainsString($thrownMessage, (string) $response->getContent());
+    }
+
+    /**
+     * Swaps the matched controller once the request pass has run, which is the only way to
+     * reach the response pass with something the spec forbids.
+     */
+    private function replaceControllerWith(callable $controller): void
+    {
+        $eventDispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $eventDispatcher);
+        $eventDispatcher->addListener(
+            KernelEvents::CONTROLLER,
+            static function (ControllerEvent $event) use ($controller): void {
+                if ($event->isMainRequest()) {
+                    $event->setController($controller);
+                }
+            },
+            -100,
+        );
     }
 
     private function pushOnePayloadOfEachKind(): void

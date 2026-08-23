@@ -42,4 +42,59 @@ final class CustomAppControllerTest extends SimulatorWebTestCase
         $payload = $this->jsonResponse();
         self::assertSame('not found', $payload['error'] ?? null);
     }
+
+    public function testAColorPushedAsAnRgbArrayIsListedAsAHexString(): void
+    {
+        $this->pushCustomApp('rgb', ['text' => 'hi', 'color' => [255, 136, 0]]);
+
+        $listedApp = $this->firstItemOfList('/api/apps', 'apps');
+
+        self::assertSame('rgb', $listedApp['id'] ?? null);
+        self::assertSame('#FF8800', $listedApp['color'] ?? null);
+    }
+
+    public function testAColorPushedAsAPackedIntegerIsListedAsAHexString(): void
+    {
+        $this->pushCustomApp('packed', ['text' => 'hi', 'color' => 16746496]);
+
+        $listedApp = $this->firstItemOfList('/api/apps', 'apps');
+
+        self::assertSame('#FF8800', $listedApp['color'] ?? null);
+    }
+
+    public function testZoneColorsAreListedAsHexStringsToo(): void
+    {
+        $this->pushCustomApp('dashboard', [
+            'zones' => [
+                ['text' => 'left', 'color' => [255, 136, 0]],
+                ['text' => 'right', 'color' => 16746496],
+            ],
+        ]);
+
+        $listedApp = $this->firstItemOfList('/api/apps', 'apps');
+        $listedZones = $listedApp['zones'] ?? null;
+        self::assertIsArray($listedZones);
+
+        $leftZone = $listedZones[0] ?? null;
+        self::assertIsArray($leftZone);
+        self::assertSame('#FF8800', $leftZone['color'] ?? null);
+
+        $rightZone = $listedZones[1] ?? null;
+        self::assertIsArray($rightZone);
+        self::assertSame('#FF8800', $rightZone['color'] ?? null);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function pushCustomApp(string $name, array $payload): void
+    {
+        $this->postJson('/api/custom?name='.$name, $payload);
+
+        self::assertSame(
+            Response::HTTP_OK,
+            $this->client->getResponse()->getStatusCode(),
+            (string) $this->client->getResponse()->getContent(),
+        );
+    }
 }
