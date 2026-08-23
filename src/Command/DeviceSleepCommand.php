@@ -4,80 +4,75 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Client\Exception\PixelcastClientException;
-use App\Client\PixelcastClientInterface;
+use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepScheduleDay;
 use App\Client\Sleep\SleepSlot;
 use App\Client\Sleep\SleepState;
-use App\Config\Exception\PixelCastConfigException;
-use App\Config\SyncsConfigLoader;
+use App\Config\Sleep\DeviceSleepConfig;
+use App\Config\SyncsConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
  * The device stores the schedule itself and goes on applying it, so this is run once, when the
  * section is written or changed, and not on a cycle like a sync group. Run it again if the device
  * ever comes back without its schedule.
+ *
+ * @extends AbstractDevicePushCommand<DeviceSleepConfig, SleepPayload, SleepState>
  */
 #[AsCommand(
     name: 'app:device:sleep',
     description: 'Pushes the sleep schedule of pixelcast.yaml to the device',
 )]
-final class DeviceSleepCommand extends Command
+final class DeviceSleepCommand extends AbstractDevicePushCommand
 {
-    public function __construct(
-        private readonly SyncsConfigLoader $syncsConfigLoader,
-        private readonly PixelcastClientInterface $pixelcastClient,
-    ) {
-        parent::__construct();
+    protected function sectionKey(): string
+    {
+        return 'sleep';
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function missingSectionNoun(): string
     {
-        $io = new SymfonyStyle($input, $output);
+        return 'schedule';
+    }
 
-        try {
-            $sleepConfig = $this->syncsConfigLoader->load()->deviceSleep;
-        } catch (PixelCastConfigException $unusableConfig) {
-            $io->error($unusableConfig->getMessage());
+    protected function pushedThingName(): string
+    {
+        return 'sleep schedule';
+    }
 
-            return Command::INVALID;
-        }
+    protected function sectionFromConfig(SyncsConfig $syncsConfig): ?DeviceSleepConfig
+    {
+        return $syncsConfig->deviceSleep;
+    }
 
-        if (null === $sleepConfig) {
-            $io->error([
-                'pixelcast.yaml declares no "sleep" section, so there is no schedule to push.',
-                'pixelcast.yaml.dist carries the shape of the section.',
-            ]);
+    /**
+     * @param DeviceSleepConfig $section
+     */
+    protected function toPayload(object $section): SleepPayload
+    {
+        return $section->toSleepPayload();
+    }
 
-            return Command::INVALID;
-        }
+    /**
+     * @param SleepPayload $payload
+     */
+    protected function pushPayload(object $payload): void
+    {
+        $this->pixelcastClient->pushSleepConfiguration($payload);
+    }
 
-        try {
-            $this->pixelcastClient->pushSleepConfiguration($sleepConfig->toSleepPayload());
-        } catch (PixelcastClientException $pushFailure) {
-            $io->error(\sprintf('The device did not take the sleep schedule: %s', $pushFailure->getMessage()));
+    protected function readBack(): SleepState
+    {
+        return $this->pixelcastClient->fetchSleepState();
+    }
 
-            return Command::FAILURE;
-        }
-
-        try {
-            $sleepState = $this->pixelcastClient->fetchSleepState();
-        } catch (PixelcastClientException $readBackFailure) {
-            $io->warning([
-                \sprintf('The schedule was pushed, but reading the device back failed: %s', $readBackFailure->getMessage()),
-                'Nothing says the device did not take it. Run the command again to see what it holds.',
-            ]);
-
-            return Command::SUCCESS;
-        }
-
-        $this->reportSleepState($io, $sleepState);
-
-        return Command::SUCCESS;
+    /**
+     * @param SleepState $snapshot
+     */
+    protected function report(SymfonyStyle $io, object $snapshot): void
+    {
+        $this->reportSleepState($io, $snapshot);
     }
 
     private function reportSleepState(SymfonyStyle $io, SleepState $sleepState): void

@@ -4,87 +4,83 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Client\Exception\PixelcastClientException;
 use App\Client\PixelcastClientInterface;
+use App\Client\Settings\SettingsPayload;
 use App\Client\Settings\SettingsSnapshot;
-use App\Config\Exception\PixelCastConfigException;
+use App\Config\Device\DeviceConfig;
+use App\Config\SyncsConfig;
 use App\Config\SyncsConfigLoader;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
  * The device keeps its settings across reboots, so this is run once, when the section is written or
  * changed, and not on a cycle like a sync group.
+ *
+ * @extends AbstractDevicePushCommand<DeviceConfig, SettingsPayload, SettingsSnapshot>
  */
 #[AsCommand(
     name: 'app:device:settings',
     description: 'Pushes the device settings of pixelcast.yaml to the device',
 )]
-final class DeviceSettingsCommand extends Command
+final class DeviceSettingsCommand extends AbstractDevicePushCommand
 {
     public function __construct(
-        private readonly SyncsConfigLoader $syncsConfigLoader,
-        private readonly PixelcastClientInterface $pixelcastClient,
+        SyncsConfigLoader $syncsConfigLoader,
+        PixelcastClientInterface $pixelcastClient,
         private readonly ClockInterface $clock,
     ) {
-        parent::__construct();
+        parent::__construct($syncsConfigLoader, $pixelcastClient);
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function sectionKey(): string
     {
-        $io = new SymfonyStyle($input, $output);
+        return 'device';
+    }
 
-        try {
-            $deviceConfig = $this->syncsConfigLoader->load()->device;
-        } catch (PixelCastConfigException $unusableConfig) {
-            $io->error($unusableConfig->getMessage());
+    protected function missingSectionNoun(): string
+    {
+        return 'setting';
+    }
 
-            return Command::INVALID;
-        }
+    protected function pushedThingName(): string
+    {
+        return 'settings';
+    }
 
-        if (null === $deviceConfig) {
-            $io->error([
-                'pixelcast.yaml declares no "device" section, so there is no setting to push.',
-                'pixelcast.yaml.dist carries the shape of the section.',
-            ]);
+    protected function sectionFromConfig(SyncsConfig $syncsConfig): ?DeviceConfig
+    {
+        return $syncsConfig->device;
+    }
 
-            return Command::INVALID;
-        }
+    /**
+     * @param DeviceConfig $section
+     */
+    protected function toPayload(object $section): SettingsPayload
+    {
+        return $section->toSettingsPayload($this->clock->now());
+    }
 
-        try {
-            $settingsPayload = $deviceConfig->toSettingsPayload($this->clock->now());
-        } catch (PixelCastConfigException $unusableSection) {
-            $io->error($unusableSection->getMessage());
+    /**
+     * @param SettingsPayload $payload
+     */
+    protected function pushPayload(object $payload): void
+    {
+        $this->pixelcastClient->pushSettings($payload);
+    }
 
-            return Command::INVALID;
-        }
+    protected function readBack(): SettingsSnapshot
+    {
+        return $this->pixelcastClient->fetchSettings();
+    }
 
-        try {
-            $this->pixelcastClient->pushSettings($settingsPayload);
-        } catch (PixelcastClientException $pushFailure) {
-            $io->error(\sprintf('The device did not take the settings: %s', $pushFailure->getMessage()));
-
-            return Command::FAILURE;
-        }
-
-        try {
-            $settingsSnapshot = $this->pixelcastClient->fetchSettings();
-        } catch (PixelcastClientException $readBackFailure) {
-            $io->warning([
-                \sprintf('The settings were pushed, but reading the device back failed: %s', $readBackFailure->getMessage()),
-                'Nothing says the device did not take them. Run the command again to see what it holds.',
-            ]);
-
-            return Command::SUCCESS;
-        }
-
-        $this->reportSettings($io, $settingsSnapshot);
-
-        return Command::SUCCESS;
+    /**
+     * @param SettingsSnapshot $snapshot
+     */
+    protected function report(SymfonyStyle $io, object $snapshot): void
+    {
+        $this->reportSettings($io, $snapshot);
     }
 
     private function reportSettings(SymfonyStyle $io, SettingsSnapshot $settingsSnapshot): void
