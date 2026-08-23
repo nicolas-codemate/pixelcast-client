@@ -98,6 +98,17 @@ final class BrightnessScheduleTest extends TestCase
         self::assertSame(20, $schedule->levelAt(BrightnessScheduleFactory::instantAt('2026-08-05 06:30:00'))->level);
     }
 
+    public function testAWindowDeclaredOnOneDayStillCoversTheSmallHoursOfTheDayAfter(): void
+    {
+        $schedule = BrightnessScheduleFactory::scheduleOf(
+            [BrightnessScheduleFactory::windowOf('22:00', '07:00', 20, [ActiveWindowDay::Friday])],
+            self::DEFAULT_LEVEL,
+        );
+
+        self::assertSame(20, $schedule->levelAt(BrightnessScheduleFactory::instantAt('2026-08-08 03:00:00'))->level);
+        self::assertSame(self::DEFAULT_LEVEL, $schedule->levelAt(BrightnessScheduleFactory::instantAt('2026-08-08 23:00:00'))->level);
+    }
+
     public function testADayLeftOutOfTheWindowFallsBackOnTheDefaultLevel(): void
     {
         $schedule = BrightnessScheduleFactory::scheduleOf(

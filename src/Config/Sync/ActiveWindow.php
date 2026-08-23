@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Config\Sync;
 
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Schedule\DayOfWeekSet;
 
 /**
  * The hours a sync group is allowed to run, declared in the timezone of the market it follows
@@ -20,11 +21,8 @@ final readonly class ActiveWindow implements \Stringable
     private const int MINUTES_PER_HOUR = 60;
     private const int DAYS_PER_WEEK = 7;
 
-    /**
-     * @param list<ActiveWindowDay> $days
-     */
     private function __construct(
-        public array $days,
+        public DayOfWeekSet $days,
         public int $fromMinuteOfDay,
         public int $toMinuteOfDay,
         public \DateTimeZone $timezone,
@@ -65,7 +63,7 @@ final readonly class ActiveWindow implements \Stringable
     {
         $localInstant = $instant->setTimezone($this->timezone);
 
-        if (!$this->coversTheDayOf($localInstant)) {
+        if (!$this->days->coversTheDayOf($localInstant)) {
             return false;
         }
 
@@ -82,7 +80,7 @@ final readonly class ActiveWindow implements \Stringable
         for ($dayOffset = 0; $dayOffset <= self::DAYS_PER_WEEK; ++$dayOffset) {
             $localDay = $localInstant->modify(\sprintf('+%d days', $dayOffset));
 
-            if (!$this->coversTheDayOf($localDay)) {
+            if (!$this->days->coversTheDayOf($localDay)) {
                 continue;
             }
 
@@ -110,7 +108,7 @@ final readonly class ActiveWindow implements \Stringable
     {
         return \sprintf(
             '%s %s-%s %s',
-            implode(',', array_column($this->days, 'value')),
+            $this->days,
             $this->timeOfDay($this->fromMinuteOfDay),
             $this->timeOfDay($this->toMinuteOfDay),
             $this->timezone->getName(),
@@ -118,39 +116,24 @@ final readonly class ActiveWindow implements \Stringable
     }
 
     /**
-     * @param array<string, mixed> $windowOptions
+     * An explicitly empty list is refused rather than read as every day: writing "days: []" on a
+     * window whose whole point is to restrict the days reads as a mistake.
      *
-     * @return list<ActiveWindowDay>
+     * @param array<string, mixed> $windowOptions
      */
-    private static function readDays(array $windowOptions, string $windowPath): array
+    private static function readDays(array $windowOptions, string $windowPath): DayOfWeekSet
     {
-        $daysPath = $windowPath.'.'.self::DAYS_OPTION_KEY;
-
         if (!SyncOptionReader::isDeclared($windowOptions, self::DAYS_OPTION_KEY)) {
-            return ActiveWindowDay::cases();
+            return DayOfWeekSet::everyDay();
         }
 
-        $declaredDays = $windowOptions[self::DAYS_OPTION_KEY];
-        if (!\is_array($declaredDays) || !array_is_list($declaredDays)) {
-            throw PixelCastConfigException::invalidValue($daysPath, 'expected a list');
-        }
+        $declaredDays = SyncOptionReader::optionalEnumList($windowOptions, self::DAYS_OPTION_KEY, $windowPath, ActiveWindowDay::class);
 
         if ([] === $declaredDays) {
-            throw PixelCastConfigException::invalidValue($daysPath, 'must not be empty');
+            throw PixelCastConfigException::invalidValue($windowPath.'.'.self::DAYS_OPTION_KEY, 'must not be empty');
         }
 
-        $days = [];
-        foreach ($declaredDays as $index => $declaredDay) {
-            $day = \is_string($declaredDay) ? ActiveWindowDay::tryFrom($declaredDay) : null;
-
-            if (null === $day) {
-                throw PixelCastConfigException::invalidValue(\sprintf('%s[%d]', $daysPath, $index), \sprintf('expected one of: %s', implode(', ', array_column(ActiveWindowDay::cases(), 'value'))));
-            }
-
-            $days[] = $day;
-        }
-
-        return $days;
+        return DayOfWeekSet::of($declaredDays);
     }
 
     private static function minuteOfDayOfTime(string $timeOfDay): int
@@ -164,11 +147,6 @@ final readonly class ActiveWindow implements \Stringable
     private static function minuteOfDayOfInstant(\DateTimeImmutable $localInstant): int
     {
         return self::MINUTES_PER_HOUR * (int) $localInstant->format('G') + (int) $localInstant->format('i');
-    }
-
-    private function coversTheDayOf(\DateTimeImmutable $localInstant): bool
-    {
-        return \in_array(ActiveWindowDay::ofLocalInstant($localInstant), $this->days, true);
     }
 
     private function openingOfTheDayOf(\DateTimeImmutable $localDay): \DateTimeImmutable

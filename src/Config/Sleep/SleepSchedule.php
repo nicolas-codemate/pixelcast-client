@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Config\Sleep;
 
-use App\Config\Sync\ActiveWindowDay;
+use App\Config\Schedule\DayOfWeekSet;
+use App\Config\Schedule\Stretch;
+use App\Config\Schedule\TimeOfDayWindow;
 use App\Config\Sync\SyncGroupActivity;
 
 /**
@@ -15,24 +17,21 @@ use App\Config\Sync\SyncGroupActivity;
 final readonly class SleepSchedule implements \Stringable
 {
     private const int DAYS_BEFORE_THE_LAST_WAKE_UP = 8;
-    private const int DAYS_BEFORE_A_COVERING_STRETCH = 1;
 
     /**
-     * @param list<ActiveWindowDay> $days
-     * @param list<SleepWindow> $windows the same windows on every declared day
+     * @param list<TimeOfDayWindow> $windows the same windows on every declared day
      */
     private function __construct(
-        public array $days,
+        public DayOfWeekSet $days,
         public array $windows,
         public \DateTimeZone $timezone,
     ) {
     }
 
     /**
-     * @param list<ActiveWindowDay> $days
-     * @param list<SleepWindow> $windows
+     * @param list<TimeOfDayWindow> $windows
      */
-    public static function of(array $days, array $windows, \DateTimeZone $timezone): self
+    public static function of(DayOfWeekSet $days, array $windows, \DateTimeZone $timezone): self
     {
         return new self($days, $windows, $timezone);
     }
@@ -45,7 +44,7 @@ final readonly class SleepSchedule implements \Stringable
         $localInstant = $instant->setTimezone($this->timezone);
         $latestEnd = null;
 
-        foreach ($this->stretchesAnchoredWithinDaysBefore($localInstant, self::DAYS_BEFORE_A_COVERING_STRETCH) as $stretch) {
+        foreach ($this->stretchesAnchoredOn($this->days->anchorDaysPossiblyCovering($localInstant)) as $stretch) {
             if (!$stretch->covers($localInstant)) {
                 continue;
             }
@@ -71,7 +70,7 @@ final readonly class SleepSchedule implements \Stringable
     {
         return \sprintf(
             '%s %s %s',
-            implode(',', array_column($this->days, 'value')),
+            $this->days,
             implode('+', array_map(strval(...), $this->windows)),
             $this->timezone->getName(),
         );
@@ -86,7 +85,7 @@ final readonly class SleepSchedule implements \Stringable
         $localInstant = $instant->setTimezone($this->timezone);
         $lastWakeUp = null;
 
-        foreach ($this->stretchesAnchoredWithinDaysBefore($localInstant, self::DAYS_BEFORE_THE_LAST_WAKE_UP) as $stretch) {
+        foreach ($this->stretchesAnchoredOn($this->days->anchorDaysWithinDaysBefore($localInstant, self::DAYS_BEFORE_THE_LAST_WAKE_UP)) as $stretch) {
             if ($stretch->end > $localInstant) {
                 continue;
             }
@@ -104,33 +103,16 @@ final readonly class SleepSchedule implements \Stringable
     }
 
     /**
-     * A window running past midnight is anchored on the day it starts, so a stretch covering the
-     * small hours of a day was opened the day before: the scan always reaches one day further back
-     * than the answer needs.
+     * @param iterable<\DateTimeImmutable> $anchorDays
      *
-     * @return list<SleepStretch>
+     * @return iterable<Stretch>
      */
-    private function stretchesAnchoredWithinDaysBefore(\DateTimeImmutable $localInstant, int $numberOfDaysBefore): array
+    private function stretchesAnchoredOn(iterable $anchorDays): iterable
     {
-        $stretches = [];
-
-        for ($dayOffset = $numberOfDaysBefore; $dayOffset >= 0; --$dayOffset) {
-            $anchorDay = $localInstant->modify(\sprintf('-%d days', $dayOffset));
-
-            if (!$this->coversTheDayOf($anchorDay)) {
-                continue;
-            }
-
+        foreach ($anchorDays as $anchorDay) {
             foreach ($this->windows as $window) {
-                $stretches[] = $window->stretchStartingOn($anchorDay);
+                yield $window->stretchStartingOn($anchorDay);
             }
         }
-
-        return $stretches;
-    }
-
-    private function coversTheDayOf(\DateTimeImmutable $localDay): bool
-    {
-        return \in_array(ActiveWindowDay::ofLocalInstant($localDay), $this->days, true);
     }
 }

@@ -2,19 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Config\Sleep;
+namespace App\Config\Schedule;
 
 use App\Config\Exception\PixelCastConfigException;
 use App\Config\Sync\SyncOptionReader;
 
 /**
- * A stretch of the day the device keeps its panel off, both bounds written as HH:MM.
+ * A stretch of the day a section holds something of its own, both bounds written as HH:MM.
  *
  * A "to" earlier than "from" is accepted here and runs past midnight, the opposite of ActiveWindow:
- * the firmware reads a slot ending before it starts as spilling into the next day, whereas an
- * active window is meant to be written in the timezone of the market, where it never crosses midnight.
+ * the firmware reads a slot ending before it starts as spilling into the next day, so from '22:00'
+ * to '07:00' is one night, not twenty-three hours. An active window is meant to be written in the
+ * timezone of the market, where it never crosses midnight.
  */
-final readonly class SleepWindow implements \Stringable
+final readonly class TimeOfDayWindow implements \Stringable
 {
     private const string FROM_OPTION_KEY = 'from';
     private const string TO_OPTION_KEY = 'to';
@@ -41,21 +42,21 @@ final readonly class SleepWindow implements \Stringable
     }
 
     /**
-     * The night this window opens on the given day, which ends the morning after when the two times
-     * are written the wrong way round: from '22:00' to '07:00' is one night, not twenty-three hours.
+     * The stretch this window opens on the given day, which ends the morning after when the two
+     * times are written the wrong way round.
      *
      * The day is expected in the timezone the window is declared in.
      */
-    public function stretchStartingOn(\DateTimeImmutable $localDay): SleepStretch
+    public function stretchStartingOn(\DateTimeImmutable $localDay): Stretch
     {
-        $panelGoesOff = self::atTimeOfDay($localDay, $this->fromTimeOfDay);
-        $panelComesBackOn = self::atTimeOfDay($localDay, $this->toTimeOfDay);
+        $start = self::atTimeOfDay($localDay, $this->fromTimeOfDay);
+        $end = self::atTimeOfDay($localDay, $this->toTimeOfDay);
 
-        if ($panelComesBackOn <= $panelGoesOff) {
-            $panelComesBackOn = $panelComesBackOn->modify('+1 day');
+        if ($end <= $start) {
+            $end = $end->modify('+1 day');
         }
 
-        return SleepStretch::of($panelGoesOff, $panelComesBackOn);
+        return Stretch::of($start, $end);
     }
 
     public function __toString(): string

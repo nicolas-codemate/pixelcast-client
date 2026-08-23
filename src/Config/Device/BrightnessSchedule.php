@@ -17,8 +17,6 @@ final readonly class BrightnessSchedule implements \Stringable
      */
     public const string TICK_INTERVAL = '1 minute';
 
-    private const int DAYS_BEFORE_A_COVERING_STRETCH = 1;
-
     /**
      * @param list<BrightnessWindow> $windows
      */
@@ -47,7 +45,7 @@ final readonly class BrightnessSchedule implements \Stringable
         $selectedLevel = $this->defaultLevel;
 
         foreach ($this->windows as $window) {
-            if (self::windowCovers($window, $localInstant)) {
+            if ($window->covers($localInstant)) {
                 $selectedLevel = $window->level;
             }
         }
@@ -63,27 +61,5 @@ final readonly class BrightnessSchedule implements \Stringable
             implode('+', array_map(strval(...), $this->windows)),
             $this->timezone->getName(),
         );
-    }
-
-    /**
-     * A window running past midnight is anchored on the day it starts, so the stretch covering the
-     * small hours of a day was opened the day before: the scan always reaches one day further back
-     * than the answer needs.
-     */
-    private static function windowCovers(BrightnessWindow $window, \DateTimeImmutable $localInstant): bool
-    {
-        for ($dayOffset = self::DAYS_BEFORE_A_COVERING_STRETCH; $dayOffset >= 0; --$dayOffset) {
-            $anchorDay = $localInstant->modify(\sprintf('-%d days', $dayOffset));
-
-            if (!$window->coversTheDayOf($anchorDay)) {
-                continue;
-            }
-
-            if ($window->stretchStartingOn($anchorDay)->covers($localInstant)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

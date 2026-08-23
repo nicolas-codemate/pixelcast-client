@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Config\Device;
+namespace App\Config\Schedule;
 
 /**
- * One concrete stretch the panel is held at a level, both bounds as absolute instants rather than
- * as times of day.
+ * One concrete stretch of the day a window opens, both bounds as absolute instants rather than as
+ * times of day.
  */
-final readonly class BrightnessStretch
+final readonly class Stretch
 {
     private function __construct(
         public \DateTimeImmutable $start,
@@ -22,7 +22,7 @@ final readonly class BrightnessStretch
     }
 
     /**
-     * The level ends at "end", so two windows written back to back never dispute a minute.
+     * The stretch is over at "end", so two windows written back to back never dispute a minute.
      */
     public function covers(\DateTimeImmutable $instant): bool
     {

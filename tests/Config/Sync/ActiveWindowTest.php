@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Config\Sync;
 
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Schedule\DayOfWeekSet;
 use App\Config\Sync\ActiveWindow;
 use App\Config\Sync\ActiveWindowDay;
 use App\Tests\Factory\ActiveWindowFactory;
@@ -25,7 +26,7 @@ final class ActiveWindowTest extends TestCase
     {
         $activeWindow = ActiveWindowFactory::marketWindowIn('Europe/Paris');
 
-        self::assertSame([ActiveWindowDay::Monday, ActiveWindowDay::Tuesday, ActiveWindowDay::Wednesday, ActiveWindowDay::Thursday, ActiveWindowDay::Friday], $activeWindow->days);
+        self::assertEquals(DayOfWeekSet::of([ActiveWindowDay::Monday, ActiveWindowDay::Tuesday, ActiveWindowDay::Wednesday, ActiveWindowDay::Thursday, ActiveWindowDay::Friday]), $activeWindow->days);
         self::assertSame(540, $activeWindow->fromMinuteOfDay);
         self::assertSame(1065, $activeWindow->toMinuteOfDay);
         self::assertSame('Europe/Paris', $activeWindow->timezone->getName());
@@ -118,7 +119,7 @@ final class ActiveWindowTest extends TestCase
     {
         $activeWindow = self::windowOf(['from' => '09:00', 'to' => '17:45', 'timezone' => 'UTC']);
 
-        self::assertSame(ActiveWindowDay::cases(), $activeWindow->days);
+        self::assertEquals(DayOfWeekSet::everyDay(), $activeWindow->days);
         self::assertTrue($activeWindow->contains(self::instantAt('2026-08-08 10:00:00 UTC')));
         self::assertTrue($activeWindow->contains(self::instantAt('2026-08-09 10:00:00 UTC')));
     }
