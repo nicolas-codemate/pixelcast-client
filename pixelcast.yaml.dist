@@ -178,12 +178,14 @@ syncs:
             - symbol: AAPL
               currency: usd
               icon: stock
+              lametricId: 40160
             - symbol: IWDA.AS
               currency: eur
               icon: etf
             - symbol: IXIC
               currency: usd
               icon: stock
+              lametricId: 40160
 
     # European ETFs read from Boursorama, one call per asset. This source needs no API key,
     # but it is an internal endpoint under no commitment and can change without notice.
