@@ -76,7 +76,7 @@ final class SchemaPropertyReader extends Assert
 
     /**
      * A field the device accepts in several forms points at a shared definition holding one branch
-     * per form, each with the bound that form is measured by.
+     * per form.
      *
      * @param array<mixed> $fieldSchema
      *
@@ -97,9 +97,7 @@ final class SchemaPropertyReader extends Assert
     }
 
     /**
-     * A field the device accepts as a plain string, a colored string or colored segments points at
-     * a shared definition holding one branch per form, each with the bound that form is measured
-     * by. The character bound is therefore read from the plain string branch.
+     * The character bound is read from the plain string branch.
      *
      * @param array<mixed> $fieldSchema
      */

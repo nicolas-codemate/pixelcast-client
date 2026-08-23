@@ -85,7 +85,7 @@ final class ValidateAgainstSpecListener
     {
         // The error response still travels through the response pass, and not every operation
         // declares an error shape, so validating it would replace the thrown error with a schema
-        // complaint. KnownGapsRestOnDeviceContractFactsTest holds the contract fact this rests on.
+        // complaint.
         $event->getRequest()->attributes->remove(self::MATCHED_OPERATION_ATTRIBUTE);
     }
 
