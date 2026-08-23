@@ -134,6 +134,46 @@ final class BrightnessScheduleTest extends TestCase
         self::assertSame(20, $schedule->levelAt($halfPastFourInParis)->level);
     }
 
+    public function testTheNextBoundIsTheClosestOpeningOrClosingAhead(): void
+    {
+        $schedule = BrightnessScheduleFactory::scheduleOf([
+            BrightnessScheduleFactory::windowOf('07:00', '22:00', 120),
+            BrightnessScheduleFactory::windowOf('12:00', '14:00', 255),
+        ], self::DEFAULT_LEVEL);
+
+        self::assertSame(
+            '2026-08-05 12:00:00',
+            self::formatted($schedule->nextBoundAfter(BrightnessScheduleFactory::instantAt('2026-08-05 08:00:00'))),
+        );
+        self::assertSame(
+            '2026-08-05 14:00:00',
+            self::formatted($schedule->nextBoundAfter(BrightnessScheduleFactory::instantAt('2026-08-05 12:00:00'))),
+            'a bound falling on the instant itself is behind, not ahead',
+        );
+    }
+
+    public function testTheNextBoundOfAWindowRunningPastMidnightIsItsClosingTheMorningAfter(): void
+    {
+        $schedule = BrightnessScheduleFactory::scheduleOf(
+            [BrightnessScheduleFactory::windowOf('22:00', '07:00', 20)],
+            self::DEFAULT_LEVEL,
+        );
+
+        self::assertSame(
+            '2026-08-05 07:00:00',
+            self::formatted($schedule->nextBoundAfter(BrightnessScheduleFactory::instantAt('2026-08-05 03:00:00'))),
+        );
+    }
+
+    public function testAScheduleWithoutAWindowHasNoBoundToWakeUpOn(): void
+    {
+        $schedule = BrightnessScheduleFactory::scheduleOf([], self::DEFAULT_LEVEL);
+
+        $this->expectException(\LogicException::class);
+
+        $schedule->nextBoundAfter(BrightnessScheduleFactory::instantAt('2026-08-05 12:00:00'));
+    }
+
     public function testTheStringFormNamesTheDefaultLevelTheWindowsAndTheTimezone(): void
     {
         $schedule = BrightnessScheduleFactory::scheduleOf([
@@ -142,5 +182,10 @@ final class BrightnessScheduleTest extends TestCase
         ], self::DEFAULT_LEVEL);
 
         self::assertSame('default 200 07:00-22:00@120+22:00-07:00@20 Europe/Paris', (string) $schedule);
+    }
+
+    private static function formatted(\DateTimeImmutable $bound): string
+    {
+        return $bound->setTimezone(new \DateTimeZone(BrightnessScheduleFactory::SCHEDULE_TIMEZONE))->format('Y-m-d H:i:s');
     }
 }

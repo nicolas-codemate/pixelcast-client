@@ -13,9 +13,9 @@ use App\Client\Settings\BrightnessLevel;
 final readonly class BrightnessSchedule implements \Stringable
 {
     /**
-     * The bounds are written as HH:MM, so a coarser tick would apply the evening level late.
+     * The declared days repeat every week, so a bound is always found within one.
      */
-    public const string TICK_INTERVAL = '1 minute';
+    private const int DAYS_A_BOUND_IS_FOUND_WITHIN = 7;
 
     /**
      * @param list<BrightnessWindow> $windows
@@ -51,6 +51,34 @@ final readonly class BrightnessSchedule implements \Stringable
         }
 
         return $selectedLevel;
+    }
+
+    /**
+     * The next instant a window opens or closes, which is the only kind of instant the level the
+     * panel is held at can change at: between two bounds, every instant answers the same level.
+     */
+    public function nextBoundAfter(\DateTimeImmutable $instant): \DateTimeImmutable
+    {
+        $localInstant = $instant->setTimezone($this->timezone);
+        $nextBound = null;
+
+        foreach ($this->windows as $window) {
+            foreach ($window->boundsWithinDaysAfter($localInstant, self::DAYS_A_BOUND_IS_FOUND_WITHIN) as $bound) {
+                if ($bound <= $localInstant) {
+                    continue;
+                }
+
+                if (null === $nextBound || $bound < $nextBound) {
+                    $nextBound = $bound;
+                }
+            }
+        }
+
+        if (null === $nextBound) {
+            throw new \LogicException(\sprintf('No bound of the brightness schedule "%s" found within a week of %s.', $this, $instant->format(\DATE_ATOM)));
+        }
+
+        return $nextBound;
     }
 
     public function __toString(): string

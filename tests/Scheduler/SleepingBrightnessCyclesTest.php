@@ -15,9 +15,9 @@ use Symfony\Component\Scheduler\Generator\MessageGenerator;
 use Symfony\Contracts\Cache\CacheInterface;
 
 /**
- * What the brightness tick does around a night the panel spends off: nothing is pushed into the
- * dark, the one tick that survives lands on the instant the panel comes back on, and the level it
- * carries is the one of the window covering that morning rather than the evening dimming.
+ * What the brightness runs do around a night the panel spends off: nothing is pushed into the dark,
+ * the one run that survives lands on the instant the panel comes back on, and the level it carries
+ * is the one of the window covering that morning rather than the evening dimming.
  *
  * The fixture holds the panel at 120 from 07:00 to 22:00, dims it to 20 from 22:00 to 07:00, and
  * sleeps from 00:00 to 07:00, so the evening window covers the whole night of sleep.
@@ -28,46 +28,72 @@ final class SleepingBrightnessCyclesTest extends TestCase
     private const string CONFIG_FILE = 'syncs-brightness-and-sleep.yaml';
     private const string DEVICE_TIMEZONE = 'Europe/Paris';
     private const string LAST_MINUTE_BEFORE_THE_NIGHT = '2026-08-04 23:59:00';
+    private const string START_UP_RUN_OF_THE_LAST_MINUTE = '2026-08-04 23:59:01';
+    private const string DEEP_IN_THE_NIGHT = '2026-08-05 03:00:00';
     private const string WAKE_UP = '2026-08-05 07:00:00';
     private const int EVENING_LEVEL = 20;
     private const int DAY_LEVEL = 120;
+
+    public function testAConsumerTakesTheBrightnessInHandAsSoonAsItStarts(): void
+    {
+        $clock = new MockClock(self::LAST_MINUTE_BEFORE_THE_NIGHT, self::DEVICE_TIMEZONE);
+        $startingConsumer = self::createMessageGenerator(new ArrayAdapter(), $clock);
+
+        self::assertSame(
+            [self::START_UP_RUN_OF_THE_LAST_MINUTE],
+            self::startUpRunsOf($startingConsumer, $clock),
+            'the panel may have been left anywhere while the client was down, so the level is pushed at start-up rather than at the next bound',
+        );
+    }
+
+    public function testAConsumerStartingInTheDarkIsHeldToTheWakeUpLikeAnyOtherRun(): void
+    {
+        $clock = new MockClock(self::DEEP_IN_THE_NIGHT, self::DEVICE_TIMEZONE);
+        $startingConsumer = self::createMessageGenerator(new ArrayAdapter(), $clock);
+
+        self::assertSame([], self::startUpRunsOf($startingConsumer, $clock));
+
+        $clock->modify(self::WAKE_UP);
+
+        self::assertSame([self::WAKE_UP], self::brightnessRunsOf($startingConsumer));
+    }
 
     public function testNoLevelIsPushedWhileThePanelIsOff(): void
     {
         $clock = new MockClock(self::LAST_MINUTE_BEFORE_THE_NIGHT, self::DEVICE_TIMEZONE);
         $runningConsumer = self::createMessageGenerator(new ArrayAdapter(), $clock);
+        self::startUpRunsOf($runningConsumer, $clock);
 
-        self::assertSame([], self::brightnessRunsOf($runningConsumer));
-
-        foreach (['2026-08-05 01:00:00', '2026-08-05 03:00:00', '2026-08-05 06:59:00'] as $instantInTheDark) {
+        foreach (['2026-08-05 01:00:00', self::DEEP_IN_THE_NIGHT, '2026-08-05 06:59:00'] as $instantInTheDark) {
             $clock->modify($instantInTheDark);
 
             self::assertSame([], self::brightnessRunsOf($runningConsumer), 'nothing is pushed at '.$instantInTheDark);
         }
     }
 
-    public function testTheTickComesBackAtTheInstantThePanelDoes(): void
+    public function testTheRunComesBackAtTheInstantThePanelDoes(): void
     {
         $clock = new MockClock(self::LAST_MINUTE_BEFORE_THE_NIGHT, self::DEVICE_TIMEZONE);
         $runningConsumer = self::createMessageGenerator(new ArrayAdapter(), $clock);
-        self::brightnessRunsOf($runningConsumer);
+        self::startUpRunsOf($runningConsumer, $clock);
 
         $clock->modify(self::WAKE_UP);
 
         self::assertSame(
             [self::WAKE_UP],
             self::brightnessRunsOf($runningConsumer),
-            'the tick is moved to the wake-up rather than replayed for every minute of the night',
+            'the run is moved to the wake-up rather than fired at every bound crossed in the night',
         );
     }
 
-    public function testAConsumerRestartedInTheNightStillTicksAtTheWakeUp(): void
+    public function testAConsumerRestartedInTheNightStillRunsAtTheWakeUp(): void
     {
         $scheduleState = new ArrayAdapter();
         $clock = new MockClock(self::LAST_MINUTE_BEFORE_THE_NIGHT, self::DEVICE_TIMEZONE);
-        self::brightnessRunsOf(self::createMessageGenerator($scheduleState, $clock));
+        $startingConsumer = self::createMessageGenerator($scheduleState, $clock);
+        self::startUpRunsOf($startingConsumer, $clock);
 
-        $clock->modify('2026-08-05 03:00:00');
+        $clock->modify(self::DEEP_IN_THE_NIGHT);
         $restartedConsumer = self::createMessageGenerator($scheduleState, $clock);
         self::assertSame([], self::brightnessRunsOf($restartedConsumer));
 
@@ -88,7 +114,21 @@ final class SleepingBrightnessCyclesTest extends TestCase
     }
 
     /**
-     * The instant every brightness tick was triggered at, the sync groups of the fixture left aside.
+     * The runs a starting consumer produces once the clock reaches the instant its start-up run is
+     * due, a second after it started.
+     *
+     * @return list<string>
+     */
+    private static function startUpRunsOf(MessageGenerator $messageGenerator, MockClock $clock): array
+    {
+        self::brightnessRunsOf($messageGenerator);
+        $clock->modify('+1 second');
+
+        return self::brightnessRunsOf($messageGenerator);
+    }
+
+    /**
+     * The instant every brightness run was triggered at, the sync groups of the fixture left aside.
      *
      * @return list<string>
      */

@@ -81,8 +81,27 @@ final readonly class DayOfWeekSet implements \Stringable
      */
     public function anchorDaysWithinDaysBefore(\DateTimeImmutable $localInstant, int $numberOfDaysBefore): iterable
     {
-        for ($dayOffset = $numberOfDaysBefore; $dayOffset >= 0; --$dayOffset) {
-            $anchorDay = $localInstant->modify(\sprintf('-%d days', $dayOffset));
+        return $this->anchorDaysBetween($localInstant, -$numberOfDaysBefore, 0);
+    }
+
+    /**
+     * The days this set covers within the given number of days after the instant, the day before it
+     * included since a stretch anchored there can still be running, oldest first.
+     *
+     * @return iterable<\DateTimeImmutable>
+     */
+    public function anchorDaysWithinDaysAfter(\DateTimeImmutable $localInstant, int $numberOfDaysAfter): iterable
+    {
+        return $this->anchorDaysBetween($localInstant, -self::DAYS_A_STRETCH_CAN_REACH_BACK, $numberOfDaysAfter);
+    }
+
+    /**
+     * @return iterable<\DateTimeImmutable>
+     */
+    private function anchorDaysBetween(\DateTimeImmutable $localInstant, int $firstDayOffset, int $lastDayOffset): iterable
+    {
+        for ($dayOffset = $firstDayOffset; $dayOffset <= $lastDayOffset; ++$dayOffset) {
+            $anchorDay = $localInstant->modify(\sprintf('%+d days', $dayOffset));
 
             if ($this->coversTheDayOf($anchorDay)) {
                 yield $anchorDay;
