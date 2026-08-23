@@ -11,12 +11,11 @@ use App\Tests\Stub\RecordingAllTimeHighSourceStub;
 use App\Tracker\AllTimeHigh;
 use App\Tracker\AllTimeHighStore;
 use App\Tracker\History\AllTimeHighSourceInterface;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
-final class TrackerAllTimeHighCommandTest extends TestCase
+final class TrackerAllTimeHighCommandTest extends CommandTestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string CATCH_UP_CONFIG_FILE = 'syncs-tracker-ath-catch-up.yaml';

@@ -6,11 +6,10 @@ namespace App\Tests\Command;
 
 use App\Command\HealthCommand;
 use App\Tests\Factory\SyncHealthScenario;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
-final class HealthCommandTest extends TestCase
+final class HealthCommandTest extends CommandTestCase
 {
     private SyncHealthScenario $scenario;
 

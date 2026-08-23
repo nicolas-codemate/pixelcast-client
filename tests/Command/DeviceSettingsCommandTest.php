@@ -10,13 +10,12 @@ use App\Command\DeviceSettingsCommand;
 use App\Device\LastPushedBrightnessStore;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingPixelcastClientStub;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
-final class DeviceSettingsCommandTest extends TestCase
+final class DeviceSettingsCommandTest extends CommandTestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string FILE_WITH_A_DEVICE_SECTION = 'syncs-device-settings.yaml';
@@ -24,25 +23,6 @@ final class DeviceSettingsCommandTest extends TestCase
     private const string FILE_WITHOUT_A_BRIGHTNESS = 'syncs-device-timezone.yaml';
     private const string FILE_THE_LOADER_REFUSES = 'syncs-invalid-syntax.yaml';
     private const string RUN_INSTANT = '2026-06-15 12:00:00';
-
-    private string|false $terminalWidthBeforeTheTest;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // Console blocks wrap at the terminal width, and a width of 80 would fold the messages these
-        // assertions read.
-        $this->terminalWidthBeforeTheTest = getenv('COLUMNS');
-        putenv('COLUMNS=200');
-    }
-
-    protected function tearDown(): void
-    {
-        putenv(false === $this->terminalWidthBeforeTheTest ? 'COLUMNS' : 'COLUMNS='.$this->terminalWidthBeforeTheTest);
-
-        parent::tearDown();
-    }
 
     public function testTheSettingsOfTheFileArePushedAndTheDeviceIsReadBack(): void
     {

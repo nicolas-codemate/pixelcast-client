@@ -8,12 +8,11 @@ use App\Claude\ClaudeCredentials;
 use App\Claude\ClaudeCredentialsStore;
 use App\Claude\StoredClaudeCredentials;
 use App\Command\ClaudeLoginCommand;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Filesystem\Filesystem;
 
-final class ClaudeLoginCommandTest extends TestCase
+final class ClaudeLoginCommandTest extends CommandTestCase
 {
     private const string NOW = '2026-08-10T12:00:00+00:00';
     private const string CLI_ACCESS_TOKEN = 'access-token-the-cli-holds';
@@ -26,7 +25,6 @@ final class ClaudeLoginCommandTest extends TestCase
     private string $temporaryDirectory;
     private string $credentialsFilePath;
     private string $homeDirectory;
-    private string|false $terminalWidthBeforeTheTest;
     private string|false $homeDirectoryBeforeTheTest;
 
     protected function setUp(): void
@@ -37,12 +35,6 @@ final class ClaudeLoginCommandTest extends TestCase
         $this->credentialsFilePath = $this->temporaryDirectory.'/credentials.json';
         $this->homeDirectory = $this->temporaryDirectory.'/home';
 
-        // Console blocks wrap at the terminal width, and a width of 80 would fold the messages these
-        // assertions read. Pinning it keeps them looking at what the operator is told, not at where
-        // the console chose to break a line.
-        $this->terminalWidthBeforeTheTest = getenv('COLUMNS');
-        putenv('COLUMNS=200');
-
         // The command looks the session up in the home directory of its own process, so the suite
         // gives it one it owns rather than the one of whoever runs it.
         $this->homeDirectoryBeforeTheTest = getenv('HOME');
@@ -51,7 +43,6 @@ final class ClaudeLoginCommandTest extends TestCase
 
     protected function tearDown(): void
     {
-        putenv(false === $this->terminalWidthBeforeTheTest ? 'COLUMNS' : 'COLUMNS='.$this->terminalWidthBeforeTheTest);
         putenv(false === $this->homeDirectoryBeforeTheTest ? 'HOME' : 'HOME='.$this->homeDirectoryBeforeTheTest);
         new Filesystem()->remove($this->temporaryDirectory);
 

@@ -10,11 +10,10 @@ use App\Client\Icon\IconsSnapshot;
 use App\Command\IconsSeedCommand;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingPixelcastClientStub;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
-final class IconsSeedCommandTest extends TestCase
+final class IconsSeedCommandTest extends CommandTestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string FILE_WITH_ICONS = 'syncs-icons-seed.yaml';
@@ -23,25 +22,6 @@ final class IconsSeedCommandTest extends TestCase
     private const int BITCOIN_LAMETRIC_ID = 15392;
     private const int ETHEREUM_LAMETRIC_ID = 45056;
     private const int STOCK_LAMETRIC_ID = 40160;
-
-    private string|false $terminalWidthBeforeTheTest;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // Console blocks wrap at the terminal width, and a width of 80 would fold the messages these
-        // assertions read.
-        $this->terminalWidthBeforeTheTest = getenv('COLUMNS');
-        putenv('COLUMNS=200');
-    }
-
-    protected function tearDown(): void
-    {
-        putenv(false === $this->terminalWidthBeforeTheTest ? 'COLUMNS' : 'COLUMNS='.$this->terminalWidthBeforeTheTest);
-
-        parent::tearDown();
-    }
 
     public function testTheMissingIconsAreDownloadedAndThePresentOnesAreSkipped(): void
     {
@@ -165,11 +145,6 @@ final class IconsSeedCommandTest extends TestCase
 
         self::assertSame(Command::INVALID, $exitCode);
         self::assertSame([], $client->downloadedLaMetricIcons);
-    }
-
-    private static function singleLineDisplay(CommandTester $tester): string
-    {
-        return (string) preg_replace('/\s+/', ' ', $tester->getDisplay());
     }
 
     private static function createTester(string $fixtureFileName, RecordingPixelcastClientStub $client): CommandTester

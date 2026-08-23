@@ -15,7 +15,6 @@ use App\Client\Transport\TrackersTransport;
 use App\Client\Transport\WeatherTransport;
 use App\Command\DeviceDumpCommand;
 use App\Tests\Stub\RecordingInspectorTransportStub;
-use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -23,7 +22,7 @@ use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
-final class DeviceDumpCommandTest extends TestCase
+final class DeviceDumpCommandTest extends CommandTestCase
 {
     private const string UNREACHABLE_BASE_URL = 'http://127.0.0.1:1/api';
 
@@ -101,7 +100,7 @@ final class DeviceDumpCommandTest extends TestCase
 
         $exitCode = $tester->execute([]);
 
-        $display = $this->singleLineDisplay($tester);
+        $display = self::singleLineDisplay($tester);
         self::assertSame(Command::FAILURE, $exitCode);
         self::assertStringContainsString('not as a PixelCast device.', $display);
         self::assertStringContainsString('/__inspect: invalid response', $display);
@@ -118,7 +117,7 @@ final class DeviceDumpCommandTest extends TestCase
         $exitCode = $tester->execute(['--target' => self::UNREACHABLE_BASE_URL]);
 
         self::assertSame(Command::FAILURE, $exitCode);
-        self::assertStringContainsString('unreachable', $this->singleLineDisplay($tester));
+        self::assertStringContainsString('unreachable', self::singleLineDisplay($tester));
     }
 
     public function testAnUnknownDomainIsRejected(): void
@@ -131,7 +130,7 @@ final class DeviceDumpCommandTest extends TestCase
         $exitCode = $tester->execute(['--domain' => 'nope']);
 
         self::assertSame(Command::INVALID, $exitCode);
-        self::assertStringContainsString('Unknown domain "nope"', $this->singleLineDisplay($tester));
+        self::assertStringContainsString('Unknown domain "nope"', self::singleLineDisplay($tester));
     }
 
     public function testTheDumpCanBeRestrictedToASingleDomain(): void
@@ -165,7 +164,7 @@ final class DeviceDumpCommandTest extends TestCase
 
         self::assertStringContainsString(
             \sprintf('Reading %s as a firmware target.', $this->localBaseUrl),
-            $this->singleLineDisplay($tester),
+            self::singleLineDisplay($tester),
         );
     }
 
@@ -211,13 +210,5 @@ final class DeviceDumpCommandTest extends TestCase
 
             return new MockResponse((string) json_encode($payload));
         });
-    }
-
-    /**
-     * Console blocks wrap on the terminal width, so assertions run on a whitespace-collapsed display.
-     */
-    private function singleLineDisplay(CommandTester $tester): string
-    {
-        return (string) preg_replace('/\s+/', ' ', $tester->getDisplay());
     }
 }
