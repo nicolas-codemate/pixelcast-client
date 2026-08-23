@@ -7,9 +7,11 @@ namespace App\Tests\Command;
 use App\Client\Exception\DeviceUnreachableException;
 use App\Client\Settings\SettingsSnapshot;
 use App\Command\DeviceSettingsCommand;
+use App\Device\LastPushedBrightnessStore;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingPixelcastClientStub;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -19,6 +21,7 @@ final class DeviceSettingsCommandTest extends TestCase
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string FILE_WITH_A_DEVICE_SECTION = 'syncs-device-settings.yaml';
     private const string FILE_WITHOUT_A_DEVICE_SECTION = 'syncs-valid.yaml';
+    private const string FILE_WITHOUT_A_BRIGHTNESS = 'syncs-device-timezone.yaml';
     private const string FILE_THE_LOADER_REFUSES = 'syncs-invalid-syntax.yaml';
     private const string RUN_INSTANT = '2026-06-15 12:00:00';
 
@@ -125,11 +128,42 @@ final class DeviceSettingsCommandTest extends TestCase
         self::assertStringContainsString('answered nothing', $display);
     }
 
-    private static function createTester(string $fixtureFileName, RecordingPixelcastClientStub $client): CommandTester
+    public function testThePushedBrightnessIsRecordedForEveryOtherWriterToRead(): void
     {
+        $store = new LastPushedBrightnessStore(new ArrayAdapter());
+        $tester = self::createTester(self::FILE_WITH_A_DEVICE_SECTION, new RecordingPixelcastClientStub(), $store);
+
+        self::assertSame(Command::SUCCESS, $tester->execute([]));
+        self::assertSame(120, $store->lastPushedLevel());
+    }
+
+    public function testASectionWithoutABrightnessRecordsNothing(): void
+    {
+        $store = new LastPushedBrightnessStore(new ArrayAdapter());
+        $tester = self::createTester(self::FILE_WITHOUT_A_BRIGHTNESS, new RecordingPixelcastClientStub(), $store);
+
+        self::assertSame(Command::SUCCESS, $tester->execute([]));
+        self::assertNull($store->lastPushedLevel(), 'a payload without a brightness leaves the panel where it was');
+    }
+
+    public function testAPushTheDeviceRefusedRecordsNothing(): void
+    {
+        $store = new LastPushedBrightnessStore(new ArrayAdapter());
+        $client = new RecordingPixelcastClientStub(DeviceUnreachableException::forPath('/settings', new \RuntimeException('no route to host')));
+        $tester = self::createTester(self::FILE_WITH_A_DEVICE_SECTION, $client, $store);
+
+        self::assertSame(Command::FAILURE, $tester->execute([]));
+        self::assertNull($store->lastPushedLevel());
+    }
+
+    private static function createTester(
+        string $fixtureFileName,
+        RecordingPixelcastClientStub $client,
+        LastPushedBrightnessStore $lastPushedBrightnessStore = new LastPushedBrightnessStore(new ArrayAdapter()),
+    ): CommandTester {
         $syncsConfigLoader = SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$fixtureFileName);
         $clock = new MockClock(new \DateTimeImmutable(self::RUN_INSTANT, new \DateTimeZone('UTC')));
 
-        return new CommandTester(new DeviceSettingsCommand($syncsConfigLoader, $client, $clock));
+        return new CommandTester(new DeviceSettingsCommand($syncsConfigLoader, $client, $lastPushedBrightnessStore, $clock));
     }
 }

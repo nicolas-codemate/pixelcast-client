@@ -10,6 +10,7 @@ use App\Client\Settings\SettingsSnapshot;
 use App\Config\Device\DeviceConfig;
 use App\Config\SyncsConfig;
 use App\Config\SyncsConfigLoader;
+use App\Device\LastPushedBrightnessStore;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -29,6 +30,7 @@ final class DeviceSettingsCommand extends AbstractDevicePushCommand
     public function __construct(
         SyncsConfigLoader $syncsConfigLoader,
         PixelcastClientInterface $pixelcastClient,
+        private readonly LastPushedBrightnessStore $lastPushedBrightnessStore,
         private readonly ClockInterface $clock,
     ) {
         parent::__construct($syncsConfigLoader, $pixelcastClient);
@@ -68,6 +70,13 @@ final class DeviceSettingsCommand extends AbstractDevicePushCommand
     protected function pushPayload(object $payload): void
     {
         $this->pixelcastClient->pushSettings($payload);
+
+        // The scheduler holds the panel at the level of the current brightness window and skips the
+        // call when it believes the panel already sits there. Recording what this push put on the
+        // panel is what keeps it from believing that for the rest of the window.
+        if (null !== $payload->brightness) {
+            $this->lastPushedBrightnessStore->recordPushedLevel($payload->brightness);
+        }
     }
 
     protected function readBack(): SettingsSnapshot

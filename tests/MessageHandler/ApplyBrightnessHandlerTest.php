@@ -6,6 +6,7 @@ namespace App\Tests\MessageHandler;
 
 use App\Client\Exception\DeviceBusyException;
 use App\Client\Settings\BrightnessLevel;
+use App\Device\LastPushedBrightnessStore;
 use App\Message\ApplyBrightnessMessage;
 use App\MessageHandler\ApplyBrightnessHandler;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
@@ -16,6 +17,7 @@ use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 
 /**
@@ -106,6 +108,36 @@ final class ApplyBrightnessHandlerTest extends TestCase
         self::assertSame($deviceFailure, $logger->records[0]['context']['exception'] ?? null);
     }
 
+    public function testALevelPushedByAnotherWriterMakesTheNextTickPushAgain(): void
+    {
+        $client = new RecordingPixelcastClientStub();
+        $store = new LastPushedBrightnessStore(new ArrayAdapter());
+        $clock = new MockClock(self::MONDAY_MORNING, self::DEVICE_TIMEZONE);
+        $handler = self::buildHandler(self::BRIGHTNESS_WINDOWS_CONFIG_FILE, $client, $clock, lastPushedBrightnessStore: $store);
+
+        $handler(new ApplyBrightnessMessage());
+
+        // What app:device:settings does when it pushes the device section: the panel leaves the
+        // level of the current window, and the store is the only thing saying so.
+        $store->recordPushedLevel(BrightnessLevel::create(200));
+        $clock->modify('2026-08-03 10:01:00');
+        $handler(new ApplyBrightnessMessage());
+
+        self::assertSame([120, 120], self::pushedLevelsOf($client));
+    }
+
+    public function testAConsumerThatJustStartedPushesTheLevelAgainAtItsFirstTick(): void
+    {
+        $client = new RecordingPixelcastClientStub();
+        $store = new LastPushedBrightnessStore(new ArrayAdapter());
+        $clock = new MockClock(self::MONDAY_MORNING, self::DEVICE_TIMEZONE);
+
+        self::buildHandler(self::BRIGHTNESS_WINDOWS_CONFIG_FILE, $client, $clock, lastPushedBrightnessStore: $store)(new ApplyBrightnessMessage());
+        self::buildHandler(self::BRIGHTNESS_WINDOWS_CONFIG_FILE, $client, $clock, lastPushedBrightnessStore: $store)(new ApplyBrightnessMessage());
+
+        self::assertSame([120, 120], self::pushedLevelsOf($client), 'nothing says the panel was left alone while the client was down');
+    }
+
     /**
      * @return list<int>
      */
@@ -122,10 +154,12 @@ final class ApplyBrightnessHandlerTest extends TestCase
         RecordingPixelcastClientStub $client,
         ClockInterface $clock,
         LoggerInterface $logger = new NullLogger(),
+        LastPushedBrightnessStore $lastPushedBrightnessStore = new LastPushedBrightnessStore(new ArrayAdapter()),
     ): ApplyBrightnessHandler {
         return new ApplyBrightnessHandler(
             SyncsConfigLoaderFactory::forConfigFile(self::FIXTURES_DIR.'/'.$configFileName),
             $client,
+            $lastPushedBrightnessStore,
             $clock,
             $logger,
         );
