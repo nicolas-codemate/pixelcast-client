@@ -314,9 +314,12 @@ is how a mapping changed in the file reaches the screen. An item with no
 `lametricId` is reported as skipped rather than failing the run — the LaMetric
 database serves no equivalent for every asset — and its icon is uploaded from a
 local PNG or GIF instead with `bin/console app:icons:upload <name> <path>`, the
-command that also puts the `github` icon on the device. `lametricId` is added to
-`pixelcast.yaml` by hand, that file being the operator's own and git-ignored;
-`pixelcast.yaml.dist` carries the shape.
+command that also puts the `github` icon on the device. The `etf` icon of
+`pixelcast.yaml.dist` is in that case: the database serves nothing that reads as
+an ETF, so a run of `make icons-seed` on the sample file downloads `bitcoin` and
+`stock` and reports `etf` as the one left to upload by hand. `lametricId` is
+added to `pixelcast.yaml` by hand, that file being the operator's own and
+git-ignored; `pixelcast.yaml.dist` carries the shape.
 
 #### The `claude` group
 
