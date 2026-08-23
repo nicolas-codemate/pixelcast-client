@@ -43,7 +43,7 @@ final readonly class GitHubSyncConfig implements SyncGroupConfig
         return 'github';
     }
 
-    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone = null): self
+    public static function fromOptions(array $options, ?\DateTimeZone $deviceTimezone): self
     {
         $optionsPath = 'syncs.'.self::syncType();
 

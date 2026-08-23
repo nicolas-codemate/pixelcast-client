@@ -35,7 +35,7 @@ final readonly class ActiveWindow implements \Stringable
      * @param array<string, mixed> $options the options of the sync group carrying the window
      * @param \DateTimeZone|null $deviceTimezone the timezone of the device, which the window reads its bounds in unless it declares its own
      */
-    public static function optionalFromOptions(array $options, string $parentPath, ?\DateTimeZone $deviceTimezone = null): ?self
+    public static function optionalFromOptions(array $options, string $parentPath, ?\DateTimeZone $deviceTimezone): ?self
     {
         if (!SyncOptionReader::isDeclared($options, self::OPTION_KEY)) {
             return null;

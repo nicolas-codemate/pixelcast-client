@@ -1,5 +1,6 @@
 # Sample configuration used by SyncsConfigLoaderTest: the device names its timezone once, and
-# neither the sleep schedule nor the active window repeats it.
+# neither the sleep schedule nor any active window repeats it. Every sync group declares an
+# active window so a group that forgets to propagate the device timezone fails the test.
 device:
     timezone: Europe/Paris
 
@@ -11,6 +12,32 @@ syncs:
         longitude: 2.3522
         units: metric
         locale: fr
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '17:45'
+
+    coingecko:
+        enabled: true
+        interval: '5 minutes'
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '17:45'
+        items:
+            - symbol: bitcoin
+              currency: eur
+
+    twelvedata:
+        enabled: true
+        interval: '15 minutes'
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '17:45'
+        items:
+            - symbol: AAPL
+              currency: usd
 
     boursorama:
         enabled: true
@@ -26,6 +53,24 @@ syncs:
                   days: [mon, tue, wed, thu, fri]
                   from: '09:00'
                   to: '17:30'
+
+    claude:
+        enabled: true
+        interval: '10 minutes'
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '17:45'
+
+    github:
+        enabled: true
+        interval: '10 minutes'
+        query: 'is:open is:pr review-requested:@me'
+        label: 'PR'
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '17:45'
 
 sleep:
     enabled: true

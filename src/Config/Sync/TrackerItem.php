@@ -31,7 +31,7 @@ final readonly class TrackerItem
      * @param StaleDeclaration $groupStaleDeclaration the declaration of the group, which the item follows unless it declares its own
      * @param list<BottomLine> $acceptedBottomLines the bottom lines the group of this item can fill
      */
-    public static function fromOptions(array $options, string $itemPath, StaleDeclaration $groupStaleDeclaration, array $acceptedBottomLines, ?\DateTimeZone $deviceTimezone = null): self
+    public static function fromOptions(array $options, string $itemPath, StaleDeclaration $groupStaleDeclaration, array $acceptedBottomLines, ?\DateTimeZone $deviceTimezone): self
     {
         return new self(
             symbol: SyncOptionReader::requireString($options, 'symbol', $itemPath),

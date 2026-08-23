@@ -49,7 +49,7 @@ final readonly class DeviceSleepConfig
     /**
      * @param array<string, mixed> $configTree the whole configuration file, not a sync group
      */
-    public static function optionalFromConfigTree(array $configTree, ?\DateTimeZone $deviceTimezone = null): ?self
+    public static function optionalFromConfigTree(array $configTree, ?\DateTimeZone $deviceTimezone): ?self
     {
         if (!SyncOptionReader::isDeclared($configTree, self::OPTION_KEY)) {
             return null;

@@ -33,7 +33,7 @@ final class GitHubSyncConfigTest extends TestCase
 
     public function testAValidOptionMapIsHydrated(): void
     {
-        $gitHubSync = GitHubSyncConfig::fromOptions(self::validOptions());
+        $gitHubSync = GitHubSyncConfig::fromOptions(self::validOptions(), null);
 
         self::assertTrue($gitHubSync->enabled);
         self::assertSame('5 minutes', $gitHubSync->interval->expression);
@@ -43,7 +43,7 @@ final class GitHubSyncConfigTest extends TestCase
 
     public function testWithoutAnIconAndAColourTheGroupDefaultsApply(): void
     {
-        $gitHubSync = GitHubSyncConfig::fromOptions(self::validOptions());
+        $gitHubSync = GitHubSyncConfig::fromOptions(self::validOptions(), null);
 
         self::assertSame('github', $gitHubSync->iconName);
         self::assertSame('#7C9CB0', $gitHubSync->labelColor->hexCode);
@@ -51,7 +51,7 @@ final class GitHubSyncConfigTest extends TestCase
 
     public function testADeclaredColourIsNormalisedToItsUppercaseHexCode(): void
     {
-        $gitHubSync = GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['color' => '#8957e5']));
+        $gitHubSync = GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['color' => '#8957e5']), null);
 
         self::assertSame('#8957E5', $gitHubSync->labelColor->hexCode);
     }
@@ -61,7 +61,7 @@ final class GitHubSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.github.color');
 
-        GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['color' => 'purple']));
+        GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['color' => 'purple']), null);
     }
 
     public function testAMissingQueryNamesItsFullPath(): void
@@ -72,7 +72,7 @@ final class GitHubSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.github.query');
 
-        GitHubSyncConfig::fromOptions($options);
+        GitHubSyncConfig::fromOptions($options, null);
     }
 
     public function testAnEmptyLabelNamesItsFullPath(): void
@@ -80,7 +80,7 @@ final class GitHubSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.github.label');
 
-        GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['label' => '   ']));
+        GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['label' => '   ']), null);
     }
 
     /**
@@ -98,13 +98,13 @@ final class GitHubSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.github.staleBehavior');
 
-        GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => $refusedBehavior]));
+        GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => $refusedBehavior]), null);
     }
 
     public function testHideAndNoneAreAccepted(): void
     {
-        $hidden = GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'hide']));
-        $unsigned = GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'none']));
+        $hidden = GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'hide']), null);
+        $unsigned = GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'none']), null);
 
         self::assertSame(StaleBehavior::Hide, $hidden->staleDeclaration->staleBehavior);
         self::assertSame(StaleBehavior::None, $unsigned->staleDeclaration->staleBehavior);
@@ -112,7 +112,7 @@ final class GitHubSyncConfigTest extends TestCase
 
     public function testWithoutFreshnessKeysTheSilenceToleratedIsThreeIntervals(): void
     {
-        $gitHubSync = GitHubSyncConfig::fromOptions(self::validOptions());
+        $gitHubSync = GitHubSyncConfig::fromOptions(self::validOptions(), null);
 
         self::assertSame(900, $gitHubSync->staleDeclaration->staleAfterInSeconds);
         self::assertNull($gitHubSync->staleDeclaration->staleBehavior);
@@ -120,14 +120,14 @@ final class GitHubSyncConfigTest extends TestCase
 
     public function testTheGroupIsTriggeredByAGitHubSyncMessage(): void
     {
-        self::assertInstanceOf(SyncGitHubMessage::class, GitHubSyncConfig::fromOptions(self::validOptions())->syncMessage());
+        self::assertInstanceOf(SyncGitHubMessage::class, GitHubSyncConfig::fromOptions(self::validOptions(), null)->syncMessage());
     }
 
     public function testAnActiveWindowSaysWhetherTheGroupIsDispatchableAndSinceWhen(): void
     {
         $gitHubSync = GitHubSyncConfig::fromOptions(array_merge(self::validOptions(), [
             'activeWindow' => ['days' => ['mon'], 'from' => '09:00', 'to' => '19:00', 'timezone' => 'Europe/Paris'],
-        ]));
+        ]), null);
 
         $insideTheWindow = $gitHubSync->activityAt(new \DateTimeImmutable('2026-08-03 17:00:00', new \DateTimeZone('Europe/Paris')));
         self::assertTrue($insideTheWindow->isActive);

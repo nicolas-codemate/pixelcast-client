@@ -31,7 +31,7 @@ final class ClaudeSyncConfigTest extends TestCase
 
     public function testAValidOptionMapIsHydrated(): void
     {
-        $claudeSync = ClaudeSyncConfig::fromOptions(self::validOptions());
+        $claudeSync = ClaudeSyncConfig::fromOptions(self::validOptions(), null);
 
         self::assertTrue($claudeSync->enabled);
         self::assertSame('15 minutes', $claudeSync->interval->expression);
@@ -39,7 +39,7 @@ final class ClaudeSyncConfigTest extends TestCase
 
     public function testWithoutFreshnessKeysTheSilenceToleratedIsThreeIntervalsAndTheBehaviourIsLeftToTheFirmware(): void
     {
-        $claudeSync = ClaudeSyncConfig::fromOptions(self::validOptions());
+        $claudeSync = ClaudeSyncConfig::fromOptions(self::validOptions(), null);
 
         self::assertSame(2700, $claudeSync->staleDeclaration->staleAfterInSeconds);
         self::assertNull($claudeSync->staleDeclaration->staleBehavior);
@@ -47,8 +47,8 @@ final class ClaudeSyncConfigTest extends TestCase
 
     public function testTheGaugeLayoutBehavioursTheWeatherGroupRefusesAreAcceptedHere(): void
     {
-        $dimmed = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'dim']));
-        $badged = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'badge']));
+        $dimmed = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'dim']), null);
+        $badged = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'badge']), null);
 
         self::assertSame(StaleBehavior::Dim, $dimmed->staleDeclaration->staleBehavior);
         self::assertSame(StaleBehavior::Badge, $badged->staleDeclaration->staleBehavior);
@@ -59,12 +59,12 @@ final class ClaudeSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.claude.staleBehavior');
 
-        ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'blink']));
+        ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleBehavior' => 'blink']), null);
     }
 
     public function testADeclaredSilenceOverridesTheOneDerivedFromTheInterval(): void
     {
-        $claudeSync = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleAfter' => 900]));
+        $claudeSync = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['staleAfter' => 900]), null);
 
         self::assertSame(900, $claudeSync->staleDeclaration->staleAfterInSeconds);
     }
@@ -77,7 +77,7 @@ final class ClaudeSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.claude.enabled');
 
-        ClaudeSyncConfig::fromOptions($options);
+        ClaudeSyncConfig::fromOptions($options, null);
     }
 
     public function testAnIntervalShorterThanAMinuteNamesTheOption(): void
@@ -85,17 +85,17 @@ final class ClaudeSyncConfigTest extends TestCase
         $this->expectException(PixelCastConfigException::class);
         $this->expectExceptionMessage('syncs.claude.interval');
 
-        ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['interval' => '30 seconds']));
+        ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), ['interval' => '30 seconds']), null);
     }
 
     public function testTheGroupIsTriggeredByAClaudeSyncMessage(): void
     {
-        self::assertInstanceOf(SyncClaudeMessage::class, ClaudeSyncConfig::fromOptions(self::validOptions())->syncMessage());
+        self::assertInstanceOf(SyncClaudeMessage::class, ClaudeSyncConfig::fromOptions(self::validOptions(), null)->syncMessage());
     }
 
     public function testWithoutAnActiveWindowTheGroupHasAlwaysBeenDispatchable(): void
     {
-        $activity = ClaudeSyncConfig::fromOptions(self::validOptions())->activityAt(new \DateTimeImmutable('2026-08-08 03:00:00'));
+        $activity = ClaudeSyncConfig::fromOptions(self::validOptions(), null)->activityAt(new \DateTimeImmutable('2026-08-08 03:00:00'));
 
         self::assertTrue($activity->isActive);
         self::assertNull($activity->secondsSinceBecameActive);
@@ -105,7 +105,7 @@ final class ClaudeSyncConfigTest extends TestCase
     {
         $claudeSync = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), [
             'activeWindow' => ['days' => ['mon'], 'from' => '08:00', 'to' => '18:00', 'timezone' => 'Europe/Paris'],
-        ]));
+        ]), null);
 
         $insideTheWindow = $claudeSync->activityAt(new \DateTimeImmutable('2026-08-03 16:00:00', new \DateTimeZone('Europe/Paris')));
         self::assertTrue($insideTheWindow->isActive);
@@ -118,7 +118,7 @@ final class ClaudeSyncConfigTest extends TestCase
 
     public function testWithoutHiddenRowsNoRowIsHidden(): void
     {
-        $claudeSync = ClaudeSyncConfig::fromOptions(self::validOptions());
+        $claudeSync = ClaudeSyncConfig::fromOptions(self::validOptions(), null);
 
         self::assertSame([], $claudeSync->hiddenRows);
     }
@@ -127,7 +127,7 @@ final class ClaudeSyncConfigTest extends TestCase
     {
         $claudeSync = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), [
             'hiddenRows' => ['credits', 'fable'],
-        ]));
+        ]), null);
 
         self::assertSame([ClaudeUsageRowLabel::Credits, ClaudeUsageRowLabel::Fable], $claudeSync->hiddenRows);
     }
@@ -136,7 +136,7 @@ final class ClaudeSyncConfigTest extends TestCase
     {
         $claudeSync = ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), [
             'hiddenRows' => [],
-        ]));
+        ]), null);
 
         self::assertSame([], $claudeSync->hiddenRows);
     }
@@ -148,7 +148,7 @@ final class ClaudeSyncConfigTest extends TestCase
 
         ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), [
             'hiddenRows' => ['credits', 'unknown'],
-        ]));
+        ]), null);
     }
 
     public function testAHiddenRowsValueThatIsNotAListNamesItsFullPath(): void
@@ -158,6 +158,6 @@ final class ClaudeSyncConfigTest extends TestCase
 
         ClaudeSyncConfig::fromOptions(array_merge(self::validOptions(), [
             'hiddenRows' => 'credits',
-        ]));
+        ]), null);
     }
 }
