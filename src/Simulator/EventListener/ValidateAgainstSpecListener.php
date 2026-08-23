@@ -83,8 +83,9 @@ final class ValidateAgainstSpecListener
 
     public function forgetMatchedOperation(ExceptionEvent $event): void
     {
-        // The error response still travels through the response pass, and the spec declares no
-        // error operation, so validating it would replace the thrown error with a schema complaint.
+        // The error response still travels through the response pass, and not every operation
+        // declares an error shape, so validating it would replace the thrown error with a schema
+        // complaint. KnownGapsRestOnDeviceContractFactsTest holds the contract fact this rests on.
         $event->getRequest()->attributes->remove(self::MATCHED_OPERATION_ATTRIBUTE);
     }
 
