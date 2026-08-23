@@ -35,17 +35,27 @@ final class SchemaPropertyReader extends Assert
     }
 
     /**
-     * @return array<string, array<mixed>>
+     * @return array<mixed>
      */
-    public static function deviceContractPropertiesOf(string $contractFileName, string $definitionName): array
+    public static function deviceContractDefinitionOf(string $contractFileName, string $definitionName): array
     {
         $deviceContract = Yaml::parseFile(self::deviceContractFilePath($contractFileName));
         self::assertIsArray($deviceContract);
         self::assertArrayHasKey($definitionName, $deviceContract);
         self::assertIsArray($deviceContract[$definitionName]);
-        self::assertIsArray($deviceContract[$definitionName]['properties']);
 
-        return self::asPropertyMap($deviceContract[$definitionName]['properties']);
+        return $deviceContract[$definitionName];
+    }
+
+    /**
+     * @return array<string, array<mixed>>
+     */
+    public static function deviceContractPropertiesOf(string $contractFileName, string $definitionName): array
+    {
+        $definition = self::deviceContractDefinitionOf($contractFileName, $definitionName);
+        self::assertIsArray($definition['properties']);
+
+        return self::asPropertyMap($definition['properties']);
     }
 
     /**
@@ -65,6 +75,28 @@ final class SchemaPropertyReader extends Assert
     }
 
     /**
+     * A field the device accepts in several forms points at a shared definition holding one branch
+     * per form, each with the bound that form is measured by.
+     *
+     * @param array<mixed> $fieldSchema
+     *
+     * @return array<mixed>
+     */
+    public static function acceptedFormsOf(array $fieldSchema): array
+    {
+        $definitionReference = self::sharedDefinitionReferenceOf($fieldSchema);
+        $definitionName = substr($definitionReference, (int) strpos($definitionReference, '#/') + 2);
+
+        $sharedDefinitions = Yaml::parseFile(self::deviceContractFilePath(self::SHARED_DEFINITIONS_FILE));
+        self::assertIsArray($sharedDefinitions);
+        self::assertArrayHasKey($definitionName, $sharedDefinitions);
+        self::assertIsArray($sharedDefinitions[$definitionName]);
+        self::assertIsArray($sharedDefinitions[$definitionName]['oneOf']);
+
+        return $sharedDefinitions[$definitionName]['oneOf'];
+    }
+
+    /**
      * A field the device accepts as a plain string, a colored string or colored segments points at
      * a shared definition holding one branch per form, each with the bound that form is measured
      * by. The character bound is therefore read from the plain string branch.
@@ -73,7 +105,7 @@ final class SchemaPropertyReader extends Assert
      */
     public static function plainStringLengthBoundOf(array $fieldSchema): int
     {
-        $acceptedForms = self::acceptedFormsOfPolymorphicTextField($fieldSchema);
+        $acceptedForms = self::acceptedFormsOf($fieldSchema);
 
         foreach ($acceptedForms as $acceptedForm) {
             if (!\is_array($acceptedForm) || 'string' !== ($acceptedForm['type'] ?? null)) {
@@ -97,7 +129,7 @@ final class SchemaPropertyReader extends Assert
      */
     public static function segmentCountBoundOf(array $fieldSchema): int
     {
-        $acceptedForms = self::acceptedFormsOfPolymorphicTextField($fieldSchema);
+        $acceptedForms = self::acceptedFormsOf($fieldSchema);
 
         foreach ($acceptedForms as $acceptedForm) {
             if (!\is_array($acceptedForm) || 'array' !== ($acceptedForm['type'] ?? null)) {
@@ -151,25 +183,6 @@ final class SchemaPropertyReader extends Assert
         self::assertIsInt($maximumItemCount);
 
         return [$minimumItemCount, $maximumItemCount];
-    }
-
-    /**
-     * @param array<mixed> $fieldSchema
-     *
-     * @return array<mixed>
-     */
-    private static function acceptedFormsOfPolymorphicTextField(array $fieldSchema): array
-    {
-        $definitionReference = self::sharedDefinitionReferenceOf($fieldSchema);
-        $definitionName = substr($definitionReference, (int) strpos($definitionReference, '#/') + 2);
-
-        $sharedDefinitions = Yaml::parseFile(self::deviceContractFilePath(self::SHARED_DEFINITIONS_FILE));
-        self::assertIsArray($sharedDefinitions);
-        self::assertArrayHasKey($definitionName, $sharedDefinitions);
-        self::assertIsArray($sharedDefinitions[$definitionName]);
-        self::assertIsArray($sharedDefinitions[$definitionName]['oneOf']);
-
-        return $sharedDefinitions[$definitionName]['oneOf'];
     }
 
     /**
