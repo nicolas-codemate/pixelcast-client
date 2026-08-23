@@ -86,6 +86,35 @@ abstract class SimulatorWebTestCase extends WebTestCase
     }
 
     /**
+     * The row carries only the four properties the row schema gives no default, so a test asserting
+     * the exact key list of a read-back row also proves the three defaulted ones are filled in.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function gaugePushPayload(): array
+    {
+        return [
+            'title' => 'Disks',
+            'rows' => [['label' => 'root', 'info' => '14:50', 'value' => '41%', 'note' => 'x1.2^']],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected static function weatherPushPayload(): array
+    {
+        return [
+            'current' => [
+                'icon' => 'w_clear_day',
+                'temp' => 22,
+                'humidity' => 50,
+            ],
+            'forecast' => [['day' => 'LUN', 'icon' => 'w_rain', 'temp_min' => 12, 'temp_max' => 19]],
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected static function customAppPushPayload(): array

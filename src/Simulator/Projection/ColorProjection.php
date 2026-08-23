@@ -21,6 +21,36 @@ final class ColorProjection
         }
     }
 
+    /**
+     * A color that reads as none of the three accepted forms is removed from the fields, leaving
+     * each caller free to fill the hole with the default its own contract declares.
+     *
+     * @template TKey of array-key
+     *
+     * @param array<TKey, mixed> $fields
+     *
+     * @return array<TKey, mixed>
+     */
+    public static function withColorFieldsAsHexCodes(array $fields, string ...$colorFieldNames): array
+    {
+        foreach ($colorFieldNames as $colorFieldName) {
+            if (!\array_key_exists($colorFieldName, $fields)) {
+                continue;
+            }
+
+            $hexCode = self::hexCodeOf($fields[$colorFieldName]);
+            if (null === $hexCode) {
+                unset($fields[$colorFieldName]);
+
+                continue;
+            }
+
+            $fields[$colorFieldName] = $hexCode;
+        }
+
+        return $fields;
+    }
+
     private static function colorOf(mixed $pushedColor): ?Color
     {
         if (\is_string($pushedColor)) {

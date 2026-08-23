@@ -28,6 +28,9 @@ final class ProjectedDefaultsMatchDeviceContractTest extends TestCase
         yield 'tracker staleBehavior' => ['tracker.yaml', 'TrackerUpdateRequest', 'staleBehavior', TrackerController::DEFAULT_STALE_BEHAVIOR];
         yield 'gauge staleAfter' => ['gauge.yaml', 'GaugeUpdateRequest', 'staleAfter', GaugeController::DEFAULT_STALE_AFTER_SECONDS];
         yield 'gauge staleBehavior' => ['gauge.yaml', 'GaugeUpdateRequest', 'staleBehavior', GaugeController::DEFAULT_STALE_BEHAVIOR];
+        yield 'gauge row percent' => ['gauge.yaml', 'GaugeRow', 'percent', GaugeController::DEFAULT_ROW_PERCENT];
+        yield 'gauge row color' => ['gauge.yaml', 'GaugeRow', 'color', GaugeController::DEFAULT_ROW_COLOR];
+        yield 'gauge row noteColor' => ['gauge.yaml', 'GaugeRow', 'noteColor', GaugeController::DEFAULT_ROW_NOTE_COLOR];
         yield 'custom app staleAfter' => ['custom-app.yaml', 'CustomAppRequest', 'staleAfter', CustomAppController::DEFAULT_STALE_AFTER_SECONDS];
         yield 'custom app staleBehavior' => ['custom-app.yaml', 'CustomAppRequest', 'staleBehavior', CustomAppController::DEFAULT_STALE_BEHAVIOR];
         yield 'weather staleAfter' => ['weather.yaml', 'WeatherUpdateRequest', 'staleAfter', WeatherController::DEFAULT_STALE_AFTER_SECONDS];

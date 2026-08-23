@@ -19,6 +19,7 @@ final class WeatherController extends AbstractSimulatorController
     public const string DEFAULT_STALE_BEHAVIOR = 'hide';
 
     private const array STALE_DECLARATION_FIELDS = ['staleAfter', 'staleBehavior'];
+    private const array FORECAST_DAY_FIELDS = ['day', 'icon', 'temp_min', 'temp_max'];
 
     #[Route('/weather', methods: ['GET'])]
     public function getWeather(WeatherState $weather): JsonResponse
@@ -42,7 +43,7 @@ final class WeatherController extends AbstractSimulatorController
                 'staleAfter' => $freshness['staleAfter'],
                 'staleBehavior' => $freshness['staleBehavior'],
                 'current' => $current,
-                'forecast' => $weather->forecast(),
+                'forecast' => self::projectForecast($weather->forecast()),
                 'today' => $weather->today(),
             ],
             static fn (mixed $value): bool => null !== $value,
@@ -75,6 +76,35 @@ final class WeatherController extends AbstractSimulatorController
         );
 
         return new JsonResponse(['success' => true]);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $storedForecast
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function projectForecast(array $storedForecast): array
+    {
+        return array_map(self::projectForecastDay(...), $storedForecast);
+    }
+
+    /**
+     * No default is filled in here, unlike a gauge row: ForecastDay declares none.
+     *
+     * @param array<string, mixed> $storedDay
+     *
+     * @return array<string, mixed>
+     */
+    private static function projectForecastDay(array $storedDay): array
+    {
+        $projection = [];
+        foreach (self::FORECAST_DAY_FIELDS as $field) {
+            if (\array_key_exists($field, $storedDay)) {
+                $projection[$field] = $storedDay[$field];
+            }
+        }
+
+        return $projection;
     }
 
     /**

@@ -21,22 +21,20 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 
     /**
      * Endpoints returning a list of objects whose items no projection test pins to the contract.
-     * Each one is recorded as a follow-up rather than fixed here.
+     * Each one is recorded as a follow-up rather than fixed here. None is open right now.
+     *
+     * @var list<string>
      */
-    private const array LISTS_NO_PROJECTION_TEST_COVERS = [
-        // GET /gauge echoes the rows it was pushed, so nothing holds them to the row schema.
-        '/gauge',
-        // GET /weather echoes the forecast days it was pushed, so nothing holds them to ForecastDay.
-        '/weather',
-    ];
+    private const array LISTS_NO_PROJECTION_TEST_COVERS = [];
 
     /**
-     * @return iterable<string, array{string, string, string, string, \Closure(self): mixed, list<string>}>
+     * @return iterable<string, array{string, string, string, string, string, \Closure(self): mixed, list<string>}>
      */
     public static function coveredListEndpointProvider(): iterable
     {
         yield '/trackers' => [
             '/trackers',
+            '/api/trackers',
             'trackers',
             'tracker.yaml',
             'TrackerListResponse',
@@ -46,18 +44,37 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 
         yield '/gauges' => [
             '/gauges',
+            '/api/gauges',
             'gauges',
             'gauge.yaml',
             'GaugeListResponse',
-            static fn (self $test) => $test->postJson('/api/gauge?name=disks', [
-                'title' => 'Disks',
-                'rows' => [['label' => 'root', 'percent' => 42]],
-            ]),
+            static fn (self $test) => $test->postJson('/api/gauge?name=disks', self::gaugePushPayload()),
+            [],
+        ];
+
+        yield '/gauge' => [
+            '/gauge',
+            '/api/gauge?name=disks',
+            'rows',
+            'gauge.yaml',
+            'GaugeResponse',
+            static fn (self $test) => $test->postJson('/api/gauge?name=disks', self::gaugePushPayload()),
+            [],
+        ];
+
+        yield '/weather' => [
+            '/weather',
+            '/api/weather',
+            'forecast',
+            'weather.yaml',
+            'WeatherResponse',
+            static fn (self $test) => $test->postJson('/api/weather', self::weatherPushPayload()),
             [],
         ];
 
         yield '/apps' => [
             '/apps',
+            '/api/apps',
             'apps',
             'custom-app.yaml',
             'AppListResponse',
@@ -72,6 +89,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 
         yield '/notify/list' => [
             '/notify/list',
+            '/api/notify/list',
             'notifications',
             'notification.yaml',
             'NotificationListResponse',
@@ -81,6 +99,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 
         yield '/icons' => [
             '/icons',
+            '/api/icons',
             'icons',
             'icon.yaml',
             'IconListResponse',
@@ -96,6 +115,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
     #[DataProvider('coveredListEndpointProvider')]
     public function testTheListItemCarriesExactlyThePropertiesTheContractDeclares(
         string $specPath,
+        string $readUrl,
         string $listKey,
         string $contractFileName,
         string $listResponseDefinition,
@@ -111,7 +131,7 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
 
         self::assertSame(
             self::sortedKeysOf($declaredProperties),
-            self::sortedKeysOf($this->firstItemOfList('/api'.$specPath, $listKey)),
+            self::sortedKeysOf($this->firstItemOfList($readUrl, $listKey)),
         );
     }
 

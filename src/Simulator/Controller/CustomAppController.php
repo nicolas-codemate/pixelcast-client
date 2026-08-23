@@ -75,7 +75,7 @@ final class CustomAppController extends AbstractSimulatorController
         if (\is_array($zonesRaw)) {
             foreach ($zonesRaw as $entry) {
                 if (\is_array($entry)) {
-                    $zones[] = self::withColorAsHexCode($entry);
+                    $zones[] = ColorProjection::withColorFieldsAsHexCodes($entry, 'color');
                 }
             }
         }
@@ -93,7 +93,7 @@ final class CustomAppController extends AbstractSimulatorController
             }
         }
 
-        $projection = self::withColorAsHexCode($projection);
+        $projection = ColorProjection::withColorFieldsAsHexCodes($projection, 'color');
 
         if ([] !== $zones) {
             $projection['zones'] = $zones;
@@ -129,33 +129,5 @@ final class CustomAppController extends AbstractSimulatorController
         }
 
         return $payload;
-    }
-
-    /**
-     * A color that reads as none of the three accepted forms is dropped, because AppResponse
-     * allows only a hex string there and does not require the field.
-     *
-     * @template TKey of array-key
-     *
-     * @param array<TKey, mixed> $fields
-     *
-     * @return array<TKey, mixed>
-     */
-    private static function withColorAsHexCode(array $fields): array
-    {
-        if (!\array_key_exists('color', $fields)) {
-            return $fields;
-        }
-
-        $hexCode = ColorProjection::hexCodeOf($fields['color']);
-        if (null === $hexCode) {
-            unset($fields['color']);
-
-            return $fields;
-        }
-
-        $fields['color'] = $hexCode;
-
-        return $fields;
     }
 }

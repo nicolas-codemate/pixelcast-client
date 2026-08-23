@@ -110,7 +110,7 @@ final class ResponseValidationTest extends SimulatorWebTestCase
 
         $this->postJson('/api/gauge?name=disks', [
             'title' => 'Disks',
-            'rows' => [['label' => 'root', 'percent' => 42]],
+            'rows' => [['label' => 'root', 'percent' => 42, 'color' => [255, 136, 0]]],
         ]);
 
         $this->postJson('/api/custom?name=foo', self::customAppPushPayload());
