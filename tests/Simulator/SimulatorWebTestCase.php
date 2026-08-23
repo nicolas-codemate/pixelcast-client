@@ -99,9 +99,24 @@ abstract class SimulatorWebTestCase extends WebTestCase
     }
 
     /**
-     * @return array<mixed>
+     * @return array<string, mixed>
      */
-    protected function firstItemOfList(string $path, string $listKey): array
+    protected static function notificationPushPayload(): array
+    {
+        return [
+            'text' => 'New message!',
+            'icon' => 'mail',
+            'duration' => 12_000,
+            'hold' => true,
+            'urgent' => true,
+            'stack' => false,
+        ];
+    }
+
+    /**
+     * @return list<array<mixed>>
+     */
+    protected function itemsOfList(string $path, string $listKey): array
     {
         $this->client->request('GET', $path);
         self::assertSame(
@@ -113,10 +128,24 @@ abstract class SimulatorWebTestCase extends WebTestCase
         $listedItems = $this->jsonResponse()[$listKey] ?? null;
         self::assertIsArray($listedItems);
 
-        $firstItem = $listedItems[0] ?? null;
-        self::assertIsArray($firstItem);
+        $items = [];
+        foreach ($listedItems as $listedItem) {
+            self::assertIsArray($listedItem);
+            $items[] = $listedItem;
+        }
 
-        return $firstItem;
+        return $items;
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    protected function firstItemOfList(string $path, string $listKey): array
+    {
+        $items = $this->itemsOfList($path, $listKey);
+        self::assertArrayHasKey(0, $items);
+
+        return $items[0];
     }
 
     /**

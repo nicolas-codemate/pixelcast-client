@@ -24,8 +24,6 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
      * Each one is recorded as a follow-up rather than fixed here.
      */
     private const array LISTS_NO_PROJECTION_TEST_COVERS = [
-        // Queue entries are listed raw: they carry an invented enqueuedAt and never displayed or current.
-        '/notify/list',
         // GET /gauge echoes the rows it was pushed, so nothing holds them to the row schema.
         '/gauge',
         // GET /weather echoes the forecast days it was pushed, so nothing holds them to ForecastDay.
@@ -70,6 +68,15 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
             ]),
             // AppResponse declares zones as "Present only when zoneCount >= 2".
             ['zones'],
+        ];
+
+        yield '/notify/list' => [
+            '/notify/list',
+            'notifications',
+            'notification.yaml',
+            'NotificationListResponse',
+            static fn (self $test) => $test->postJson('/api/notify', self::notificationPushPayload()),
+            [],
         ];
 
         yield '/icons' => [

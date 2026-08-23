@@ -35,6 +35,55 @@ final class NotificationControllerTest extends SimulatorWebTestCase
         self::assertGreaterThanOrEqual(1, $listPayload['count'] ?? 0);
     }
 
+    public function testAPushIsRelistedAsTheContractDeclaresTheItem(): void
+    {
+        $this->postJson('/api/notify', [
+            ...self::notificationPushPayload(),
+            'id' => 'notif_full',
+            'color' => '#0096FF',
+        ]);
+
+        self::assertSame([
+            'id' => 'notif_full',
+            'text' => 'New message!',
+            'icon' => 'mail',
+            'duration' => 12_000,
+            'hold' => true,
+            'urgent' => true,
+            'stack' => false,
+            'displayed' => true,
+            'current' => true,
+        ], $this->firstItemOfList('/api/notify/list', 'notifications'));
+    }
+
+    public function testAMinimalPushIsListedWithTheDefaultsTheContractDeclares(): void
+    {
+        $this->postJson('/api/notify', ['text' => 'hello', 'id' => 'notif_minimal']);
+
+        self::assertSame([
+            'id' => 'notif_minimal',
+            'text' => 'hello',
+            'duration' => 5_000,
+            'hold' => false,
+            'urgent' => false,
+            'stack' => true,
+            'displayed' => true,
+            'current' => true,
+        ], $this->firstItemOfList('/api/notify/list', 'notifications'));
+    }
+
+    public function testAnUrgentNotificationBecomesTheCurrentOneAndTheOtherStaysDisplayed(): void
+    {
+        $this->postJson('/api/notify', ['text' => 'first', 'id' => 'notif_first']);
+        $this->postJson('/api/notify', ['text' => 'urgent', 'id' => 'notif_urgent', 'urgent' => true]);
+
+        $listedNotifications = $this->itemsOfList('/api/notify/list', 'notifications');
+
+        self::assertSame(['notif_urgent', 'notif_first'], array_column($listedNotifications, 'id'));
+        self::assertSame([true, true], array_column($listedNotifications, 'displayed'));
+        self::assertSame([true, false], array_column($listedNotifications, 'current'));
+    }
+
     public function testDismissEmptyReturns404(): void
     {
         $this->client->request('POST', '/api/notify/dismiss');
