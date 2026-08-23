@@ -13,13 +13,12 @@ use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\CapturingMessageBusStub;
 use App\Tests\Stub\PlainSyncMessageStub;
 use App\Tests\Stub\StaticSyncMessageRegistryStub;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
-final class SyncCommandTest extends TestCase
+final class SyncCommandTest extends CommandTestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string GROUP_WINDOW_CONFIG_FILE = 'syncs-active-window.yaml';

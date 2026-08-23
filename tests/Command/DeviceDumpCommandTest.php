@@ -39,8 +39,6 @@ final class DeviceDumpCommandTest extends CommandTestCase
 
     protected function setUp(): void
     {
-        parent::setUp();
-
         $listener = stream_socket_server('tcp://127.0.0.1:0');
         if (false === $listener) {
             self::markTestSkipped('no local TCP port could be opened for the reachability probe');
@@ -61,8 +59,6 @@ final class DeviceDumpCommandTest extends CommandTestCase
             fclose($this->localListener);
             $this->localListener = null;
         }
-
-        parent::tearDown();
     }
 
     public function testASimulatorTargetIsReadFromTheInspectorEndpoint(): void
