@@ -10,6 +10,10 @@ services:
         max-file: "3"
     env_file:
       - ./pixelcast.env
+    # Lets the container reach a service of the host itself, Home Assistant above all, which
+    # usually runs on the host network and has no name inside the compose network.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # A directory, not the file itself, for the same inode reason as ./claude below:
       # editors save pixelcast.yaml by rename(), so a single-file mount would keep

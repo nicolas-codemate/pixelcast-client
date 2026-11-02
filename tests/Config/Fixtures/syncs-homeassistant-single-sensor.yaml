@@ -1,0 +1,9 @@
+# Sample configuration used by HomeAssistantSensorProviderTest: a lone sensor, drawn as a
+# single-zone app since the multi-zone layout needs two zones at least.
+syncs:
+    homeassistant:
+        enabled: true
+        interval: '10 minutes'
+        items:
+            - entity: sensor.salon_temperature
+              label: Salon
