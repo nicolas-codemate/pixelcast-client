@@ -35,6 +35,9 @@
                 },
                 "github": {
                     "$ref": "#/definitions/githubSync"
+                },
+                "homeassistant": {
+                    "$ref": "#/definitions/homeassistantSync"
                 }
             }
         },
@@ -460,6 +463,54 @@
                 }
             }
         },
+        "homeassistantSync": {
+            "description": "Home Assistant sensors, a Netatmo temperature for instance, pushed as one custom app holding one zone per sensor. The address and the token are read from PIXELCAST_HOMEASSISTANT_URL and PIXELCAST_HOMEASSISTANT_TOKEN, never from this file.",
+            "type": "object",
+            "required": [
+                "enabled",
+                "interval",
+                "items"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "A disabled group is never scheduled and cannot be dispatched by hand.",
+                    "type": "boolean"
+                },
+                "interval": {
+                    "description": "How often the group runs, e.g. \"30 minutes\", \"1 hour\", \"PT30M\", \"1800\". At least 60 seconds.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "staleAfter": {
+                    "$ref": "#/definitions/staleAfter"
+                },
+                "staleBehavior": {
+                    "description": "What the device does with the app once stale. \"hide\" leaves the rotation until the next push, \"none\" keeps showing the last values. Without it the firmware default applies.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "hide",
+                        "none",
+                        null
+                    ]
+                },
+                "activeWindow": {
+                    "$ref": "#/definitions/activeWindow"
+                },
+                "items": {
+                    "description": "Sensors drawn on the app, in this order, one zone each: 1 is a single-zone app, 2 two rows, 3 a top row and two columns, 4 a grid.",
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "items": {
+                        "$ref": "#/definitions/homeassistantSensorItem"
+                    }
+                }
+            }
+        },
         "staleAfter": {
             "description": "Silence tolerated by the device before the app is considered stale, in seconds. 0 = never. Without it the value is three times the interval, the same rule the healthcheck applies.",
             "type": [
@@ -610,6 +661,43 @@
                 },
                 "activeWindow": {
                     "$ref": "#/definitions/activeWindow"
+                }
+            }
+        },
+        "homeassistantSensorItem": {
+            "description": "One Home Assistant entity, drawn as one zone of the app.",
+            "type": "object",
+            "required": [
+                "entity",
+                "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "entity": {
+                    "description": "Entity id of the sensor in Home Assistant, e.g. \"sensor.salon_temperature\", as shown under Settings > Entities.",
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+\\.[a-z0-9_]+$"
+                },
+                "label": {
+                    "description": "Room or name drawn under the value, 31 characters at most. Keep it short: a zone of the four-sensor grid is 32 pixels wide.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 31
+                },
+                "icon": {
+                    "description": "Icon drawn next to the value, by the name the device knows it under. Without it the zone shows no icon.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "color": {
+                    "description": "Colour of the value, as a hex code. Without it the firmware default applies.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "pattern": "^#[0-9a-fA-F]{6}$"
                 }
             }
         }

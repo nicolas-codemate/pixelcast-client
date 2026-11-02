@@ -5,7 +5,7 @@
 Application Symfony CLI qui collecte des données depuis des APIs externes (météo, crypto, ETF/indices) et les pousse vers un écran matriciel ESP32 via son API REST. Hébergé sur un NUC, Docker-only (pas de PHP local), pas de serveur web.
 
 **Premier batch** : Weather (Open-Meteo) + Trackers financiers (CoinGecko crypto + Twelve Data ETF/indices)
-**Batch suivant** : Capteurs Netatmo
+**Batch suivant** : Capteurs Netatmo, lus via Home Assistant (groupe `homeassistant`)
 
 ---
 
@@ -549,15 +549,15 @@ Le client n'écrit que la forme chaîne simple : les deux formes colorées reste
 
 ---
 
-## Extensibilité Netatmo (batch suivant)
+## Capteurs Netatmo via Home Assistant
 
-L'ajout de Netatmo ne touche aucun code existant :
+Les capteurs Netatmo ne sont pas lus sur l'API Netatmo mais sur Home Assistant, qui gère déjà le lien avec Netatmo (OAuth2 et refresh token compris) :
 
-1. Nouveau `SensorProviderInterface` + `NetatmoProvider`
-2. Nouveau `SyncSensorMessage` + `SyncSensorHandler`
-3. Nouvelle entrée dans le `PixelcastScheduleProvider` (every 10 min)
-4. Push via `PixelcastClient::pushCustomApp()` (pas d'endpoint sensor dédié côté ESP32)
-5. **Point d'attention** : OAuth2 Netatmo nécessite un refresh token persistant -> fichier `.env.local` ou petit SQLite
+1. `HomeAssistantSyncConfig` + `HomeAssistantSensorItem` : groupe `homeassistant`, 1 à 4 entités
+2. `HomeAssistantSensorProvider` : un `GET /api/states/<entity>` par capteur, avec un long-lived access token
+3. `SyncHomeAssistantMessage` + `SyncHomeAssistantHandler`
+4. Push via `PixelcastClient::pushCustomApp()` : une custom app multi-zone, une zone par capteur
+5. Adresse et token lus depuis `PIXELCAST_HOMEASSISTANT_URL` et `PIXELCAST_HOMEASSISTANT_TOKEN` ; plus aucun refresh token à persister côté client
 
 ---
 

@@ -86,6 +86,8 @@ services:
 
     App\Provider\GitHub\GitHubPullRequestProviderInterface: '@App\Provider\GitHub\GitHubPullRequestProvider'
 
+    App\Provider\HomeAssistant\HomeAssistantSensorProviderInterface: '@App\Provider\HomeAssistant\HomeAssistantSensorProvider'
+
     App\Claude\ClaudeCredentialsStore:
         arguments:
             $credentialsFilePath: '%app.claude.credentials_file%'
@@ -113,6 +115,11 @@ services:
     App\Provider\GitHub\GitHubPullRequestProvider:
         arguments:
             $token: '%env(default::PIXELCAST_GITHUB_TOKEN)%'
+
+    App\Provider\HomeAssistant\HomeAssistantSensorProvider:
+        arguments:
+            $baseUrl: '%env(default::PIXELCAST_HOMEASSISTANT_URL)%'
+            $token: '%env(default::PIXELCAST_HOMEASSISTANT_TOKEN)%'
 
     App\Scheduler\SyncMessageRegistry: '@App\Schedule'
 

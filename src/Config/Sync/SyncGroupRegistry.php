@@ -19,6 +19,7 @@ final class SyncGroupRegistry
         BoursoramaSyncConfig::class,
         ClaudeSyncConfig::class,
         GitHubSyncConfig::class,
+        HomeAssistantSyncConfig::class,
     ];
 
     /**

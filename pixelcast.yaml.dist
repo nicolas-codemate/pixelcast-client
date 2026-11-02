@@ -344,6 +344,48 @@ syncs:
             to: '19:00'
             timezone: Europe/Paris
 
+    # Sensors read from Home Assistant, a Netatmo temperature for instance, drawn as one custom app
+    # holding one zone per sensor: the value on top, the label under it. Home Assistant keeps the
+    # link to the sensors, Netatmo OAuth included, so this group only reads the states it holds.
+    #
+    # The address and the token are read from PIXELCAST_HOMEASSISTANT_URL and
+    # PIXELCAST_HOMEASSISTANT_TOKEN, never from this file, which rejects any key it does not
+    # declare. The token is a long-lived access token, created in Home Assistant under the
+    # profile of a user, Security tab. Without either variable the group logs a warning on every
+    # cycle and pushes nothing.
+    homeassistant:
+        # A disabled group is never scheduled and cannot be dispatched by hand.
+        enabled: false
+
+        # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
+        # A Netatmo station reports every ten minutes, so a shorter interval shows nothing new.
+        interval: '10 minutes'
+
+        # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
+        # 604800 (7 days) at most. Without this key the value is three times the interval, the same
+        # rule the healthcheck applies, so '10 minutes' gives 1800.
+        # staleAfter: 1800
+
+        # What the device does with the app once stale: hide leaves the rotation until the next push,
+        # none keeps showing the last values. dim and badge are drawn by the tracker and gauge layouts
+        # only, and the device answers 400 on them here. Without this key the firmware default applies.
+        # staleBehavior: hide
+
+        # Sensors drawn on the app, in this order, one to four. The layout follows their count:
+        # 1 is a single-zone app, 2 two rows, 3 a top row and two columns, 4 a grid of four.
+        # entity: entity id of the sensor in Home Assistant, as shown under Settings > Entities.
+        # label: room or name drawn under the value, 31 characters at most. A zone of the
+        #   three- and four-sensor layouts is 32 pixels wide, so a short label avoids scrolling.
+        # icon: name of the icon shown next to the value, optional.
+        # color: hex color of the value, optional.
+        # A temperature is shown with the degree sign alone, any other unit as Home Assistant
+        # reports it. A sensor Home Assistant cannot read shows "--" and keeps its zone.
+        items:
+            - entity: sensor.salon_temperature
+              label: Salon
+            - entity: sensor.exterieur_temperature
+              label: Dehors
+
 # Hours during which the device turns its panel off. This section is stored by the device and
 # pushed only by `bin/console app:device:sleep`, never by the scheduler, so editing it here changes
 # nothing on the screen until that command has run. The client reads it from this file whatever the

@@ -502,6 +502,39 @@ the cycle — the same behaviour as a tracker group without its API key. The gro
 ships `enabled: false` in `pixelcast.yaml.dist`, since a group enabled before its
 token exists warns at every cycle.
 
+#### The `homeassistant` group
+
+The `homeassistant` group reads sensors from a Home Assistant instance — the
+Netatmo temperatures first of all — and draws them as one custom app named
+`homeassistant`, one zone per sensor: the value as the zone text, `label` under it.
+Home Assistant keeps the link to the sensors, the Netatmo OAuth token included, so
+the client never stores a refresh token of its own: it only reads, once per sensor,
+`GET /api/states/<entity>`.
+
+`items` holds one to four sensors, in the order they are drawn, and the firmware
+picks the layout from their count: one is a single-zone app, two are two rows,
+three a top row and two columns, four a grid. A zone of the last two layouts is 32
+pixels wide, which is why a short `label` reads better than a long one the firmware
+has to scroll. `icon` and `color` are optional on each sensor.
+
+The value is rounded to one decimal, a trailing `.0` dropped. A temperature keeps
+the degree sign alone, `21.3°`, since the unit is the same on every zone and the
+`C` costs a column the grid does not have; any other unit is drawn as Home
+Assistant reports it, `54%`. A sensor Home Assistant reports as `unavailable` or
+`unknown` — a Netatmo module with a flat battery — keeps its zone with `--` and a
+warning in the log, so the layout does not jump from one cycle to the next. Only a
+cycle where no sensor at all could be read skips the push and leaves the screen as
+it stands.
+
+The address and the token are read from `PIXELCAST_HOMEASSISTANT_URL` and
+`PIXELCAST_HOMEASSISTANT_TOKEN`, never from `pixelcast.yaml`. The token is a
+long-lived access token, created in Home Assistant under the profile of a user,
+Security tab. When Home Assistant runs on the same host as the client, the address
+is `http://host.docker.internal:8123`: `deploy/compose.yaml` maps that name to the
+host, which a Home Assistant running on the host network needs to be reached from
+the container. Without either variable the group logs a warning naming it and pushes
+nothing, and it ships `enabled: false` in `pixelcast.yaml.dist` for that reason.
+
 Any group may declare an `activeWindow` — `days`, `from`, `to` and a
 `timezone`, the last of which falls back on `device.timezone` — and is then
 scheduled during those hours only: outside them no provider is called and the

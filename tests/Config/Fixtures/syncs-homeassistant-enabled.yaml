@@ -1,0 +1,14 @@
+# Sample configuration used by HomeAssistantSensorProviderTest: two sensors, the first with an icon
+# and a colour, the second with neither.
+syncs:
+    homeassistant:
+        enabled: true
+        interval: '10 minutes'
+        staleBehavior: hide
+        items:
+            - entity: sensor.salon_temperature
+              label: Salon
+              icon: thermo
+              color: '#00D4FF'
+            - entity: sensor.exterieur_temperature
+              label: Dehors
