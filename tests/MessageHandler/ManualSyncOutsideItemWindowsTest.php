@@ -12,6 +12,7 @@ use App\Message\SyncTrackerMessage;
 use App\MessageHandler\SyncTrackerHandler;
 use App\Provider\Tracker\BoursoramaTrackerProvider;
 use App\Tests\Factory\AllTimeHighStoreFactory;
+use App\Tests\Factory\BoursoramaHttpClientFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
 use App\Tests\Stub\RecordingPixelcastClientStub;
 use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
@@ -31,7 +32,6 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
 {
     private const string FIXTURES_DIR = __DIR__.'/../Provider/Tracker/Fixtures';
     private const string TWO_MARKETS_CONFIG_FILE = 'pixelcast-boursorama-two-markets.yaml';
-    private const string BOURSORAMA_BASE_URI = 'https://www.boursorama.com/';
     private const string MARKET_TIMEZONE = 'Europe/Paris';
     private const string INSTANT_AFTER_EVERY_CLOSING = '2026-08-03 23:00:00';
     private const string INSTANT_BEFORE_THE_AMERICAN_OPENING = '2026-08-03 10:00:00';
@@ -45,7 +45,7 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
         $outcome = $handler(new SyncTrackerMessage(BoursoramaSyncConfig::syncType())->dispatchedByHand());
 
         self::assertSame(SyncOutcome::Pushed, $outcome);
-        self::assertSame(2, $boursoramaClient->getRequestsCount());
+        self::assertSame(4, $boursoramaClient->getRequestsCount());
         self::assertSame(['1RTDCAM', '1RTCW8'], self::pushedTrackerNames($client));
     }
 
@@ -71,7 +71,7 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
         $outcome = $handler(new SyncTrackerMessage(BoursoramaSyncConfig::syncType()));
 
         self::assertSame(SyncOutcome::Pushed, $outcome);
-        self::assertSame(1, $boursoramaClient->getRequestsCount());
+        self::assertSame(2, $boursoramaClient->getRequestsCount());
         self::assertSame(['1RTDCAM'], self::pushedTrackerNames($client));
     }
 
@@ -111,11 +111,9 @@ final class ManualSyncOutsideItemWindowsTest extends TestCase
 
     private static function fixtureClient(string ...$fixtureFileNames): MockHttpClient
     {
-        $responses = array_map(
+        return BoursoramaHttpClientFactory::serving(array_map(
             static fn (string $fixtureFileName): MockResponse => MockResponse::fromFile(self::FIXTURES_DIR.'/'.$fixtureFileName),
             $fixtureFileNames,
-        );
-
-        return new MockHttpClient($responses, self::BOURSORAMA_BASE_URI);
+        ));
     }
 }

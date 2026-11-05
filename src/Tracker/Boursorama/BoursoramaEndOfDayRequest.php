@@ -18,6 +18,9 @@ final readonly class BoursoramaEndOfDayRequest
     private const int END_OF_DAY_PERIOD = 0;
     private const string BROWSER_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
     private const string AJAX_REQUESTED_WITH = 'XMLHttpRequest';
+    private const string CACHE_BYPASS_PARAMETER = '_';
+    private const int CACHE_BYPASS_TOKEN_BYTES = 8;
+    private const int SESSION_CLOSES_LENGTH = 1;
 
     public function __construct(
         #[Target('boursorama.client')]
@@ -34,7 +37,30 @@ final readonly class BoursoramaEndOfDayRequest
      */
     public function fetchBars(string $boursoramaCode, int $requestedBarCount, array $clientOptions = []): array
     {
-        $decodedResponse = $this->boursoramaClient->request('GET', self::TICKS_PATH, [
+        return BoursoramaQuoteSeries::readBars($this->requestTicks($boursoramaCode, $requestedBarCount, $clientOptions));
+    }
+
+    /**
+     * Asked for a single bar, the endpoint switches to the intraday ticks of the last days and adds
+     * the running session and the one before it, which is where the close of the eve can be trusted.
+     *
+     * @throws HttpClientExceptionInterface
+     */
+    public function fetchSessionCloses(string $boursoramaCode): ?BoursoramaSessionCloses
+    {
+        return BoursoramaQuoteSeries::readSessionCloses($this->requestTicks($boursoramaCode, self::SESSION_CLOSES_LENGTH));
+    }
+
+    /**
+     * @param array<string, mixed> $clientOptions
+     *
+     * @return array<array-key, mixed>
+     *
+     * @throws HttpClientExceptionInterface
+     */
+    private function requestTicks(string $boursoramaCode, int $length, array $clientOptions = []): array
+    {
+        return $this->boursoramaClient->request('GET', self::TICKS_PATH, [
             // Without both of these the endpoint answers 200 with an empty quote
             // list instead of an error, so a missing header reads as an unknown code.
             'headers' => [
@@ -43,13 +69,15 @@ final readonly class BoursoramaEndOfDayRequest
             ],
             'query' => [
                 'symbol' => $boursoramaCode,
-                'length' => $requestedBarCount,
+                'length' => $length,
                 'period' => self::END_OF_DAY_PERIOD,
                 'guid' => '',
+                // A cache in front of the endpoint ignores its own no-cache header and serves
+                // copies hours old, whose running session is frozen. A query that never repeats
+                // is the only way past it.
+                self::CACHE_BYPASS_PARAMETER => bin2hex(random_bytes(self::CACHE_BYPASS_TOKEN_BYTES)),
             ],
             ...$clientOptions,
         ])->toArray();
-
-        return BoursoramaQuoteSeries::readBars($decodedResponse);
     }
 }
