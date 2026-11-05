@@ -14,6 +14,7 @@ use App\Tracker\AllTimeHigh;
 use App\Tracker\AllTimeHighStore;
 use App\Tracker\Boursorama\BoursoramaEndOfDayRequest;
 use App\Tracker\Boursorama\BoursoramaQuoteSeries;
+use App\Tracker\Boursorama\BoursoramaSessionCloses;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
@@ -76,6 +77,20 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         }
     }
 
+    private function requestSessionCloses(string $boursoramaCode): ?BoursoramaSessionCloses
+    {
+        try {
+            return $this->endOfDayRequest->fetchSessionCloses($boursoramaCode);
+        } catch (HttpClientExceptionInterface $httpError) {
+            $this->logger->warning('Boursorama session request failed', [
+                'symbol' => $boursoramaCode,
+                'error' => $httpError->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
     /**
      * @param array<array-key, mixed> $quoteBars
      */
@@ -99,8 +114,10 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
             return null;
         }
 
-        $latestClosingPrice = $closingPrices[$closingPriceCount - 1];
-        $previousClosingPrice = $closingPrices[$closingPriceCount - 2];
+        // The series is the fallback for the change: its bar before last is not always the eve.
+        $sessionCloses = $this->requestSessionCloses($item->symbol);
+        $latestClosingPrice = $sessionCloses->runningSessionPrice ?? $closingPrices[$closingPriceCount - 1];
+        $previousClosingPrice = $sessionCloses->previousSessionClose ?? $closingPrices[$closingPriceCount - 2];
 
         $changePercentage = round(($latestClosingPrice - $previousClosingPrice) / $previousClosingPrice * 100, 2);
         $trendColor = Color::fromHexCode($changePercentage >= 0 ? self::POSITIVE_TREND_COLOR_HEX : self::NEGATIVE_TREND_COLOR_HEX);

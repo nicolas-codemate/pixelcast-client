@@ -28,6 +28,32 @@ final class BoursoramaQuoteSeries
     }
 
     /**
+     * The daily series sometimes loses the last sessions before the running one, and its bar before
+     * last is then days older than the eve. The previous session block keeps the right close even
+     * then, while its day follows the gap: the day is not read for that reason.
+     *
+     * @param array<array-key, mixed> $decodedResponse
+     */
+    public static function readSessionCloses(array $decodedResponse): ?BoursoramaSessionCloses
+    {
+        $quoteBlock = $decodedResponse['d'] ?? null;
+        if (!\is_array($quoteBlock)) {
+            return null;
+        }
+
+        $previousSession = $quoteBlock['qv'] ?? null;
+        $runningSession = $quoteBlock['qd'] ?? null;
+        $previousSessionClose = \is_array($previousSession) ? self::readNumber($previousSession, 'c') : null;
+        $runningSessionPrice = \is_array($runningSession) ? self::readNumber($runningSession, 'c') : null;
+
+        if (null === $previousSessionClose || null === $runningSessionPrice || 0.0 === $previousSessionClose) {
+            return null;
+        }
+
+        return new BoursoramaSessionCloses($previousSessionClose, $runningSessionPrice);
+    }
+
+    /**
      * The highest price the series shows is the highest session high, not the last close: an ETF
      * that touches 620 during a session and closes at 610 did reach 620. A bar without a high falls
      * back on its close, and the day of the winning bar travels as the moment the price was reached,

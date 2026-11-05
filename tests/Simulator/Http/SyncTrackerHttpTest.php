@@ -17,6 +17,7 @@ use App\Provider\Tracker\TrackerProviderInterface;
 use App\Provider\Tracker\TwelveDataTrackerProvider;
 use App\Simulator\State\PersistedStateReader;
 use App\Tests\Factory\AllTimeHighStoreFactory;
+use App\Tests\Factory\BoursoramaHttpClientFactory;
 use App\Tests\Factory\CoinGeckoMidnightPriceProviderFactory;
 use App\Tests\Factory\CoinGeckoVolumeSeriesProviderFactory;
 use App\Tests\Factory\SyncsConfigLoaderFactory;
@@ -31,7 +32,6 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
 {
     private const string COINGECKO_BASE_URI = 'https://api.coingecko.com/api/v3/';
     private const string TWELVEDATA_BASE_URI = 'https://api.twelvedata.com/';
-    private const string BOURSORAMA_BASE_URI = 'https://www.boursorama.com/';
     private const string COINGECKO_FIXTURE_FILE = 'coingecko-markets.json';
     private const string COINGECKO_NEXT_CYCLE_FIXTURE_FILE = 'coingecko-markets-next-cycle.json';
     private const string TWELVEDATA_FIXTURE_FILE = 'twelvedata-time-series-three-categories.json';
@@ -138,8 +138,8 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
         $expectedBodies = $this->boursoramaWireBodies();
 
         self::assertSame(SyncOutcome::Pushed, $syncTrackerHandler(self::boursoramaMessage()), $this->server->serverOutput());
-        // Boursorama serves one symbol per call, unlike the single grouped call of twelvedata.
-        self::assertSame(2, $boursoramaClient->getRequestsCount());
+        // Boursorama serves one symbol per call, and each symbol costs its bars then its session.
+        self::assertSame(4, $boursoramaClient->getRequestsCount());
 
         $inspectPayload = $this->inspect();
         $this->assertLoggedRequest($inspectPayload, 0, 2, 'POST', '/api/tracker', $expectedBodies['1RTDCAM']);
@@ -287,9 +287,7 @@ final class SyncTrackerHttpTest extends SimulatorHttpTestCase
 
     private static function boursoramaClient(string ...$fixtureFileNames): MockHttpClient
     {
-        $responses = array_map(self::trackerFixtureResponse(...), $fixtureFileNames);
-
-        return new MockHttpClient($responses, self::BOURSORAMA_BASE_URI);
+        return BoursoramaHttpClientFactory::serving(array_map(self::trackerFixtureResponse(...), $fixtureFileNames));
     }
 
     private static function coinGeckoMessage(): SyncTrackerMessage
