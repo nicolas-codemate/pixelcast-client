@@ -8,6 +8,7 @@ use App\Simulator\Controller\CustomAppController;
 use App\Simulator\Controller\GaugeController;
 use App\Simulator\Controller\NotificationController;
 use App\Simulator\Controller\TrackerController;
+use App\Simulator\Controller\WatchlistController;
 use App\Simulator\Controller\WeatherController;
 use App\Tests\Factory\SchemaPropertyReader;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -31,6 +32,9 @@ final class ProjectedDefaultsMatchDeviceContractTest extends TestCase
         yield 'gauge row percent' => ['gauge.yaml', 'GaugeRow', 'percent', GaugeController::DEFAULT_ROW_PERCENT];
         yield 'gauge row color' => ['gauge.yaml', 'GaugeRow', 'color', GaugeController::DEFAULT_ROW_COLOR];
         yield 'gauge row noteColor' => ['gauge.yaml', 'GaugeRow', 'noteColor', GaugeController::DEFAULT_ROW_NOTE_COLOR];
+        yield 'watchlist staleAfter' => ['watchlist.yaml', 'WatchlistUpdateRequest', 'staleAfter', WatchlistController::DEFAULT_STALE_AFTER_SECONDS];
+        yield 'watchlist staleBehavior' => ['watchlist.yaml', 'WatchlistUpdateRequest', 'staleBehavior', WatchlistController::DEFAULT_STALE_BEHAVIOR];
+        yield 'watchlist row symbolColor' => ['watchlist.yaml', 'WatchlistRow', 'symbolColor', WatchlistController::DEFAULT_ROW_SYMBOL_COLOR];
         yield 'custom app staleAfter' => ['custom-app.yaml', 'CustomAppRequest', 'staleAfter', CustomAppController::DEFAULT_STALE_AFTER_SECONDS];
         yield 'custom app staleBehavior' => ['custom-app.yaml', 'CustomAppRequest', 'staleBehavior', CustomAppController::DEFAULT_STALE_BEHAVIOR];
         yield 'weather staleAfter' => ['weather.yaml', 'WeatherUpdateRequest', 'staleAfter', WeatherController::DEFAULT_STALE_AFTER_SECONDS];

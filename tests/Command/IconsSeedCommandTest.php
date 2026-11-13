@@ -18,6 +18,7 @@ final class IconsSeedCommandTest extends CommandTestCase
     private const string FIXTURES_DIR = __DIR__.'/../Config/Fixtures';
     private const string FILE_WITH_ICONS = 'syncs-icons-seed.yaml';
     private const string FILE_WITHOUT_ICONS = 'syncs-trackers-enabled.yaml';
+    private const string FILE_WITH_WATCHLIST_ICONS = 'syncs-icons-seed-watchlist.yaml';
     private const string FILE_THE_LOADER_REFUSES = 'syncs-invalid-syntax.yaml';
     private const int BITCOIN_LAMETRIC_ID = 15392;
     private const int ETHEREUM_LAMETRIC_ID = 45056;
@@ -71,6 +72,23 @@ final class IconsSeedCommandTest extends CommandTestCase
             [['id' => self::STOCK_LAMETRIC_ID, 'name' => 'stock']],
             $client->downloadedLaMetricIcons,
         );
+    }
+
+    public function testTheIconsOfTheWatchlistAreDownloadedAndMapAnIconATrackerSharesWithout(): void
+    {
+        $client = new RecordingPixelcastClientStub();
+        $client->iconsSnapshotToReturn = self::snapshotCarrying();
+
+        $tester = self::createTester(self::FILE_WITH_WATCHLIST_ICONS, $client);
+
+        $exitCode = $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertSame([
+            ['id' => 7674, 'name' => 'spacex'],
+            ['id' => 60007, 'name' => 'meta'],
+        ], $client->downloadedLaMetricIcons);
+        self::assertStringContainsString('named by watchlist SPCX (USD)', $tester->getDisplay());
     }
 
     public function testForceDownloadsTheIconsTheDeviceAlreadyCarries(): void

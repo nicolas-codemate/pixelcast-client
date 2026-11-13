@@ -8,6 +8,7 @@ use App\Simulator\State\AbstractPushedPayloadState;
 use App\Simulator\State\CustomAppState;
 use App\Simulator\State\GaugeState;
 use App\Simulator\State\TrackerState;
+use App\Simulator\State\WatchlistState;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -25,6 +26,7 @@ final class PushedPayloadStateTest extends TestCase
     {
         yield 'trackers' => [TrackerState::class, 'trackers', 'trackersPushedAt', 'trackers'];
         yield 'gauges' => [GaugeState::class, 'gauges', 'gaugesPushedAt', 'gauges'];
+        yield 'watchlists' => [WatchlistState::class, 'watchlists', 'watchlistsPushedAt', 'watchlists'];
         yield 'custom apps' => [CustomAppState::class, 'apps', 'appsPushedAt', 'customApps'];
     }
 
@@ -75,7 +77,7 @@ final class PushedPayloadStateTest extends TestCase
     {
         $state = new $stateClass();
 
-        foreach (array_diff(['trackers', 'gauges', 'apps'], [$payloadKey]) as $foreignKey) {
+        foreach (array_diff(['trackers', 'gauges', 'watchlists', 'apps'], [$payloadKey]) as $foreignKey) {
             $state->restoreFromPersistence([$foreignKey => ['claude' => self::CLAUDE_PAYLOAD]]);
 
             self::assertSame([], $state->list());

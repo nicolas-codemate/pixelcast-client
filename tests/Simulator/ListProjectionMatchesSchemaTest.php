@@ -62,6 +62,26 @@ final class ListProjectionMatchesSchemaTest extends SimulatorWebTestCase
             [],
         ];
 
+        yield '/watchlists' => [
+            '/watchlists',
+            '/api/watchlists',
+            'watchlists',
+            'watchlist.yaml',
+            'WatchlistListResponse',
+            static fn (self $test) => $test->postJson('/api/watchlist?name=stocks', self::watchlistPushPayload()),
+            [],
+        ];
+
+        yield '/watchlist' => [
+            '/watchlist',
+            '/api/watchlist?name=stocks',
+            'rows',
+            'watchlist.yaml',
+            'WatchlistResponse',
+            static fn (self $test) => $test->postJson('/api/watchlist?name=stocks', self::watchlistPushPayload()),
+            [],
+        ];
+
         yield '/weather' => [
             '/weather',
             '/api/weather',

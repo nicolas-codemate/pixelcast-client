@@ -7,6 +7,7 @@ namespace App\Command;
 use App\Client\Exception\PixelcastClientException;
 use App\Client\PixelcastClientInterface;
 use App\Config\Exception\PixelCastConfigException;
+use App\Config\Sync\WatchlistSyncConfig;
 use App\Config\SyncsConfig;
 use App\Config\SyncsConfigLoader;
 use App\Tracker\TrackedAsset;
@@ -19,7 +20,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:icons:seed',
-    description: 'Downloads onto the device the icons the tracker items of pixelcast.yaml name',
+    description: 'Downloads onto the device the icons the tracker and watchlist items of pixelcast.yaml name',
 )]
 final class IconsSeedCommand extends Command
 {
@@ -50,7 +51,7 @@ final class IconsSeedCommand extends Command
         $expectedIcons = self::iconsExpectedByTheConfiguration($syncsConfig);
 
         if ([] === $expectedIcons) {
-            $io->warning('No tracker item names an icon, nothing to seed.');
+            $io->warning('No tracker or watchlist item names an icon, nothing to seed.');
 
             return Command::SUCCESS;
         }
@@ -75,7 +76,7 @@ final class IconsSeedCommand extends Command
         $iconNamesWithoutMapping = [];
         $failedIconNames = [];
 
-        foreach ($expectedIcons as $iconName => $trackedAsset) {
+        foreach ($expectedIcons as $iconName => $iconToSeed) {
             if (null !== $iconsOnTheDevice && $iconsOnTheDevice->hasIcon($iconName)) {
                 $io->writeln(\sprintf('  %s: already on the device, skipped', $iconName));
                 ++$skippedIconCount;
@@ -83,7 +84,7 @@ final class IconsSeedCommand extends Command
                 continue;
             }
 
-            $laMetricIconId = $trackedAsset->item->lametricId;
+            $laMetricIconId = $iconToSeed->lametricId;
 
             if (null === $laMetricIconId) {
                 $io->writeln(\sprintf('  %s: no lametricId configured, skipped (upload it with app:icons:upload %s <path>)', $iconName, $iconName));
@@ -101,7 +102,7 @@ final class IconsSeedCommand extends Command
                 continue;
             }
 
-            $io->writeln(\sprintf('  %s: downloaded from LaMetric icon %d, named by %s', $iconName, $laMetricIconId, $trackedAsset->label));
+            $io->writeln(\sprintf('  %s: downloaded from LaMetric icon %d, named by %s', $iconName, $laMetricIconId, $iconToSeed->requestedBy));
             ++$downloadedIconCount;
         }
 
@@ -124,7 +125,7 @@ final class IconsSeedCommand extends Command
     }
 
     /**
-     * @return array<string, TrackedAsset> keyed by the icon name a tracker item asks the device for
+     * @return array<string, IconToSeed> keyed by the icon name an item asks the device for
      */
     private static function iconsExpectedByTheConfiguration(SyncsConfig $syncsConfig): array
     {
@@ -132,19 +133,33 @@ final class IconsSeedCommand extends Command
 
         foreach ($syncsConfig->trackerSyncGroups() as $syncType => $trackerSyncGroup) {
             foreach ($trackerSyncGroup->items as $item) {
-                if (null === $item->icon) {
-                    continue;
-                }
-
-                $alreadyExpected = $expectedIcons[$item->icon] ?? null;
-
-                // Two items can share one icon name while only one of them carries the mapping.
-                if (null === $alreadyExpected || (null === $alreadyExpected->item->lametricId && null !== $item->lametricId)) {
-                    $expectedIcons[$item->icon] = new TrackedAsset($syncType, $item);
+                if (null !== $item->icon) {
+                    $trackedAsset = new TrackedAsset($syncType, $item);
+                    self::expectIcon($expectedIcons, $item->icon, new IconToSeed($item->lametricId, $trackedAsset->label));
                 }
             }
         }
 
+        foreach ($syncsConfig->optionalSyncGroupOfType(WatchlistSyncConfig::class)->items ?? [] as $item) {
+            if (null !== $item->icon) {
+                $requestedBy = \sprintf('%s %s (%s)', WatchlistSyncConfig::syncType(), $item->symbol, mb_strtoupper($item->currency));
+                self::expectIcon($expectedIcons, $item->icon, new IconToSeed($item->lametricId, $requestedBy));
+            }
+        }
+
         return $expectedIcons;
+    }
+
+    /**
+     * @param array<string, IconToSeed> $expectedIcons
+     */
+    private static function expectIcon(array &$expectedIcons, string $iconName, IconToSeed $iconToSeed): void
+    {
+        $alreadyExpected = $expectedIcons[$iconName] ?? null;
+
+        // Two items can share one icon name while only one of them carries the mapping.
+        if (null === $alreadyExpected || (null === $alreadyExpected->lametricId && null !== $iconToSeed->lametricId)) {
+            $expectedIcons[$iconName] = $iconToSeed;
+        }
     }
 }

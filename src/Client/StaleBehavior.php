@@ -12,8 +12,8 @@ enum StaleBehavior: string
     case None = 'none';
 
     /**
-     * `dim` and `badge` are drawn by the tracker and gauge layouts only, so every other endpoint
-     * answers HTTP 400 on them.
+     * `dim` and `badge` are drawn by the tracker, gauge and watchlist layouts only, so every other
+     * endpoint answers HTTP 400 on them.
      */
     public const array ACCEPTED_OUTSIDE_TRACKER_AND_GAUGE = [self::Hide, self::None];
 }

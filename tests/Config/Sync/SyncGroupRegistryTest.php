@@ -17,7 +17,7 @@ final class SyncGroupRegistryTest extends TestCase
 {
     public function testEveryDeclaredGroupExposesItsSyncType(): void
     {
-        self::assertSame(['weather', 'coingecko', 'twelvedata', 'boursorama', 'claude', 'github', 'homeassistant'], SyncGroupRegistry::syncTypes());
+        self::assertSame(['weather', 'coingecko', 'twelvedata', 'boursorama', 'claude', 'github', 'homeassistant', 'watchlist'], SyncGroupRegistry::syncTypes());
     }
 
     public function testASyncTypeResolvesToItsConfigurationClass(): void

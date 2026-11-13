@@ -244,7 +244,7 @@ final readonly class BoursoramaTrackerProvider implements TrackerProviderInterfa
         return $tradedVolumes;
     }
 
-    private static function displaySymbolOf(string $boursoramaCode): string
+    public static function displaySymbolOf(string $boursoramaCode): string
     {
         $codeWithoutPrefix = preg_replace(self::BOURSORAMA_CODE_PREFIX_PATTERN, '', $boursoramaCode);
         if (null === $codeWithoutPrefix || '' === $codeWithoutPrefix) {

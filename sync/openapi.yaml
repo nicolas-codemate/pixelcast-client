@@ -1,14 +1,19 @@
 openapi: 3.1.0
 info:
   title: ESP32-PixelCast REST API
-  version: 0.2.0
+  version: 1.11.0
   description: >
     REST API for controlling a HUB75 LED matrix panel (64x64) running on
     ESP32 Trinity. Manages custom apps, notifications, weather, trackers,
     indicators, icons, and system settings.
 
 
-    **BREAKING (v0.2.0)**: sleep `sleep_until` / `until` epoch semantics
+    This version is the firmware version: the specs and the firmware they
+    describe carry the same number, so `version` from `GET /api/stats` tells
+    a client which spec the device in front of it speaks.
+
+
+    **BREAKING (v1.0.0)**: sleep `sleep_until` / `until` epoch semantics
     changed from the device's local frame to UTC Unix timestamps. Clients
     that previously added the device's NTP offset before sending must stop
     doing so.
@@ -36,6 +41,8 @@ tags:
     description: Financial/metric trackers (crypto, stocks).
   - name: Gauge
     description: Progress-bar dashboards for bounded 0-100% values.
+  - name: Watchlist
+    description: Lists of quotes, three to a page - symbol, price and change per row.
   - name: Notifications
     description: Notification queue management.
   - name: Indicators
@@ -707,6 +714,167 @@ paths:
                 $ref: "schemas/common.yaml#/ErrorResponse"
 
   # ===========================================================================
+  # Watchlist
+  # ===========================================================================
+  /watchlists:
+    get:
+      operationId: listWatchlists
+      summary: List all active watchlists
+      tags: [Watchlist]
+      responses:
+        "200":
+          description: List of watchlist summaries.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/watchlist.yaml#/WatchlistListResponse"
+
+  /watchlist:
+    get:
+      operationId: getWatchlist
+      summary: Get single watchlist data
+      tags: [Watchlist]
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Watchlist identifier (e.g. "stocks").
+      responses:
+        "200":
+          description: Watchlist data.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/watchlist.yaml#/WatchlistResponse"
+        "400":
+          description: Missing watchlist name.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/common.yaml#/ErrorResponse"
+        "404":
+          description: Watchlist not found.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/common.yaml#/ErrorResponse"
+    post:
+      operationId: createOrUpdateWatchlist
+      summary: Create or update a watchlist
+      description: >
+        Push a list of quotes, each row carrying an icon, a symbol, a price with its
+        currency and a change percentage. Three rows fit a page; beyond that the panel turns
+        the pages on its own. The watchlist is automatically registered as an app in the
+        rotation with ID `watchlist_{name}`. Name can be in query param or JSON body. Two
+        watchlists can exist at a time.
+      tags: [Watchlist]
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+          description: Watchlist name. Also accepted in JSON body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "schemas/watchlist.yaml#/WatchlistUpdateRequest"
+            examples:
+              stocks:
+                summary: Six stocks over two pages
+                value:
+                  duration: 12000
+                  staleAfter: 2700
+                  rows:
+                    - symbol: "SpaceX"
+                      icon: "spacex"
+                      value: 184.2
+                      currency: "USD"
+                      change: 3.42
+                    - symbol: "Meta"
+                      icon: "meta"
+                      value: 612.85
+                      currency: "USD"
+                      change: -1.08
+                    - symbol: "Nvidia"
+                      icon: "nvidia"
+                      value: 143.07
+                      currency: "USD"
+                      change: 0.56
+                    - symbol: "PEA Monde"
+                      icon: "etf"
+                      value: 28.41
+                      currency: "EUR"
+                      change: -0.32
+                    - symbol: "Apple"
+                      icon: "apple"
+                      value: 231.6
+                      currency: "USD"
+                      change: 1.21
+                    - symbol: "Bitcoin"
+                      icon: "bitcoin"
+                      value: 98452.3
+                      currency: "USD"
+                      change: 2.14
+      responses:
+        "200":
+          description: Watchlist created or updated.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/common.yaml#/SuccessResponse"
+        "400":
+          description: >
+            Missing watchlist name, invalid JSON, a name over thirteen characters
+            (`Watchlist name too long (max 13)`), more than nine rows
+            (`Too many rows (max 9)`), or an unknown `staleBehavior`. Nothing is
+            written unless the whole payload is accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/common.yaml#/ErrorResponse"
+        "500":
+          description: No watchlist slot available.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/common.yaml#/ErrorResponse"
+    delete:
+      operationId: deleteWatchlist
+      summary: Delete a watchlist
+      description: Removes the watchlist data and its app from rotation.
+      tags: [Watchlist]
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Watchlist name to delete.
+      responses:
+        "200":
+          description: Watchlist deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/common.yaml#/SuccessResponse"
+        "400":
+          description: Missing watchlist name.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/common.yaml#/ErrorResponse"
+        "404":
+          description: Watchlist not found.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/common.yaml#/ErrorResponse"
+
+  # ===========================================================================
   # Sleep
   # ===========================================================================
   /sleep:
@@ -1093,6 +1261,12 @@ paths:
     get:
       operationId: listIcons
       summary: List all icons on filesystem
+      description: >
+        Lists the uploaded images only. The device also keeps a decoded copy
+        of each icon next to it, counted in `storage.used` without appearing
+        in `icons`. From 16x16 upwards that copy takes a whole 4 KB
+        filesystem block, so `storage.used` can sit about 4 KB per icon above
+        the total size of the images listed here.
       tags: [Icons]
       responses:
         "200":
@@ -1106,7 +1280,13 @@ paths:
       summary: Upload an icon (PNG or GIF)
       description: >
         Upload a PNG or GIF icon to the device filesystem. Recommended
-        sizes: 8x8 or 16x16 pixels.
+        sizes: 8x8 or 16x16 pixels. Both formats are drawn on the panel; a GIF
+        shows only its first stored frame, which on an animated icon can be
+        nearly blank. The device decodes the image once when it lands and
+        keeps the decoded pixels alongside it. That copy is uncompressed, so
+        at 8x8 it is nearly free while at 16x16 and above it takes a whole
+        4 KB filesystem block: expect `storage.used` to grow by up to about
+        4 KB per icon, whatever the size of the uploaded file.
       tags: [Icons]
       parameters:
         - name: name
@@ -1209,7 +1389,12 @@ paths:
       summary: Download icon from LaMetric
       description: >
         Downloads an icon from the LaMetric icon database and saves it to
-        the device filesystem.
+        the device filesystem. A slow or unreachable LaMetric ends as a 502
+        instead of restarting the device, so the request may take a few tens
+        of seconds before it fails. Other API requests are served only once
+        this one completes. LaMetric serves some icons only as GIF; those are
+        drawn from their first stored frame, which on an animated icon can be
+        nearly blank.
       tags: [Icons]
       requestBody:
         required: true
@@ -1231,7 +1416,15 @@ paths:
               schema:
                 $ref: "schemas/common.yaml#/ErrorResponse"
         "500":
-          description: Download failed.
+          description: The device could not store the icon.
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/common.yaml#/ErrorResponse"
+        "502":
+          description: >
+            LaMetric was unreachable, answered something other than 200, or sent a body
+            that is not a PNG or GIF. The device stores nothing and keeps running.
           content:
             application/json:
               schema:

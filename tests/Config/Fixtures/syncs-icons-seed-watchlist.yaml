@@ -1,0 +1,26 @@
+# Sample configuration used by IconsSeedCommandTest: a watchlist naming icons, one of them shared
+# with a tracker item that carries no LaMetric mapping of its own.
+syncs:
+    boursorama:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - symbol: SPCX
+              currency: usd
+              icon: spacex
+
+    watchlist:
+        enabled: true
+        interval: '15 minutes'
+        items:
+            - source: boursorama
+              symbol: SPCX
+              label: SpaceX
+              currency: usd
+              icon: spacex
+              lametricId: 7674
+            - source: boursorama
+              symbol: META
+              currency: usd
+              icon: meta
+              lametricId: 60007

@@ -22,6 +22,7 @@ use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepState;
 use App\Client\Stats\StatsSnapshot;
 use App\Client\Tracker\TrackerPayload;
+use App\Client\Watchlist\WatchlistPayload;
 use App\Client\Weather\WeatherPayload;
 use App\Scenario\Validation\OutboundPayloadValidator;
 use Symfony\Component\DependencyInjection\Attribute\Target;
@@ -33,6 +34,7 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     private const string WEATHER_SPEC_PATH = '/weather';
     private const string TRACKER_SPEC_PATH = '/tracker';
     private const string GAUGE_SPEC_PATH = '/gauge';
+    private const string WATCHLIST_SPEC_PATH = '/watchlist';
     private const string CUSTOM_APP_SPEC_PATH = '/custom';
     private const string NOTIFICATION_SPEC_PATH = '/notify';
     private const string NOTIFICATION_DISMISS_SPEC_PATH = '/notify/dismiss';
@@ -73,6 +75,11 @@ final readonly class PixelcastClient implements PixelcastClientInterface
     public function pushGauge(GaugePayload $gauge): void
     {
         $this->sendValidated('POST', self::GAUGE_SPEC_PATH, queryParameters: ['name' => $gauge->name], body: $gauge->toArray());
+    }
+
+    public function pushWatchlist(WatchlistPayload $watchlist): void
+    {
+        $this->sendValidated('POST', self::WATCHLIST_SPEC_PATH, queryParameters: ['name' => $watchlist->name], body: $watchlist->toArray());
     }
 
     public function pushCustomApp(CustomAppPayload $customApp): void

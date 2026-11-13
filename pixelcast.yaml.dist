@@ -386,6 +386,68 @@ syncs:
             - entity: sensor.exterieur_temperature
               label: Dehors
 
+    # Quotes drawn together as one watchlist app, three rows to a page and up to three pages: on
+    # each row the icon, the label, the price in its currency and the change since the previous
+    # close. Every item is fetched on every cycle whatever market it trades on, since a row missing
+    # from the list would move every row below it, while a closed market still has a last price
+    # to show. When one quote cannot be read nothing is pushed, and the device keeps the complete
+    # list it shows until the next cycle.
+    watchlist:
+        # A disabled group is never scheduled and cannot be dispatched by hand.
+        enabled: false
+
+        # How often the group runs, e.g. '30 minutes', '1 hour', 'PT30M', '1800'. At least 60 seconds.
+        interval: '15 minutes'
+
+        # Silence tolerated by the device before the app is considered stale, in seconds. 0 = never,
+        # 604800 (7 days) at most. Without this key the value is three times the interval, the same
+        # rule the healthcheck applies, so '15 minutes' gives 2700.
+        # staleAfter: 2700
+
+        # What the device does with the app once stale: hide leaves the rotation until the next push,
+        # dim stays visible dimmed with a STALE badge in place of the first change of each page, badge
+        # stays at full colour with the badge, none shows no sign. Without this key the firmware
+        # default applies.
+        # staleBehavior: dim
+
+        # Hours during which the group is scheduled, same shape as the other groups. Declare the
+        # envelope of the markets the items follow: the hours below cover Paris and New York.
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '22:15'
+            timezone: Europe/Paris
+
+        # Quotes drawn on the app, in this order, one to nine.
+        # source: where the quote is read. boursorama is the only source so far; it needs no API key,
+        #   but it is an internal endpoint under no commitment and can change without notice.
+        # symbol: identifier of the asset for its source. For boursorama, the Boursorama code of the
+        #   asset, not its ISIN. The code of an ISIN or a ticker is found on
+        #   https://www.boursorama.com/recherche/ajax?query=<ISIN or ticker>, once, by hand.
+        # currency: shown in grey after the price, 7 characters at most. Authoritative: the
+        #   boursorama response carries no currency at all.
+        # label: name shown on the row instead of the symbol, 15 characters at most, optional. A
+        #   name wider than the room the change leaves scrolls on the device.
+        # labelColor: hex color of the label, optional. Without it the firmware default applies, an
+        #   amber that sets the name apart from the white price. Avoid the green and red of the change.
+        # icon: name of the icon shown at the left of the row, optional.
+        # lametricId: identifier of the icon in the LaMetric icon database, optional. `make
+        #   icons-seed` downloads that icon onto the device and stores it under the name `icon`
+        #   carries. The two icons below carry none: LaMetric has no fitting logo for either, so
+        #   this repository ships its own, uploaded once with
+        #   `bin/console app:icons:upload spacex assets/icons/spacex.png` and the same for meta.
+        items:
+            - source: boursorama
+              symbol: SPCX
+              label: SpaceX
+              currency: usd
+              icon: spacex
+            - source: boursorama
+              symbol: META
+              label: Meta
+              currency: usd
+              icon: meta
+
 # Hours during which the device turns its panel off. This section is stored by the device and
 # pushed only by `bin/console app:device:sleep`, never by the scheduler, so editing it here changes
 # nothing on the screen until that command has run. The client reads it from this file whatever the

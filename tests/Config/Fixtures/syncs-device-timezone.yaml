@@ -82,6 +82,17 @@ syncs:
         items:
             - entity: sensor.salon_temperature
               label: Salon
+    watchlist:
+        enabled: true
+        interval: '15 minutes'
+        activeWindow:
+            days: [mon, tue, wed, thu, fri]
+            from: '09:00'
+            to: '22:15'
+        items:
+            - source: boursorama
+              symbol: SPCX
+              currency: usd
 
 sleep:
     enabled: true

@@ -10,20 +10,20 @@ use PHPUnit\Framework\TestCase;
 
 final class ScenarioCatalogTest extends TestCase
 {
-    public function testDevModeReturnsEighteenScenarios(): void
+    public function testDevModeReturnsNineteenScenarios(): void
     {
         $catalog = new ScenarioCatalog();
 
-        self::assertCount(18, $catalog->all(true));
+        self::assertCount(19, $catalog->all(true));
     }
 
-    public function testProdModeOmitsResetScenarioAndReturnsSeventeen(): void
+    public function testProdModeOmitsResetScenarioAndReturnsEighteen(): void
     {
         $catalog = new ScenarioCatalog();
 
         $scenarios = $catalog->all(false);
 
-        self::assertCount(17, $scenarios);
+        self::assertCount(18, $scenarios);
         $ids = array_map(static fn (ScenarioDefinition $scenario): string => $scenario->id, $scenarios);
         self::assertNotContains('reset-simulator', $ids);
     }
