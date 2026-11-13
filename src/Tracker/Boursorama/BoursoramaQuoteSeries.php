@@ -50,7 +50,26 @@ final class BoursoramaQuoteSeries
             return null;
         }
 
+        // An American session in progress has no block of its own yet: the running session block
+        // is still the last closed one, and the previous one repeats its close as the reference of
+        // the day. The price of the day then only exists in the intraday ticks.
+        $latestTickPrice = self::readLatestTickPrice($quoteBlock);
+        if ($previousSessionClose === $runningSessionPrice && null !== $latestTickPrice) {
+            return new BoursoramaSessionCloses($runningSessionPrice, $latestTickPrice);
+        }
+
         return new BoursoramaSessionCloses($previousSessionClose, $runningSessionPrice);
+    }
+
+    /**
+     * @param array<array-key, mixed> $quoteBlock
+     */
+    private static function readLatestTickPrice(array $quoteBlock): ?float
+    {
+        $ticks = $quoteBlock['QuoteTab'] ?? null;
+        $latestTick = \is_array($ticks) ? end($ticks) : null;
+
+        return \is_array($latestTick) ? self::readNumber($latestTick, 'c') : null;
     }
 
     /**

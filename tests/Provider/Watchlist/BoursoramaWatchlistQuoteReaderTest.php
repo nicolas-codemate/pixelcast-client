@@ -30,6 +30,33 @@ final class BoursoramaWatchlistQuoteReaderTest extends TestCase
         self::assertSame(1, $httpClient->getRequestsCount());
     }
 
+    public function testAnAmericanSessionWithoutItsOwnBlockIsReadFromTheLatestTick(): void
+    {
+        $httpClient = BoursoramaHttpClientFactory::serving([], [self::fixtureResponse('boursorama-session-spcx-ticks-ahead.json')]);
+
+        $quote = self::buildReader($httpClient)->readQuote('SPCX');
+
+        self::assertNotNull($quote);
+        self::assertSame(138.59, $quote->price);
+        self::assertSame(-0.96, $quote->changePercentage);
+    }
+
+    public function testTwoEqualSessionClosesWithoutTicksKeepTheSessionReading(): void
+    {
+        $sessionWithoutTicks = json_encode(['d' => [
+            'qv' => ['d' => 20768, 'c' => 139.94],
+            'qd' => ['d' => 20769, 'c' => 139.94],
+            'QuoteTab' => [],
+        ]], \JSON_THROW_ON_ERROR);
+        $httpClient = BoursoramaHttpClientFactory::serving([], [new MockResponse($sessionWithoutTicks)]);
+
+        $quote = self::buildReader($httpClient)->readQuote('SPCX');
+
+        self::assertNotNull($quote);
+        self::assertSame(139.94, $quote->price);
+        self::assertSame(0.0, $quote->changePercentage);
+    }
+
     public function testWithoutASessionTheQuoteFallsBackOnTheLastTwoDailyBars(): void
     {
         $httpClient = BoursoramaHttpClientFactory::serving([self::fixtureResponse('boursorama-ticks-dcam.json')]);

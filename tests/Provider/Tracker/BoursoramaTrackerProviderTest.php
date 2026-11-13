@@ -143,6 +143,20 @@ final class BoursoramaTrackerProviderTest extends TestCase
         self::assertCount(24, $trackerPayloads[0]->sparklinePoints);
     }
 
+    public function testAnAmericanSessionWithoutItsOwnBlockTakesItsPriceFromTheLatestTick(): void
+    {
+        $httpClient = BoursoramaHttpClientFactory::serving(
+            [self::fixtureResponse('boursorama-ticks-dcam.json')],
+            [self::fixtureResponse('boursorama-session-spcx-ticks-ahead.json')],
+        );
+
+        $trackerPayloads = $this->buildProvider($httpClient, configFileName: self::PLAIN_CODE_CONFIG_FILE)->fetchTrackers(self::insideEveryWindow());
+
+        self::assertCount(1, $trackerPayloads);
+        self::assertSame(138.59, $trackerPayloads[0]->currentValue);
+        self::assertSame(-0.96, $trackerPayloads[0]->changePercentage);
+    }
+
     public function testTheSessionRequestAsksForTheSingleBarThatCarriesTheSessions(): void
     {
         $sessionResponse = self::fixtureResponse('boursorama-session-dcam.json');
