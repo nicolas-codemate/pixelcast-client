@@ -25,6 +25,8 @@ use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepSlot;
 use App\Client\StaleBehavior;
 use App\Client\Tracker\TrackerPayload;
+use App\Client\Watchlist\WatchlistPayload;
+use App\Client\Watchlist\WatchlistRow;
 use App\Client\Weather\CurrentWeather;
 use App\Client\Weather\ForecastDay;
 use App\Client\Weather\WeatherIcon;
@@ -44,6 +46,7 @@ final class PixelcastClientTest extends TestCase
     private const string EXPECTED_WEATHER_URL = 'http://device.test/api/weather';
     private const string EXPECTED_TRACKER_URL = 'http://device.test/api/tracker?name=BTC';
     private const string EXPECTED_GAUGE_URL = 'http://device.test/api/gauge?name=claude';
+    private const string EXPECTED_WATCHLIST_URL = 'http://device.test/api/watchlist?name=watchlist';
     private const string EXPECTED_CUSTOM_APP_URL = 'http://device.test/api/custom?name=demo';
     private const string EXPECTED_NOTIFY_URL = 'http://device.test/api/notify';
     private const string EXPECTED_DISMISS_URL = 'http://device.test/api/notify/dismiss';
@@ -178,6 +181,25 @@ final class PixelcastClientTest extends TestCase
         $sentBody = self::decodedRequestBody($response);
 
         self::assertSame($gauge->toArray(), $sentBody);
+        self::assertArrayNotHasKey('name', $sentBody);
+    }
+
+    public function testPushWatchlistSendsTheNameAsQueryParameterAndTheRestAsBody(): void
+    {
+        $response = new MockResponse('{"success":true}');
+        $watchlist = WatchlistPayload::create(
+            name: 'watchlist',
+            rows: [WatchlistRow::create('SpaceX', 184.2, 3.42, currency: 'USD', iconName: 'spacex')],
+            staleAfterInSeconds: 2700,
+        );
+
+        $this->buildClient($response)->pushWatchlist($watchlist);
+
+        self::assertSame('POST', $response->getRequestMethod());
+        self::assertSame(self::EXPECTED_WATCHLIST_URL, $response->getRequestUrl());
+        $sentBody = self::decodedRequestBody($response);
+
+        self::assertSame($watchlist->toArray(), $sentBody);
         self::assertArrayNotHasKey('name', $sentBody);
     }
 

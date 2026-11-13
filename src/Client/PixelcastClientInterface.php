@@ -21,6 +21,7 @@ use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepState;
 use App\Client\Stats\StatsSnapshot;
 use App\Client\Tracker\TrackerPayload;
+use App\Client\Watchlist\WatchlistPayload;
 use App\Client\Weather\WeatherPayload;
 
 /**
@@ -42,6 +43,8 @@ interface PixelcastClientInterface
     public function deleteTracker(string $trackerName): void;
 
     public function pushGauge(GaugePayload $gauge): void;
+
+    public function pushWatchlist(WatchlistPayload $watchlist): void;
 
     public function pushCustomApp(CustomAppPayload $customApp): void;
 

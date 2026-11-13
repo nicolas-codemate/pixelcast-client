@@ -150,6 +150,16 @@ final class OutboundPayloadValidatorTest extends KernelTestCase
         self::assertNull($result->errorMessage);
     }
 
+    public function testWatchlistScenarioPayloadValidatesAgainstSpec(): void
+    {
+        $watchlist = $this->catalog->findById('watchlist-stocks', true);
+        self::assertNotNull($watchlist);
+
+        $result = $this->validator->validate($watchlist);
+
+        self::assertTrue($result->valid, $result->errorMessage ?? '');
+    }
+
     public function testSingleZoneCustomAppScenarioPayloadValidatesAgainstSpec(): void
     {
         $singleZoneCustomApp = $this->catalog->findById('custom-app-demo', true);

@@ -18,6 +18,7 @@ use App\Client\Sleep\SleepPayload;
 use App\Client\Sleep\SleepState;
 use App\Client\Stats\StatsSnapshot;
 use App\Client\Tracker\TrackerPayload;
+use App\Client\Watchlist\WatchlistPayload;
 use App\Client\Weather\WeatherPayload;
 
 final class RecordingPixelcastClientStub implements PixelcastClientInterface
@@ -41,6 +42,11 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
      * @var list<GaugePayload>
      */
     public array $pushedGauges = [];
+
+    /**
+     * @var list<WatchlistPayload>
+     */
+    public array $pushedWatchlists = [];
 
     /**
      * @var list<CustomAppPayload>
@@ -154,6 +160,13 @@ final class RecordingPixelcastClientStub implements PixelcastClientInterface
         $this->failIfConfigured();
 
         $this->pushedGauges[] = $gauge;
+    }
+
+    public function pushWatchlist(WatchlistPayload $watchlist): void
+    {
+        $this->failIfConfigured();
+
+        $this->pushedWatchlists[] = $watchlist;
     }
 
     public function pushCustomApp(CustomAppPayload $customApp): void

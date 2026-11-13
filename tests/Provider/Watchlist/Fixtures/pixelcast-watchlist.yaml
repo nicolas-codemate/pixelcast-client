@@ -1,0 +1,17 @@
+# Sample configuration used by WatchlistProviderTest: a labelled American stock and a bare
+# European ETF, to exercise the order of the rows and the label derived from the Boursorama code.
+syncs:
+    watchlist:
+        enabled: true
+        interval: '15 minutes'
+        staleBehavior: dim
+        items:
+            - source: boursorama
+              symbol: 1rTDCAM
+              label: PEA Monde
+              labelColor: '#FFFFFF'
+              currency: eur
+              icon: etf
+            - source: boursorama
+              symbol: 1rTCW8
+              currency: eur

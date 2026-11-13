@@ -100,6 +100,19 @@ abstract class SimulatorWebTestCase extends WebTestCase
     }
 
     /**
+     * The row carries every property but symbolColor, the only one the row schema gives a default,
+     * so a test asserting the exact key list of a read-back row also proves that default is filled in.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function watchlistPushPayload(): array
+    {
+        return [
+            'rows' => [['symbol' => 'SpaceX', 'icon' => 'spacex', 'value' => 184.2, 'currency' => 'USD', 'change' => 3.42]],
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected static function weatherPushPayload(): array

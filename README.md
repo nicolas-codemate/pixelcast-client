@@ -535,6 +535,39 @@ host, which a Home Assistant running on the host network needs to be reached fro
 the container. Without either variable the group logs a warning naming it and pushes
 nothing, and it ships `enabled: false` in `pixelcast.yaml.dist` for that reason.
 
+#### The `watchlist` group
+
+The `watchlist` group draws several quotes on one screen, the firmware `watchlist`
+app named `watchlist`: one row per item, three rows to a page and up to three
+pages, each row showing its icon, its label, the price in its currency and the
+change since the previous close. Where a tracker group gives each asset a screen of
+its own, with its curve, this one is the glance at the whole list.
+
+Each item names its `source`, the place its quote is read. `boursorama` is the only
+one so far, read exactly as the `boursorama` tracker group reads a price: the
+running session against the close of the eve, the last two daily bars when the
+endpoint serves no session. `symbol` is the Boursorama code, found the same way as
+for that group, which also covers American stocks: `SPCX` is SpaceX, `META` is Meta.
+`currency` is required for the same reason too, the response carries none. `label`
+replaces the code on the row, 15 characters at most, and scrolls on the device when
+it is wider than the room the change leaves; `labelColor` overrides the amber the
+firmware gives it by default.
+
+Every item is fetched on every cycle, whatever market it trades on. A row missing
+from the list would move every row below it, while a closed market still has a
+last price worth showing, so the group knows no item window: its own
+`activeWindow` is the envelope of the markets it follows, 09:00 to 22:15 Paris
+time for European and American stocks together. When one quote cannot be read the
+cycle pushes nothing and fails, leaving on the device the complete list it already
+shows, which goes stale if the failure lasts. `icon` and `lametricId` work as on a
+tracker item, and `app:icons:seed` downloads the icons of the watchlist items along
+with those of the trackers. LaMetric has no fitting logo for SpaceX or Meta, so this
+repository carries its own 8x8 ones in `assets/icons/spacex.png` and
+`assets/icons/meta.png`, uploaded once with
+`bin/console app:icons:upload spacex assets/icons/spacex.png` and the same for
+`meta`. An item naming one of them carries no `lametricId`, or `app:icons:seed
+--force` would replace the logo with the LaMetric icon.
+
 Any group may declare an `activeWindow` — `days`, `from`, `to` and a
 `timezone`, the last of which falls back on `device.timezone` — and is then
 scheduled during those hours only: outside them no provider is called and the

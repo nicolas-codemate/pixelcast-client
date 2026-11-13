@@ -73,6 +73,20 @@ final readonly class SyncsConfig
      *
      * @param class-string<TSyncGroupConfig> $syncGroupClass
      *
+     * @return TSyncGroupConfig|null null when the file does not declare the group
+     */
+    public function optionalSyncGroupOfType(string $syncGroupClass): ?SyncGroupConfig
+    {
+        $syncGroup = $this->syncGroups[$syncGroupClass::syncType()] ?? null;
+
+        return $syncGroup instanceof $syncGroupClass ? $syncGroup : null;
+    }
+
+    /**
+     * @template TSyncGroupConfig of SyncGroupConfig
+     *
+     * @param class-string<TSyncGroupConfig> $syncGroupClass
+     *
      * @return TSyncGroupConfig
      */
     public function syncGroupOfType(string $syncGroupClass): SyncGroupConfig

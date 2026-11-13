@@ -183,6 +183,27 @@ final class ScenarioCatalog
                 ],
             ),
             new ScenarioDefinition(
+                id: 'watchlist-stocks',
+                label: 'Watchlist - six stocks',
+                description: 'three quotes a page over two pages, long labels scrolling',
+                httpMethod: 'POST',
+                path: '/watchlist',
+                queryParams: ['name' => 'stocks'],
+                body: [
+                    'duration' => 12000,
+                    'staleAfter' => 2700,
+                    'staleBehavior' => 'dim',
+                    'rows' => [
+                        ['symbol' => 'SpaceX', 'icon' => 'spacex', 'value' => 184.2, 'currency' => 'USD', 'change' => 3.42],
+                        ['symbol' => 'Meta', 'icon' => 'meta', 'value' => 612.85, 'currency' => 'USD', 'change' => -1.08],
+                        ['symbol' => 'Nvidia Corp.', 'icon' => 'nvidia', 'value' => 143.07, 'currency' => 'USD', 'change' => 0.56],
+                        ['symbol' => 'PEA Monde MSCI', 'icon' => 'etf', 'value' => 28.41, 'currency' => 'EUR', 'change' => -0.32],
+                        ['symbol' => 'Apple', 'icon' => 'apple', 'value' => 231.6, 'currency' => 'USD', 'change' => 1.21],
+                        ['symbol' => 'Bitcoin', 'icon' => 'bitcoin', 'value' => 98452.3, 'currency' => 'USD', 'change' => 2.14, 'symbolColor' => '#FFFFFF'],
+                    ],
+                ],
+            ),
+            new ScenarioDefinition(
                 id: 'notification-standard',
                 label: 'Notification - standard',
                 description: 'inline message, 5 s default duration',

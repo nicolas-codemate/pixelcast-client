@@ -20,6 +20,7 @@ final class SyncGroupRegistry
         ClaudeSyncConfig::class,
         GitHubSyncConfig::class,
         HomeAssistantSyncConfig::class,
+        WatchlistSyncConfig::class,
     ];
 
     /**
