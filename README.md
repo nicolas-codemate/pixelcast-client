@@ -561,11 +561,11 @@ time for European and American stocks together. When one quote cannot be read th
 cycle pushes nothing and fails, leaving on the device the complete list it already
 shows, which goes stale if the failure lasts. `icon` and `lametricId` work as on a
 tracker item, and `app:icons:seed` downloads the icons of the watchlist items along
-with those of the trackers. LaMetric has no fitting logo for SpaceX or Meta, so this
-repository carries its own 8x8 ones in `assets/icons/spacex.png` and
-`assets/icons/meta.png`, uploaded once with
-`bin/console app:icons:upload spacex assets/icons/spacex.png` and the same for
-`meta`. An item naming one of them carries no `lametricId`, or `app:icons:seed
+with those of the trackers. LaMetric has no fitting logo for SpaceX, Meta, Tesla or
+Nvidia, so this repository carries its own 8x8 ones in `assets/icons/`
+(`spacex.png`, `meta.png`, `tesla.png`, `nvidia.png`), each uploaded once with
+`bin/console app:icons:upload spacex assets/icons/spacex.png` under the name the
+item gives in `icon`. An item naming one of them carries no `lametricId`, or `app:icons:seed
 --force` would replace the logo with the LaMetric icon.
 
 Any group may declare an `activeWindow` — `days`, `from`, `to` and a
